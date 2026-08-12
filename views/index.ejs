@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css"><link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body>
+    <header>
+        <h1>Everkind Care System</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/patients">Patients</a>
+            <a href="/staff">Staff</a>
+            <a href="/calendar">Calendar</a>
+            <a href="/admin">Admin</a>
+            <a href="/api/health">Health Check</a>
+        </nav>
+    </header>
+
+    <main class="hero">
+        <h2>Care dashboard</h2>
+        <p>Checking whether the JavaScript client can connect to the backend.</p>
+        <div id="connection-status" class="status">Checking connection...</div>
+
+        <section class="dashboard" aria-live="polite">
+            <div id="dashboard-summary" class="metrics-grid"></div>
+            <div class="task-panel">
+                <div class="task-panel-header">
+                    <h3>Today’s care tasks</h3>
+                    <span id="dashboard-updated" class="updated-label">Loading...</span>
+                </div>
+                <ul id="task-list" class="task-list"></ul>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        © 2026 Everkind Care System
+    </footer>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,552 @@
+<a class="skip-link" href="#main-content">Skip to content</a>
+<% const publicContact = websiteContact || {
+    phoneDisplay: "+353 89 985 9907",
+    phoneHref: "tel:+353899859907",
+    whatsappHref: "https://wa.me/353899859907",
+    emailDisplay: "Everkind@outlook.ie",
+    emailHref: "mailto:Everkind@outlook.ie"
+}; %>
+
+<% if (typeof announcements !== 'undefined' && Array.isArray(announcements) && announcements.length) { %>
+<div class="announcement-bar" role="region" aria-label="Live announcements">
+    <div class="announcement-track">
+        <% const announcementItems = announcements.concat(announcements); %>
+        <% announcementItems.forEach((announcement) => { %>
+            <span class="announcement-pill" style="--announcement-accent: <%= announcement.color === 'blue' ? '#2563eb' : (announcement.color === 'amber' ? '#d97706' : (announcement.color === 'rose' ? '#e11d48' : '#0f766e')) %>">
+                <span class="announcement-badge"><%= announcement.priority === 'urgent' ? 'Urgent' : (announcement.priority === 'high' ? 'New' : 'Notice') %></span>
+                <strong><%= announcement.headline %></strong>
+                <% if (announcement.message) { %><span class="announcement-message"><%= announcement.message %></span><% } %>
+            </span>
+        <% }) %>
+    </div>
+</div>
+<% } else { %>
+<div class="announcement-bar" role="region" aria-label="Everkind update">
+    <div class="announcement-track">
+        <span class="announcement-pill">
+            <span class="announcement-badge">Update</span>
+            <strong>Free Consultation Available</strong>
+            <span class="announcement-message">Compassionate home care and rapid staffing support across Dublin.</span>
+        </span>
+        <span class="announcement-pill" aria-hidden="true">
+            <span class="announcement-badge">Update</span>
+            <strong>Free Consultation Available</strong>
+            <span class="announcement-message">Compassionate home care and rapid staffing support across Dublin.</span>
+        </span>
+    </div>
+</div>
+<% } %>
+
+<div class="site-contact-widget" data-contact-widget>
+    <button type="button" class="site-contact-widget__toggle" data-contact-toggle aria-expanded="false" aria-controls="site-contact-panel">
+        <span class="site-contact-widget__icon" aria-hidden="true">💬</span>
+        <span class="site-contact-widget__label">Talk to us</span>
+    </button>
+    <div class="site-contact-widget__panel" id="site-contact-panel" data-contact-panel hidden>
+        <div class="site-contact-widget__panel-header">
+            <strong>Talk to us</strong>
+            <button type="button" class="site-contact-widget__panel-close" data-contact-close aria-label="Close contact menu">&times;</button>
+        </div>
+        <a href="<%= publicContact.phoneHref %>"><span aria-hidden="true">📞</span><span>Call Us</span></a>
+        <a href="<%= publicContact.whatsappHref %>" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💬</span><span>WhatsApp</span></a>
+        <a href="<%= publicContact.emailHref %>"><span aria-hidden="true">✉️</span><span>Email</span></a>
+        <a href="/assessment"><span aria-hidden="true">📅</span><span>Book Consultation</span></a>
+        <a href="/facility-portal/register"><span aria-hidden="true">🚑</span><span>Emergency Staffing</span></a>
+    </div>
+</div>
+
+<header class="site-header">
+    <div class="container nav-wrap">
+        <a href="/" class="brand" aria-label="Everkind Home Care home">
+            <img class="brand-logo" src="/logo.png" alt="Everkind Home Care Logo" />
+            <span>Everkind Home Care</span>
+        </a>
+        <button
+            type="button"
+            class="site-nav-toggle"
+            aria-label="Open menu"
+            aria-expanded="false"
+            aria-controls="site-nav-drawer"
+            data-nav-toggle
+        >
+            <span class="site-nav-toggle__icon" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+            </span>
+            <span class="site-nav-toggle__label">Menu</span>
+        </button>
+        <nav class="main-nav" aria-label="Primary navigation">
+            <a href="/" class="<%= active === 'home' ? 'active' : '' %>" <%= active === 'home' ? 'aria-current="page"' : '' %>>Home</a>
+            <a href="/services" class="<%= active === 'services' ? 'active' : '' %>" <%= active === 'services' ? 'aria-current="page"' : '' %>>Services</a>
+            <a href="/about" class="<%= active === 'about' ? 'active' : '' %>" <%= active === 'about' ? 'aria-current="page"' : '' %>>About</a>
+            <a href="/testimonials" class="<%= active === 'testimonials' ? 'active' : '' %>" <%= active === 'testimonials' ? 'aria-current="page"' : '' %>>Testimonials</a>
+            <a href="/faq" class="<%= active === 'faq' ? 'active' : '' %>" <%= active === 'faq' ? 'aria-current="page"' : '' %>>FAQ</a>
+            <a href="/careers" class="<%= active === 'careers' ? 'active' : '' %>" <%= active === 'careers' ? 'aria-current="page"' : '' %>>Careers</a>
+            <a href="/contact" class="<%= active === 'contact' ? 'active' : '' %>" <%= active === 'contact' ? 'aria-current="page"' : '' %>>Contact</a>
+        </nav>
+        <div class="nav-actions">
+            <a href="/portal/login" class="nav-secondary js-login-trigger">Login</a>
+            <a href="/assessment" class="nav-primary">Free Consultation</a>
+        </div>
+    </div>
+    <div class="site-nav-drawer" id="site-nav-drawer" data-site-nav-drawer hidden aria-hidden="true">
+        <div class="site-nav-drawer__backdrop" data-nav-close></div>
+        <aside class="site-nav-drawer__panel" role="dialog" aria-modal="true" aria-labelledby="site-nav-drawer-title">
+            <div class="site-nav-drawer__header">
+                <a href="/" class="brand site-nav-drawer__brand" aria-label="Everkind Home Care home">
+                    <img class="brand-logo" src="/logo.png" alt="" aria-hidden="true" />
+                    <span>Everkind Home Care</span>
+                </a>
+                <button type="button" class="site-nav-drawer__close" aria-label="Close menu" data-nav-close>&times;</button>
+            </div>
+            <p class="site-nav-drawer__title" id="site-nav-drawer-title">Menu</p>
+            <nav class="site-nav-drawer__links" aria-label="Primary navigation">
+                <a href="/" class="<%= active === 'home' ? 'active' : '' %>" <%= active === 'home' ? 'aria-current="page"' : '' %>>Home</a>
+                <a href="/services" class="<%= active === 'services' ? 'active' : '' %>" <%= active === 'services' ? 'aria-current="page"' : '' %>>Services</a>
+                <a href="/about" class="<%= active === 'about' ? 'active' : '' %>" <%= active === 'about' ? 'aria-current="page"' : '' %>>About</a>
+                <a href="/testimonials" class="<%= active === 'testimonials' ? 'active' : '' %>" <%= active === 'testimonials' ? 'aria-current="page"' : '' %>>Testimonials</a>
+                <a href="/faq" class="<%= active === 'faq' ? 'active' : '' %>" <%= active === 'faq' ? 'aria-current="page"' : '' %>>FAQ</a>
+                <a href="/careers" class="<%= active === 'careers' ? 'active' : '' %>" <%= active === 'careers' ? 'aria-current="page"' : '' %>>Careers</a>
+                <a href="/contact" class="<%= active === 'contact' ? 'active' : '' %>" <%= active === 'contact' ? 'aria-current="page"' : '' %>>Contact</a>
+            </nav>
+            <div class="site-nav-drawer__actions">
+                <a href="/portal/login" class="nav-secondary js-login-trigger">Login</a>
+                <a href="/assessment" class="nav-primary">Free Consultation</a>
+            </div>
+        </aside>
+    </div>
+</header>
+<div id="site-login-modal" class="site-login-modal" hidden aria-hidden="true">
+    <div class="site-login-modal__backdrop" data-login-close></div>
+    <div class="site-login-modal__panel" role="dialog" aria-modal="true" aria-labelledby="site-login-title">
+        <button type="button" class="site-login-modal__close" aria-label="Close login" data-login-close>&times;</button>
+        <div class="site-login-modal__brand">
+            <img class="brand-logo" src="/logo.png" alt="Everkind Home Care Logo" />
+            <div>
+                <h2 id="site-login-title">Welcome Back</h2>
+                <p>Login to access your Everkind account.</p>
+            </div>
+        </div>
+
+        <div class="site-login-segments" role="tablist" aria-label="Login type">
+            <button type="button" class="site-login-segment is-active" data-login-mode="staff" role="tab" aria-selected="true">👩‍⚕️ Staff Member</button>
+            <button type="button" class="site-login-segment" data-login-mode="client" role="tab" aria-selected="false">🏠 Client</button>
+        </div>
+
+        <div class="site-login-status">
+            <div class="form-message error" id="site-login-error" hidden></div>
+            <div class="form-message success" id="site-login-success" hidden></div>
+        </div>
+
+        <section class="site-login-pane is-active" data-login-pane="staff">
+            <form id="site-staff-login-form" class="portal-form site-login-form">
+                <label>
+                    Email Address
+                    <input type="email" name="email" autocomplete="email" placeholder="you@everkind.com" required>
+                </label>
+                <label>
+                    Password
+                    <span class="site-login-password">
+                        <input id="site-staff-password" type="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
+                        <button type="button" class="site-login-password__toggle" data-password-toggle aria-controls="site-staff-password" aria-label="Show password">Show</button>
+                    </span>
+                </label>
+                <div class="site-login-meta">
+                    <label class="site-login-checkbox">
+                        <input type="checkbox" name="rememberMe">
+                        <span>Remember Me</span>
+                    </label>
+                    <a href="/portal/forgot-password">Forgot Password?</a>
+                </div>
+                <button type="submit" class="primary-button full-width site-login-submit">
+                    <span class="site-login-submit__label">Login</span>
+                    <span class="site-login-submit__spinner" aria-hidden="true"></span>
+                </button>
+            </form>
+        </section>
+
+        <section class="site-login-pane" data-login-pane="client" hidden>
+            <form id="site-client-login-form" class="portal-form site-login-form">
+                <label>
+                    Email Address
+                    <input type="email" name="email" autocomplete="email" placeholder="client@organisation.ie" required>
+                </label>
+                <label>
+                    Password
+                    <span class="site-login-password">
+                        <input id="site-client-password" type="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
+                        <button type="button" class="site-login-password__toggle" data-password-toggle aria-controls="site-client-password" aria-label="Show password">Show</button>
+                    </span>
+                </label>
+                <div class="site-login-meta">
+                    <label class="site-login-checkbox">
+                        <input type="checkbox" name="rememberMe">
+                        <span>Remember Me</span>
+                    </label>
+                    <a href="/facility-portal/forgot-password">Forgot Password?</a>
+                </div>
+                <button type="submit" class="primary-button full-width site-login-submit site-login-client-submit">
+                    <span class="site-login-submit__label">Login</span>
+                    <span class="site-login-submit__spinner" aria-hidden="true"></span>
+                </button>
+            </form>
+        </section>
+
+        <div class="site-login-register">
+            <span>Don't have an account?</span>
+            <a id="site-login-register-link" href="/apply">Register as a Healthcare Professional</a>
+        </div>
+
+        <div class="site-login-social" aria-label="Future sign-in options">
+            <button type="button" class="site-login-social__button" disabled>Continue with Google</button>
+            <button type="button" class="site-login-social__button" disabled>Continue with Microsoft</button>
+            <button type="button" class="site-login-social__button" disabled>Continue with Apple</button>
+        </div>
+    </div>
+</div>
+<script>
+(() => {
+    const modal = document.getElementById("site-login-modal");
+    if (!modal) {
+        return;
+    }
+
+    const openers = document.querySelectorAll(".js-login-trigger");
+    const closeTargets = modal.querySelectorAll("[data-login-close]");
+    const segments = modal.querySelectorAll("[data-login-mode]");
+    const panes = modal.querySelectorAll("[data-login-pane]");
+    const staffForm = document.getElementById("site-staff-login-form");
+    const clientForm = document.getElementById("site-client-login-form");
+    const errorBox = document.getElementById("site-login-error");
+    const successBox = document.getElementById("site-login-success");
+    const registerLink = document.getElementById("site-login-register-link");
+    const staffSubmitButton = modal.querySelector(".site-login-submit");
+    const clientSubmitButton = modal.querySelector(".site-login-client-submit");
+    const passwordToggles = modal.querySelectorAll("[data-password-toggle]");
+    let activeMode = "staff";
+    let previousFocus = null;
+
+    const hideAlerts = () => {
+        errorBox.hidden = true;
+        errorBox.textContent = "";
+        successBox.hidden = true;
+        successBox.textContent = "";
+    };
+
+    const setMode = (mode) => {
+        activeMode = mode === "client" ? "client" : "staff";
+        segments.forEach((segment) => {
+            const selected = segment.getAttribute("data-login-mode") === activeMode;
+            segment.classList.toggle("is-active", selected);
+            segment.setAttribute("aria-selected", selected ? "true" : "false");
+        });
+        panes.forEach((pane) => {
+            const visible = pane.getAttribute("data-login-pane") === activeMode;
+            pane.hidden = !visible;
+            pane.classList.toggle("is-active", visible);
+        });
+        if (activeMode === "staff") {
+            registerLink.textContent = "Register as a Healthcare Professional";
+            registerLink.href = "/apply";
+        } else {
+            registerLink.textContent = "Register for Facility Portal Access";
+            registerLink.href = "/facility-portal/register";
+        }
+        hideAlerts();
+    };
+
+    const openModal = () => {
+        previousFocus = document.activeElement;
+        modal.hidden = false;
+        modal.setAttribute("aria-hidden", "false");
+        document.body.classList.add("site-login-open");
+        window.requestAnimationFrame(() => modal.classList.add("is-open"));
+        const focusTarget = activeMode === "staff"
+            ? staffForm.querySelector("input[name='email']")
+            : clientForm.querySelector("input[name='email']");
+        if (focusTarget) {
+            focusTarget.focus();
+        }
+    };
+
+    const closeModal = () => {
+        modal.classList.remove("is-open");
+        modal.setAttribute("aria-hidden", "true");
+        document.body.classList.remove("site-login-open");
+        window.setTimeout(() => {
+            if (modal.getAttribute("aria-hidden") === "true") {
+                modal.hidden = true;
+            }
+        }, 180);
+        hideAlerts();
+        if (previousFocus && typeof previousFocus.focus === "function") {
+            previousFocus.focus();
+        }
+    };
+
+    openers.forEach((opener) => {
+        opener.addEventListener("click", (event) => {
+            event.preventDefault();
+            setMode("staff");
+            openModal();
+        });
+    });
+
+    closeTargets.forEach((target) => {
+        target.addEventListener("click", closeModal);
+    });
+
+    segments.forEach((segment) => {
+        segment.addEventListener("click", () => setMode(segment.getAttribute("data-login-mode")));
+    });
+
+    passwordToggles.forEach((toggle) => {
+        toggle.addEventListener("click", () => {
+            const inputId = toggle.getAttribute("aria-controls");
+            const input = inputId ? document.getElementById(inputId) : null;
+            if (!input) {
+                return;
+            }
+            const showing = input.type === "text";
+            input.type = showing ? "password" : "text";
+            toggle.textContent = showing ? "Show" : "Hide";
+            toggle.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+        });
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (modal.hidden) {
+            return;
+        }
+        if (event.key === "Escape") {
+            closeModal();
+        }
+    });
+
+    staffForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        hideAlerts();
+        staffSubmitButton.classList.add("is-loading");
+        staffSubmitButton.disabled = true;
+        const payload = Object.fromEntries(new FormData(staffForm).entries());
+
+        try {
+            const response = await fetch("/api/admin/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: payload.email,
+                    password: payload.password
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || "Unable to login right now.");
+            }
+            successBox.textContent = data.message || "Login successful.";
+            successBox.hidden = false;
+            window.setTimeout(() => {
+                window.location.href = data.redirect || "/portal/home";
+            }, 350);
+        } catch (error) {
+            errorBox.textContent = error.message;
+            errorBox.hidden = false;
+        } finally {
+            staffSubmitButton.classList.remove("is-loading");
+            staffSubmitButton.disabled = false;
+        }
+    });
+
+    clientForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        hideAlerts();
+        clientSubmitButton.classList.add("is-loading");
+        clientSubmitButton.disabled = true;
+        const payload = Object.fromEntries(new FormData(clientForm).entries());
+
+        try {
+            const response = await fetch("/api/client/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email: payload.email,
+                    password: payload.password
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || "Unable to login right now.");
+            }
+            successBox.textContent = data.message || "Login successful.";
+            successBox.hidden = false;
+            window.setTimeout(() => {
+                window.location.href = data.redirect || "/facility-portal/dashboard";
+            }, 350);
+        } catch (error) {
+            errorBox.textContent = error.message;
+            errorBox.hidden = false;
+        } finally {
+            clientSubmitButton.classList.remove("is-loading");
+            clientSubmitButton.disabled = false;
+        }
+    });
+
+    const contactWidget = document.querySelector("[data-contact-widget]");
+    const navDrawer = document.querySelector("[data-site-nav-drawer]");
+    const navToggle = document.querySelector("[data-nav-toggle]");
+    if (navDrawer && navToggle) {
+        const navCloseTargets = navDrawer.querySelectorAll("[data-nav-close]");
+        const navLinks = navDrawer.querySelectorAll("a");
+        let drawerOpen = false;
+        let previousNavFocus = null;
+
+        const openDrawer = () => {
+            if (drawerOpen) {
+                return;
+            }
+            drawerOpen = true;
+            previousNavFocus = document.activeElement;
+            navDrawer.hidden = false;
+            navDrawer.setAttribute("aria-hidden", "false");
+            navToggle.setAttribute("aria-expanded", "true");
+            navToggle.setAttribute("aria-label", "Close menu");
+            document.body.classList.add("site-nav-open");
+            window.requestAnimationFrame(() => navDrawer.classList.add("is-open"));
+            const firstLink = navDrawer.querySelector("a");
+            if (firstLink) {
+                firstLink.focus();
+            }
+        };
+
+        const closeDrawer = () => {
+            if (!drawerOpen) {
+                return;
+            }
+            drawerOpen = false;
+            if (navDrawer.contains(document.activeElement)) {
+                navToggle.focus();
+            }
+            navDrawer.classList.remove("is-open");
+            navDrawer.setAttribute("aria-hidden", "true");
+            navToggle.setAttribute("aria-expanded", "false");
+            navToggle.setAttribute("aria-label", "Open menu");
+            document.body.classList.remove("site-nav-open");
+            window.setTimeout(() => {
+                if (!drawerOpen) {
+                    navDrawer.hidden = true;
+                }
+            }, 220);
+            if (previousNavFocus && typeof previousNavFocus.focus === "function") {
+                previousNavFocus.focus();
+            }
+        };
+
+        navToggle.addEventListener("click", () => {
+            if (drawerOpen) {
+                closeDrawer();
+            } else {
+                openDrawer();
+            }
+        });
+
+        navCloseTargets.forEach((target) => {
+            target.addEventListener("click", closeDrawer);
+        });
+
+        navLinks.forEach((link) => {
+            link.addEventListener("click", () => {
+                closeDrawer();
+            });
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (!drawerOpen) {
+                return;
+            }
+            if (event.key === "Escape") {
+                closeDrawer();
+            }
+        });
+    }
+
+    if (contactWidget) {
+        const toggle = contactWidget.querySelector("[data-contact-toggle]");
+        const panel = contactWidget.querySelector("[data-contact-panel]");
+        const closeButton = contactWidget.querySelector("[data-contact-close]");
+        const panelLinks = panel ? panel.querySelectorAll("a") : [];
+        const canHoverOpen = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+        let hoverCloseTimer = null;
+
+        const openWidget = () => {
+            if (hoverCloseTimer) {
+                window.clearTimeout(hoverCloseTimer);
+                hoverCloseTimer = null;
+            }
+            panel.hidden = false;
+            panel.setAttribute("aria-hidden", "false");
+            toggle.setAttribute("aria-expanded", "true");
+            contactWidget.classList.add("is-open");
+        };
+
+        const closeWidget = () => {
+            if (!contactWidget.classList.contains("is-open")) {
+                return;
+            }
+            if (panel.contains(document.activeElement)) {
+                toggle.focus();
+            }
+            toggle.setAttribute("aria-expanded", "false");
+            panel.setAttribute("aria-hidden", "true");
+            contactWidget.classList.remove("is-open");
+            window.setTimeout(() => {
+                panel.hidden = true;
+            }, 220);
+        };
+
+        if (toggle && panel) {
+            toggle.addEventListener("click", (event) => {
+                event.stopPropagation();
+                const expanded = toggle.getAttribute("aria-expanded") === "true";
+                if (expanded) {
+                    closeWidget();
+                } else {
+                    openWidget();
+                }
+            });
+
+            if (closeButton) {
+                closeButton.addEventListener("click", closeWidget);
+            }
+
+            panelLinks.forEach((link) => {
+                link.addEventListener("click", closeWidget);
+            });
+
+            document.addEventListener("click", (event) => {
+                if (!contactWidget.contains(event.target)) {
+                    closeWidget();
+                }
+            });
+
+            if (canHoverOpen) {
+                contactWidget.addEventListener("mouseenter", () => {
+                    openWidget();
+                });
+
+                contactWidget.addEventListener("mouseleave", () => {
+                    hoverCloseTimer = window.setTimeout(() => {
+                        closeWidget();
+                    }, 140);
+                });
+            }
+
+            panel.addEventListener("click", (event) => {
+                event.stopPropagation();
+            });
+        }
+    }
+
+    setMode("staff");
+})();
+</script>

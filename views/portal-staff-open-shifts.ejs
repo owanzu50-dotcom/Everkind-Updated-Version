@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'open-shifts', isAdmin: false, currentStaffName: currentStaffName, currentStaffEmail: currentStaffEmail }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Open Shifts</h1>
+                    <p class="adm-page-subtitle">Available shifts posted by management</p>
+                </div>
+            </div>
+            <div class="adm-filter-tabs">
+                <button type="button" class="adm-filter-tab active" data-division-filter="all">All</button>
+                <button type="button" class="adm-filter-tab" data-division-filter="home-care">🏠 Home Care</button>
+                <button type="button" class="adm-filter-tab" data-division-filter="agency-staffing">🏥 Agency</button>
+            </div>
+
+            <div class="adm-card">
+                <% if (openShifts.length) { %>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead><tr><th>Type</th><th>Home Care Client / Facility</th><th>Address</th><th>Date</th><th>Time</th><th>Care Type</th><th>Requirements</th><th>Distance</th><th></th></tr></thead>
+                            <tbody>
+                                <% openShifts.forEach((shift) => { %>
+                                    <tr data-lat="<%= shift.latitude || '' %>" data-lng="<%= shift.longitude || '' %>" data-division="<%= shift.serviceDivision %>">
+                                        <td><span class="adm-badge <%= shift.serviceDivision === 'agency-staffing' ? 'adm-badge-agency' : 'adm-badge-home-care' %>"><%= shift.serviceDivisionLabel %></span><br><small><%= shift.shiftCode || ('#' + shift.id) %></small></td>
+                                        <td>
+                                            <% if (shift.serviceDivision === 'home-care') { %>
+                                                <strong>Authorised Home Care Visit</strong><br><small>Client details unlock after assignment.</small>
+                                            <% } else { %>
+                                                <strong><%= shift.displayEntityName %></strong>
+                                            <% } %>
+                                        </td>
+                                        <td><%= shift.serviceDivision === 'home-care' ? (shift.county || 'Location shared after assignment') : (shift.address || 'Address unavailable') %></td>
+                                        <td><%= (shift.scheduledStart || '').slice(0, 10) %></td>
+                                        <td><%= (shift.scheduledStart || '').slice(11, 16) %> - <%= (shift.scheduledEnd || '').slice(11, 16) %></td>
+                                        <td><%= shift.serviceType %></td>
+                                        <td style="font-size:0.78rem;color:#64748b;">
+                                            <% if (shift.request) { %>
+                                                <div><strong><%= shift.request.staff_required %></strong></div>
+                                                <% if (shift.request.minimumExperienceYears) { %><div><%= shift.request.minimumExperienceYears %> years experience</div><% } %>
+                                                <% if (shift.request.requiredTraining && shift.request.requiredTraining.length) { %><div>Training: <%= shift.request.requiredTraining.slice(0, 2).join(', ') %><%= shift.request.requiredTraining.length > 2 ? '…' : '' %></div><% } %>
+                                            <% } else { %>General requirements<% } %>
+                                        </td>
+                                        <td class="distance-cell">Use current location</td>
+                                        <td><button class="adm-btn-primary accept-btn" data-shift-id="<%= shift.id %>">Accept Shift</button></td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="adm-card-empty"><p>No open shifts are available right now.</p></div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    function getDistanceMeters(lat1, lon1, lat2, lon2) {
+        const toRad = (v) => (v * Math.PI) / 180;
+        const earth = 6371000;
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+        return earth * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+    }
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+            document.querySelectorAll('tr[data-lat]').forEach((row) => {
+                const lat = Number(row.dataset.lat);
+                const lng = Number(row.dataset.lng);
+                if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                    return;
+                }
+                const meters = Math.round(getDistanceMeters(position.coords.latitude, position.coords.longitude, lat, lng));
+                row.querySelector('.distance-cell').textContent = meters + 'm away';
+            });
+        });
+    }
+
+    document.querySelectorAll('.accept-btn').forEach((button) => {
+        button.addEventListener('click', async () => {
+            button.disabled = true;
+            try {
+                const response = await fetch('/api/staff/open-shifts/' + button.dataset.shiftId + '/accept', { method: 'POST' });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || 'Unable to accept shift.');
+                }
+                window.location.reload();
+            } catch (error) {
+                alert(error.message || 'Unable to accept shift.');
+                button.disabled = false;
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-division-filter]').forEach((button) => {
+        button.addEventListener('click', () => {
+            document.querySelectorAll('[data-division-filter]').forEach((tab) => tab.classList.remove('active'));
+            button.classList.add('active');
+            const filter = button.dataset.divisionFilter;
+            document.querySelectorAll('tr[data-division]').forEach((row) => {
+                row.style.display = (filter === 'all' || row.dataset.division === filter) ? '' : 'none';
+            });
+        });
+    });
+    </script>
+</body>
+</html>

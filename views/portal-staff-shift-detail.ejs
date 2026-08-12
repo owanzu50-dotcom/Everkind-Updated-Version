@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'schedule', isAdmin: Boolean(isAdmin), currentStaffName: currentStaffName, currentStaffEmail: currentStaffEmail }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Shift Details</h1>
+                    <p class="adm-page-subtitle"><span class="adm-badge <%= shift.serviceDivision === 'agency-staffing' ? 'adm-badge-agency' : 'adm-badge-home-care' %>"><%= shift.serviceDivisionLabel %></span> · <%= shift.shiftCode || ('#' + shift.id) %> · <%= clientName %> · <%= (shift.scheduledStart || '').slice(0, 10) %></p>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <a href="<%= backLink || '/portal/my-schedule' %>" class="adm-btn-secondary">Back to Schedule</a>
+                </div>
+            </div>
+
+            <div class="adm-content-grid">
+                <div class="adm-section">
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Shift Information</div></div>
+                        <div class="adm-card-body">
+                            <p><strong>Date:</strong> <%= (shift.scheduledStart || '').slice(0, 10) %></p>
+                            <p><strong>Start Time:</strong> <%= (shift.scheduledStart || '').slice(11, 16) %></p>
+                            <p><strong>End Time:</strong> <%= (shift.scheduledEnd || '').slice(11, 16) %></p>
+                            <p><strong>Duration:</strong> <%= Math.floor(durationMinutes / 60) %>h <%= durationMinutes % 60 %>m</p>
+                            <p><strong>Shift Type:</strong> <%= shift.serviceType %></p>
+                            <p><strong>Current Status:</strong> <span class="adm-badge adm-badge-<%= shift.status === 'completed' ? 'completed' : shift.status === 'clocked_in' ? 'clocked-in' : shift.status === 'cancelled' ? 'cancelled' : 'scheduled' %>"><%= shift.status %></span></p>
+                        </div>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title"><%= shift.serviceDivision === 'agency-staffing' ? 'Healthcare Facility Information' : 'Home Care Client Information' %></div></div>
+                        <div class="adm-card-body">
+                            <% if (shift.serviceDivision !== 'agency-staffing' && shift.photo_url) { %>
+                                <img src="<%= shift.photo_url %>" alt="Client photo" style="width:84px;height:84px;border-radius:9999px;object-fit:cover;margin-bottom:10px;">
+                            <% } %>
+                            <p><strong><%= shift.serviceDivision === 'agency-staffing' ? 'Facility Name' : 'Home Care Client' %>:</strong> <%= clientName %></p>
+                            <% if (shift.serviceDivision === 'agency-staffing' && shift.facility_id) { %><p><strong>Facility ID:</strong> <%= shift.facility_id %></p><% } %>
+                            <% if (shift.serviceDivision === 'agency-staffing' && shift.facility_type) { %><p><strong>Facility Type:</strong> <%= shift.facility_type %></p><% } %>
+                            <% if (shift.serviceDivision !== 'agency-staffing') { %><p><strong>Client Status:</strong> <span class="adm-badge client-status-badge client-status-<%= String(shift.patient_status || 'active').toLowerCase().replace(/[^a-z0-9]+/g, '-') %>"><%= shift.patient_status || 'Active' %></span></p><% } %>
+                            <p><strong>Address:</strong> <%= shift.address || 'Address unavailable' %></p>
+                            <p><strong>Eircode:</strong> <%= shift.eircode || 'Not provided' %></p>
+                            <% if (shift.serviceDivision === 'agency-staffing') { %>
+                                <p><strong>Ward / Unit:</strong> <%= shift.ward_unit || 'Not provided' %></p>
+                                <p><strong>Contact Person:</strong> <%= shift.contact_person || 'Not provided' %></p>
+                                <p><strong>Role Required:</strong> <%= shift.roleRequired || shift.serviceType %></p>
+                            <% } else { %>
+                                <p><strong>Phone:</strong> <% if (shift.patient_phone) { %><a href="tel:<%= shift.patient_phone %>"><%= shift.patient_phone %></a><% } else { %>Not provided<% } %></p>
+                                <p><strong>Diagnoses:</strong> <%= shift.diagnoses || 'Not provided' %></p>
+                                <p><strong>Allergies:</strong> <%= shift.allergies || 'Not provided' %></p>
+                                <p><strong>Medication:</strong> <%= shift.current_medication || 'Not provided' %></p>
+                            <% } %>
+                            <p><strong>Distance from current location:</strong> <span id="distance-value">Detecting…</span></p>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+                                <% if (shift.patient_phone) { %><a class="adm-btn-secondary" href="tel:<%= shift.patient_phone %>">📞 Call Client</a><% } %>
+                                <a class="adm-btn-secondary" target="_blank" rel="noopener" href="<%= mapLinks.google %>">📍 Google Maps</a>
+                                <a class="adm-btn-secondary" target="_blank" rel="noopener" href="<%= mapLinks.apple %>">🗺️ Open Maps</a>
+                                <a class="adm-btn-primary" target="_blank" rel="noopener" href="<%= mapLinks.directions %>">🧭 Get Directions</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <% if (shift.serviceDivision !== 'agency-staffing') { %>
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Emergency Contact</div></div>
+                        <div class="adm-card-body">
+                            <p><strong>Name:</strong> <%= shift.emergency_contact_name || shift.emergency_contact || 'Not provided' %></p>
+                            <p><strong>Relationship:</strong> <%= shift.emergency_contact_relationship || 'Not provided' %></p>
+                            <p><strong>Phone:</strong> <% if (shift.emergency_contact_phone) { %><a href="tel:<%= shift.emergency_contact_phone %>"><%= shift.emergency_contact_phone %></a><% } else { %>Not provided<% } %></p>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+                                <% if (shift.emergency_contact_phone) { %><a class="adm-btn-secondary" href="tel:<%= shift.emergency_contact_phone %>">☎ Call Emergency Contact</a><% } %>
+                                <button class="adm-btn-secondary" type="button" disabled>💬 Message (Coming soon)</button>
+                            </div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="adm-section">
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Care Instructions</div></div>
+                        <div class="adm-card-body">
+                            <% if (shift.shift_instructions) { %>
+                                <div style="margin-bottom:12px;">
+                                    <strong>Standard Shift Instructions</strong>
+                                    <div style="white-space:pre-wrap;"><%- shift.shift_instructions %></div>
+                                </div>
+                            <% } %>
+                            <div style="white-space:pre-wrap;"><%= shift.careInstructions || shift.notes || 'No care instructions have been added yet.' %></div>
+                            <% if (shift.carePlan) { %>
+                                <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
+                                <strong>Care Plan Summary</strong>
+                                <div style="white-space:pre-wrap;"><%= shift.carePlan %></div>
+                            <% } %>
+                        </div>
+                    </div>
+
+                    <% if (shift.serviceDivision !== 'agency-staffing') { %>
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Home Access</div></div>
+                        <div class="adm-card-body">
+                            <p><strong>Key Safe Code:</strong> <%= shift.key_safe_code || 'Not provided' %></p>
+                            <p><strong>Door Code:</strong> <%= shift.door_code || 'Not provided' %></p>
+                            <p><strong>Alarm Code:</strong> <%= shift.alarm_code || 'Not provided' %></p>
+                            <p><strong>Parking Instructions:</strong> <%= shift.parking_instructions || 'Not provided' %></p>
+                            <p><strong>Pets:</strong> <%= shift.pets || 'Not provided' %></p>
+                            <p><strong>Lift Available:</strong> <%= Number(shift.lift_available || 0) ? 'Yes' : 'No' %></p>
+                            <p><strong>Stairs:</strong> <%= shift.stairs || 'Not provided' %></p>
+                            <p><strong>Access Notes:</strong> <%= shift.access_notes || 'Not provided' %></p>
+                        </div>
+                        <% } %>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Visit Notes</div></div>
+                        <div class="adm-card-body" style="display:grid;gap:12px;">
+                            <% if (!isAdmin) { %>
+                                <form id="visit-note-form" style="display:grid;gap:8px;">
+                                    <textarea id="visit-note-input" class="adm-form-textarea" rows="4" placeholder="Add care completed, medication given, client mood, concerns, incidents..." required></textarea>
+                                    <button class="adm-btn-primary" type="submit">Save visit note</button>
+                                    <p id="visit-note-message" class="form-message"></p>
+                                </form>
+                            <% } %>
+                            <div id="visit-note-list" style="display:grid;gap:10px;">
+                                <% if (visitNotes.length) { %>
+                                    <% visitNotes.forEach((entry) => { %>
+                                        <article class="staff-notice-item read">
+                                            <strong><%= entry.staff_name || 'Staff member' %></strong>
+                                            <p style="white-space:pre-wrap;"><%= entry.note %></p>
+                                            <small><%= String(entry.created_at || '').slice(0, 16).replace('T', ' ') %></small>
+                                        </article>
+                                    <% }) %>
+                                <% } else { %>
+                                    <p class="adm-card-empty">No visit notes have been added yet.</p>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Attachments</div></div>
+                        <div class="adm-card-body" style="display:grid;gap:10px;">
+                            <% if (attachments.length) { %>
+                                <% attachments.forEach((file) => { %>
+                                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+                                        <div>
+                                            <strong><%= file.title %></strong>
+                                            <p style="margin:0;color:#64748b;"><%= file.category %></p>
+                                        </div>
+                                        <a class="adm-btn-secondary" href="<%= (attachmentDownloadBasePath || '/portal/shifts') %>/<%= shift.id %>/attachments/<%= file.id %>/download">Download</a>
+                                    </div>
+                                <% }) %>
+                            <% } else { %>
+                                <p class="adm-card-empty">No attachments for this shift.</p>
+                            <% } %>
+
+                            <% if (isAdmin) { %>
+                                <hr style="border:none;border-top:1px solid #e2e8f0;">
+                                <form id="attachment-form" style="display:grid;gap:8px;">
+                                    <input class="adm-form-input" id="attachment-title" placeholder="Document title (e.g. Care Plan)" required>
+                                    <input class="adm-form-input" id="attachment-category" placeholder="Category (e.g. Risk Assessment)" value="Visit Document" required>
+                                    <input class="adm-form-input" id="attachment-file-name" placeholder="File name (e.g. care-plan.txt)">
+                                    <textarea class="adm-form-textarea" id="attachment-text" rows="4" placeholder="Paste document content for staff download..." required></textarea>
+                                    <button class="adm-btn-primary" type="submit">Add attachment</button>
+                                    <p id="attachment-message" class="form-message"></p>
+                                </form>
+                            <% } %>
+                        </div>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Client Documents</div></div>
+                        <div class="adm-card-body" style="display:grid;gap:10px;">
+                            <% if (clientDocuments && clientDocuments.length) { %>
+                                <% clientDocuments.forEach((file) => { %>
+                                    <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+                                        <div>
+                                            <strong><%= file.title %></strong>
+                                            <p style="margin:0;color:#64748b;"><%= file.category %></p>
+                                        </div>
+                                        <a class="adm-btn-secondary" href="/patients/<%= shift.patientId %>/documents/<%= file.id %>/download">Download</a>
+                                    </div>
+                                <% }) %>
+                            <% } else { %>
+                                <p class="adm-card-empty">No client documents are shared for this shift.</p>
+                            <% } %>
+                        </div>
+                    </div>
+
+                    <% if (!isAdmin) { %>
+                        <div class="adm-card">
+                            <div class="adm-card-header"><div class="adm-card-title">Shift Actions</div></div>
+                            <div class="adm-card-body" style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <% if (shift.status === 'scheduled') { %>
+                                    <button class="adm-btn-primary" type="button" onclick="clockAction('clock-in')">Clock In</button>
+                                <% } %>
+                                <% if (shift.status === 'clocked_in') { %>
+                                    <button class="adm-btn-primary" type="button" onclick="clockAction('clock-out')">Clock Out</button>
+                                <% } %>
+                                <p id="clock-message" class="form-message" style="width:100%;"></p>
+                            </div>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    const shiftId = <%= Number(shift.id) %>;
+    const patientLat = <%= Number.isFinite(Number(shift.latitude)) ? Number(shift.latitude) : 'null' %>;
+    const patientLng = <%= Number.isFinite(Number(shift.longitude)) ? Number(shift.longitude) : 'null' %>;
+
+    function formatDistance(meters) {
+        if (!Number.isFinite(meters)) return 'Distance unavailable';
+        if (meters < 1000) return Math.round(meters) + ' m';
+        return (meters / 1000).toFixed(2) + ' km';
+    }
+
+    function getDistanceInMeters(lat1, lng1, lat2, lng2) {
+        const toRad = (value) => (value * Math.PI) / 180;
+        const earthRadiusMeters = 6371000;
+        const dLat = toRad(lat2 - lat1);
+        const dLng = toRad(lng2 - lng1);
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+        return earthRadiusMeters * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+    }
+
+    async function clockAction(action) {
+        const message = document.getElementById('clock-message');
+        message.textContent = '';
+        try {
+            if (!navigator.geolocation) {
+                throw new Error('GPS is unavailable. Enable location services first.');
+            }
+            const position = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 20000 }));
+            const response = await fetch('/api/staff/shifts/' + shiftId + '/' + action, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    accuracy: position.coords.accuracy,
+                    device: navigator.userAgent
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Could not update shift.');
+            }
+            message.className = 'form-message success';
+            message.textContent = data.message;
+            setTimeout(() => window.location.reload(), 800);
+        } catch (error) {
+            message.className = 'form-message error';
+            message.textContent = error.message || 'Could not update shift.';
+        }
+    }
+
+    if (navigator.geolocation && Number.isFinite(patientLat) && Number.isFinite(patientLng)) {
+        navigator.geolocation.getCurrentPosition((position) => {
+            const distance = getDistanceInMeters(position.coords.latitude, position.coords.longitude, patientLat, patientLng);
+            const distanceEl = document.getElementById('distance-value');
+            if (distanceEl) distanceEl.textContent = formatDistance(distance);
+        }, () => {
+            const distanceEl = document.getElementById('distance-value');
+            if (distanceEl) distanceEl.textContent = 'Location permission not granted';
+        }, { enableHighAccuracy: true, timeout: 15000 });
+    } else {
+        const distanceEl = document.getElementById('distance-value');
+        if (distanceEl) distanceEl.textContent = 'Client location not configured';
+    }
+
+    const visitNoteForm = document.getElementById('visit-note-form');
+    const queuedVisitNoteKey = 'everkind.queuedVisitNotes.' + shiftId;
+
+    function getQueuedVisitNotes() {
+        try {
+            const raw = localStorage.getItem(queuedVisitNoteKey);
+            const parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function setQueuedVisitNotes(notes) {
+        localStorage.setItem(queuedVisitNoteKey, JSON.stringify(notes));
+    }
+
+    async function flushQueuedVisitNotes(messageEl) {
+        const queuedNotes = getQueuedVisitNotes();
+        if (!queuedNotes.length || !navigator.onLine) {
+            return;
+        }
+        const remaining = [];
+        for (const queuedNote of queuedNotes) {
+            try {
+                const response = await fetch('/api/staff/shifts/' + shiftId + '/visit-notes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ note: queuedNote.note })
+                });
+                if (!response.ok) {
+                    remaining.push(queuedNote);
+                }
+            } catch (error) {
+                remaining.push(queuedNote);
+            }
+        }
+        setQueuedVisitNotes(remaining);
+        if (messageEl && remaining.length === 0) {
+            messageEl.className = 'form-message success';
+            messageEl.textContent = 'Queued visit notes synced.';
+            setTimeout(() => window.location.reload(), 500);
+        }
+    }
+
+    if (visitNoteForm) {
+        const message = document.getElementById('visit-note-message');
+        flushQueuedVisitNotes(message);
+        window.addEventListener('online', () => flushQueuedVisitNotes(message));
+
+        visitNoteForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const input = document.getElementById('visit-note-input');
+            message.textContent = '';
+            const noteValue = String(input.value || '').trim();
+            if (!noteValue) {
+                message.className = 'form-message error';
+                message.textContent = 'Visit note cannot be empty.';
+                return;
+            }
+
+            if (!navigator.onLine) {
+                const queuedNotes = getQueuedVisitNotes();
+                queuedNotes.push({ note: noteValue, queuedAt: new Date().toISOString() });
+                setQueuedVisitNotes(queuedNotes);
+                message.className = 'form-message success';
+                message.textContent = 'You are offline. Visit note saved locally and will sync automatically.';
+                input.value = '';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/staff/shifts/' + shiftId + '/visit-notes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ note: noteValue })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || 'Could not save note.');
+                }
+                message.className = 'form-message success';
+                message.textContent = 'Visit note saved.';
+                input.value = '';
+                setTimeout(() => window.location.reload(), 500);
+            } catch (error) {
+                message.className = 'form-message error';
+                message.textContent = error.message || 'Could not save note.';
+            }
+        });
+    }
+
+    const attachmentForm = document.getElementById('attachment-form');
+    if (attachmentForm) {
+        attachmentForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const message = document.getElementById('attachment-message');
+            message.textContent = '';
+            try {
+                const response = await fetch('/api/shifts/' + shiftId + '/attachments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: document.getElementById('attachment-title').value,
+                        category: document.getElementById('attachment-category').value,
+                        file_name: document.getElementById('attachment-file-name').value,
+                        download_text: document.getElementById('attachment-text').value
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || 'Could not add attachment.');
+                }
+                message.className = 'form-message success';
+                message.textContent = 'Attachment added.';
+                setTimeout(() => window.location.reload(), 500);
+            } catch (error) {
+                message.className = 'form-message error';
+                message.textContent = error.message || 'Could not add attachment.';
+            }
+        });
+    }
+    setTimeout(() => window.location.reload(), 45000);
+    </script>
+</body>
+</html>

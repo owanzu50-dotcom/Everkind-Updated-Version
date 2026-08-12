@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'calendar', isAdmin: Boolean(isAdmin) }) %>
+
+        <main class="portal-content">
+            <header class="portal-header">
+                <div>
+                    <span class="eyebrow">Scheduling</span>
+                    <h1>Care calendar</h1>
+                </div>
+                <div class="header-actions">
+                    <a href="#schedule-form" class="primary-button">+ Schedule shift</a>
+                    <strong class="portal-user-name"><%= currentStaffName %></strong>
+                </div>
+            </header>
+
+            <!-- Full monthly calendar -->
+            <section class="portal-panel cal-full-panel">
+                <div class="panel-header">
+                    <div class="cal-nav">
+                        <button class="cal-nav-btn" id="prev-month" aria-label="Previous month">&#8249;</button>
+                        <span class="cal-month-label" id="cal-month-label"><%= monthLabel %></span>
+                        <button class="cal-nav-btn" id="next-month" aria-label="Next month">&#8250;</button>
+                    </div>
+                    <span class="eyebrow" id="cal-today-label"></span>
+                </div>
+                <div class="cal-grid-header">
+                    <% ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].forEach(d => { %>
+                        <div class="cal-day-name"><%= d %></div>
+                    <% }) %>
+                </div>
+                <div class="cal-grid" id="cal-grid"></div>
+            </section>
+
+            <!-- Shifts list + schedule form side by side -->
+            <div class="content-grid">
+
+                <!-- Upcoming shifts table -->
+                <section class="portal-panel">
+                    <div class="panel-header">
+                        <h2>All scheduled shifts</h2>
+                        <span class="badge badge-scheduled"><%= appointments.length %> total</span>
+                    </div>
+                    <% if (appointments && appointments.length) { %>
+                        <div class="compliance-table-wrap">
+                            <table class="shift-table">
+                                <thead>
+                                    <tr>
+                                        <th>Patient</th>
+                                        <th>Staff</th>
+                                        <th>Date &amp; time</th>
+                                        <th>Status</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% appointments.forEach((apt) => { %>
+                                        <tr>
+                                            <td><strong><%= apt.client %></strong></td>
+                                            <td><%= apt.staff_name || apt.staffName || '—' %></td>
+                                            <td class="task-time"><%= apt.date %> · <%= apt.time %></td>
+                                            <td>
+                                                <span class="badge <%= apt.status === 'clocked_in' ? 'badge-live' : apt.status === 'clocked_out' ? 'badge-done' : 'badge-scheduled' %>">
+                                                    <%= apt.status %>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <% if (apt.status === 'scheduled') { %>
+                                                    <button class="danger-button small-btn" data-shift-id="<%= apt.id %>" data-action="delete">Remove</button>
+                                                <% } %>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    <% } else { %>
+                        <p class="empty-hint">No shifts have been scheduled yet. Use the form to add one.</p>
+                    <% } %>
+                </section>
+
+                <!-- Schedule shift form -->
+                <section class="portal-panel" id="schedule-form">
+                    <div class="panel-header">
+                        <h2>Schedule a shift</h2>
+                    </div>
+                    <form id="shift-form" class="portal-form">
+                        <label>
+                            Patient
+                            <select name="patient_id" id="schedule-patient-id" required>
+                                <option value="">Select patient…</option>
+                                <% patients.forEach(p => { %>
+                                    <option value="<%= p.id %>" data-status="<%= p.status %>" data-service="<%= (p.serviceTypes && p.serviceTypes[0]) ? p.serviceTypes[0] : 'Personal Care' %>" data-instructions="<%= (p.shift_instructions || '').replace(/\n/g, ' ') %>"><%= p.name || ((p.first_name || '') + ' ' + (p.last_name || '')).trim() %></option>
+                                <% }) %>
+                            </select>
+                        </label>
+                        <label>
+                            Staff member
+                            <select name="staff_id" required>
+                                <option value="">Select staff member…</option>
+                                <% staff.forEach(s => { %>
+                                    <option value="<%= s.id %>"><%= s.displayNameWithStatus || s.name || ((s.first_name || '') + ' ' + (s.last_name || '')).trim() %></option>
+                                <% }) %>
+                            </select>
+                        </label>
+                        <label>
+                            Date
+                            <input type="date" name="shift_date" id="shift-date-input" required>
+                        </label>
+                        <div class="content-grid" style="gap:12px">
+                            <label>
+                                Start time
+                                <input type="time" name="start_time" required>
+                            </label>
+                            <label>
+                                End time
+                                <input type="time" name="end_time" required>
+                            </label>
+                        </div>
+                        <label>
+                            Service Type
+                            <select name="service_type" id="schedule-service-type">
+                                <% ['Personal Care','Home Care Visit','Medication Visit','Nursing Visit','Welfare Check','Rehabilitation Support','Post Hospital Discharge','Live-In Care','Overnight Care','Respite Care','Palliative Care'].forEach((service) => { %>
+                                    <option value="<%= service %>"><%= service %></option>
+                                <% }) %>
+                            </select>
+                        </label>
+                        <label>
+                            Care Instructions <span style="font-weight:400;color:var(--text-muted)">(shown to staff in shift details)</span>
+                            <textarea name="care_instructions" id="schedule-care-instructions" rows="4" placeholder="Medication at 10:00, assist with shower, monitor blood sugar, allergies, risks, PPE requirements..."></textarea>
+                        </label>
+                        <p id="schedule-patient-status" class="form-message" style="display:none;"></p>
+                        <div class="form-actions">
+                            <button type="submit" class="primary-button">Save shift</button>
+                            <button type="reset" class="secondary-button">Clear</button>
+                        </div>
+                    </form>
+                    <p id="shift-message" class="form-message" aria-live="polite"></p>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Appointment data injected from server
+        const appointments = <%- JSON.stringify(appointments) %>;
+        const eventsByDate = {};
+        appointments.forEach(apt => {
+            if (apt.date) {
+                if (!eventsByDate[apt.date]) eventsByDate[apt.date] = [];
+                eventsByDate[apt.date].push(apt);
+            }
+        });
+
+        let viewYear = <%= year %>;
+        let viewMonth = <%= month %>; // 0-indexed
+
+        const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+        function pad(n) { return String(n).padStart(2, '0'); }
+
+        function renderCalendar(year, month) {
+            document.getElementById('cal-month-label').textContent = MONTH_NAMES[month] + ' ' + year;
+            const grid = document.getElementById('cal-grid');
+            grid.innerHTML = '';
+
+            const firstDay = new Date(year, month, 1);
+            let startOffset = firstDay.getDay() - 1;
+            if (startOffset < 0) startOffset = 6;
+
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            const today = new Date();
+            const todayStr = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate());
+
+            // Set today label
+            const todayLbl = document.getElementById('cal-today-label');
+            if (year === today.getFullYear() && month === today.getMonth()) {
+                todayLbl.textContent = 'Today: ' + today.getDate() + ' ' + MONTH_NAMES[today.getMonth()];
+            } else {
+                todayLbl.textContent = '';
+            }
+
+            // Empty leading cells
+            for (let i = 0; i < startOffset; i++) {
+                const empty = document.createElement('div');
+                empty.className = 'cal-cell cal-cell-empty';
+                grid.appendChild(empty);
+            }
+
+            // Day cells
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = year + '-' + pad(month + 1) + '-' + pad(d);
+                const events = eventsByDate[dateStr] || [];
+                const cell = document.createElement('div');
+                cell.className = 'cal-cell';
+                if (dateStr === todayStr) cell.classList.add('cal-today');
+                if (events.length) cell.classList.add('cal-has-events');
+
+                const dayNum = document.createElement('span');
+                dayNum.className = 'cal-day-num';
+                dayNum.textContent = d;
+                cell.appendChild(dayNum);
+
+                events.slice(0, 3).forEach(e => {
+                    const pill = document.createElement('span');
+                    pill.className = 'cal-event-pill cal-event-' + (e.status || 'scheduled');
+                    pill.title = e.client + ' — ' + (e.staff_name || e.staffName || '');
+                    pill.textContent = (e.client || '').split(' ')[0];
+                    cell.appendChild(pill);
+                });
+
+                if (events.length > 3) {
+                    const more = document.createElement('span');
+                    more.className = 'cal-event-pill cal-event-scheduled';
+                    more.textContent = '+' + (events.length - 3) + ' more';
+                    cell.appendChild(more);
+                }
+
+                cell.addEventListener('click', () => {
+                    document.querySelectorAll('.cal-cell.cal-selected').forEach(c => c.classList.remove('cal-selected'));
+                    cell.classList.add('cal-selected');
+                    const dateInput = document.getElementById('shift-date-input');
+                    if (dateInput) dateInput.value = dateStr;
+                    document.getElementById('schedule-form').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                });
+
+                grid.appendChild(cell);
+            }
+        }
+
+        renderCalendar(viewYear, viewMonth);
+
+        document.getElementById('prev-month').addEventListener('click', () => {
+            viewMonth--;
+            if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+            renderCalendar(viewYear, viewMonth);
+        });
+        document.getElementById('next-month').addEventListener('click', () => {
+            viewMonth++;
+            if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+            renderCalendar(viewYear, viewMonth);
+        });
+
+        // Schedule shift form
+        const shiftForm = document.getElementById('shift-form');
+        const shiftMsg = document.getElementById('shift-message');
+        const patientSelect = document.getElementById('schedule-patient-id');
+        const serviceTypeSelect = document.getElementById('schedule-service-type');
+        const careInstructionsInput = document.getElementById('schedule-care-instructions');
+        const patientStatusMessage = document.getElementById('schedule-patient-status');
+
+        function updatePatientDefaults() {
+            const selectedOption = patientSelect.options[patientSelect.selectedIndex];
+            if (!selectedOption || !selectedOption.value) {
+                patientStatusMessage.style.display = 'none';
+                return;
+            }
+            if (!careInstructionsInput.value.trim()) {
+                careInstructionsInput.value = selectedOption.dataset.instructions || '';
+            }
+            if (selectedOption.dataset.service) {
+                serviceTypeSelect.value = selectedOption.dataset.service;
+            }
+            const blockedStatuses = new Set(['In Hospital', 'On Holiday', 'Temporarily Suspended', 'Discharged', 'Deceased', 'Archived']);
+            if (blockedStatuses.has(selectedOption.dataset.status || '')) {
+                patientStatusMessage.className = 'form-message error';
+                patientStatusMessage.textContent = 'This client is currently marked as ' + selectedOption.dataset.status + ', so new schedules are blocked.';
+                patientStatusMessage.style.display = 'block';
+            } else {
+                patientStatusMessage.style.display = 'none';
+            }
+        }
+
+        patientSelect.addEventListener('change', updatePatientDefaults);
+        updatePatientDefaults();
+
+        shiftForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            shiftMsg.textContent = '';
+            shiftMsg.className = 'form-message';
+            const payload = Object.fromEntries(new FormData(shiftForm).entries());
+            try {
+                const res = await fetch('/api/shifts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Could not save shift.');
+                shiftMsg.textContent = 'Shift scheduled successfully.';
+                shiftMsg.classList.add('success');
+                shiftForm.reset();
+                setTimeout(() => window.location.reload(), 700);
+            } catch (err) {
+                shiftMsg.textContent = err.message;
+                shiftMsg.classList.add('error');
+            }
+        });
+
+        // Delete shift
+        document.querySelectorAll('[data-action="delete"]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!confirm('Remove this shift? This cannot be undone.')) return;
+                const shiftId = btn.dataset.shiftId;
+                try {
+                    const res = await fetch('/api/shifts/' + shiftId, { method: 'DELETE' });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.message || 'Could not remove shift.');
+                    window.location.reload();
+                } catch (err) {
+                    alert(err.message);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

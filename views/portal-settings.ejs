@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <%
+        const has = typeof can === 'function' ? can : (() => false);
+        const value = (key, fallback = '') => settingsValues[key] ?? fallback;
+        const tabs = [
+            { key: 'company', label: 'Company', permission: 'settings.manage' },
+            { key: 'branding', label: 'Branding', permission: 'settings.manage' },
+            { key: 'recruitment', label: 'Recruitment', permission: 'settings.manage' },
+            { key: 'staff', label: 'Staff', permission: 'settings.manage' },
+            { key: 'scheduling', label: 'Shift & Scheduling', permission: 'settings.manage' },
+            { key: 'users', label: 'Users & Permissions', permission: 'users.view' },
+            { key: 'roles', label: 'Roles', permission: 'roles.view' },
+            { key: 'payroll', label: 'Payroll', permission: 'payroll.view' },
+            { key: 'notifications', label: 'Notifications', permission: 'settings.manage' },
+            { key: 'security', label: 'Security', permission: 'security.manage' },
+            { key: 'compliance', label: 'Compliance', permission: 'settings.manage' },
+            { key: 'homecare', label: 'Home Care', permission: 'settings.manage' },
+            { key: 'website', label: 'Website', permission: 'settings.manage' },
+            { key: 'privacy', label: 'GDPR / Privacy', permission: 'settings.manage' },
+            { key: 'audit', label: 'Audit Logs', permission: 'audit.view' },
+            { key: 'system', label: 'System', permission: 'system.manage' }
+        ].filter((tab) => has(tab.permission));
+        const selectedTab = tabs.some((tab) => tab.key === activeTab) ? activeTab : (tabs[0]?.key || 'payroll');
+    %>
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', {
+            active: 'settings',
+            isAdmin: true,
+            currentStaffName,
+            currentStaffEmail,
+            adminAccess
+        }) %>
+        <main class="portal-content">
+            <% if (adminAccess && adminAccess.isPreview) { %>
+                <div class="role-preview-banner">
+                    <strong>Preview mode:</strong> Viewing the portal as <%= adminAccess.effectiveRoleLabel %>.
+                    Access can only be reduced while previewing.
+                </div>
+            <% } %>
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Settings</h1>
+                    <p class="adm-page-subtitle">Company, access, payroll, security, compliance, and system governance.</p>
+                </div>
+            </div>
+
+            <% if (message) { %>
+                <div class="settings-alert success" role="status"><%= message %></div>
+            <% } %>
+            <% if (error) { %>
+                <div class="settings-alert error" role="alert"><%= error %></div>
+            <% } %>
+
+            <div class="settings-shell">
+                <nav class="settings-tabs" aria-label="Settings sections">
+                    <% tabs.forEach((tab) => { %>
+                        <a href="/admin/settings?tab=<%= tab.key %>" class="<%= selectedTab === tab.key ? 'active' : '' %>" <%- selectedTab === tab.key ? 'aria-current="page"' : '' %>>
+                            <%= tab.label %>
+                        </a>
+                    <% }) %>
+                </nav>
+
+                <div class="settings-panel">
+                    <% if (selectedTab === 'company' && has('settings.manage')) { %>
+                        <section class="adm-card">
+                            <div class="adm-card-header">
+                                <div>
+                                    <h2 class="adm-card-title">Company</h2>
+                                    <p class="adm-card-subtitle">Primary organisation and public contact information.</p>
+                                </div>
+                            </div>
+                            <div class="adm-card-body">
+                                <form method="POST" action="/admin/settings/general/company">
+                                    <div class="settings-form-grid">
+                                        <div class="settings-field"><label for="company_name">Company name</label><input id="company_name" name="company_name" value="<%= value('company_name', 'Everkind Home Care Ltd') %>" required></div>
+                                        <div class="settings-field"><label for="company_email">Main email</label><input id="company_email" name="company_email" type="email" value="<%= value('company_email', currentStaffEmail) %>"></div>
+                                        <div class="settings-field"><label for="company_phone">Phone</label><input id="company_phone" name="company_phone" value="<%= value('company_phone') %>"></div>
+                                        <div class="settings-field"><label for="company_website">Website</label><input id="company_website" name="company_website" type="url" value="<%= value('company_website') %>"></div>
+                                        <div class="settings-field"><label for="company_address">Address</label><textarea id="company_address" name="company_address"><%= value('company_address') %></textarea></div>
+                                        <div class="settings-field"><label for="company_business_hours">Business hours</label><input id="company_business_hours" name="company_business_hours" value="<%= value('company_business_hours', 'Monday-Friday, 09:00-17:30') %>"></div>
+                                        <div class="settings-field"><label for="company_emergency_contact">Emergency / after-hours contact</label><textarea id="company_emergency_contact" name="company_emergency_contact"><%= value('company_emergency_contact') %></textarea></div>
+                                    </div>
+                                    <div class="settings-actions"><button class="settings-button" type="submit">Save company settings</button></div>
+                                </form>
+                            </div>
+                        </section>
+                    <% } %>
+
+                    <% if (selectedTab === 'recruitment' && has('settings.manage')) { %>
+                        <section class="adm-card"><div class="adm-card-header"><div><h2 class="adm-card-title">Recruitment</h2><p class="adm-card-subtitle">Applicant workflow, required information, duplicate protection, and communications.</p></div></div><div class="adm-card-body"><form method="POST" action="/admin/settings/general/recruitment"><div class="settings-form-grid">
+                            <div class="settings-field"><label for="recruitment_job_positions">Job positions</label><textarea id="recruitment_job_positions" name="recruitment_job_positions"><%= value('recruitment_job_positions', 'Registered Nurse\nHealthcare Assistant\nHome Care Assistant') %></textarea></div>
+                            <div class="settings-field"><label for="recruitment_stages">Application stages and statuses</label><textarea id="recruitment_stages" name="recruitment_stages"><%= value('recruitment_stages', 'Received\nScreening\nInterview\nOffer\nHired') %></textarea></div>
+                            <div class="settings-field"><label for="recruitment_required_information">Required applicant information</label><textarea id="recruitment_required_information" name="recruitment_required_information"><%= value('recruitment_required_information', 'Contact details, employment history, availability, right to work') %></textarea></div>
+                            <div class="settings-field"><label for="recruitment_required_documents">Required documents</label><textarea id="recruitment_required_documents" name="recruitment_required_documents"><%= value('recruitment_required_documents', 'CV, identification, qualifications, references') %></textarea></div>
+                            <div class="settings-field"><label for="recruitment_email_template">Applicant email template</label><textarea id="recruitment_email_template" name="recruitment_email_template"><%= value('recruitment_email_template', 'Thank you for your application to Everkind Home Care.') %></textarea></div>
+                            <div class="settings-field"><label for="recruitment_notify_applicants">Applicant notifications</label><select id="recruitment_notify_applicants" name="recruitment_notify_applicants"><option value="1" <%= value('recruitment_notify_applicants', '1') === '1' ? 'selected' : '' %>>Enabled</option><option value="0" <%= value('recruitment_notify_applicants') === '0' ? 'selected' : '' %>>Disabled</option></select></div>
+                            <div class="settings-field"><label for="recruitment_duplicate_email">Duplicate email protection</label><select id="recruitment_duplicate_email" name="recruitment_duplicate_email"><option value="1" <%= value('recruitment_duplicate_email', '1') === '1' ? 'selected' : '' %>>Block duplicates</option><option value="0" <%= value('recruitment_duplicate_email') === '0' ? 'selected' : '' %>>Allow duplicates</option></select></div>
+                            <div class="settings-field"><label for="recruitment_duplicate_phone">Duplicate phone protection</label><select id="recruitment_duplicate_phone" name="recruitment_duplicate_phone"><option value="1" <%= value('recruitment_duplicate_phone', '1') === '1' ? 'selected' : '' %>>Block duplicates</option><option value="0" <%= value('recruitment_duplicate_phone') === '0' ? 'selected' : '' %>>Allow duplicates</option></select></div>
+                        </div><div class="settings-actions"><button class="settings-button">Save recruitment settings</button></div></form></div></section>
+                    <% } %>
+
+                    <% if (selectedTab === 'staff' && has('settings.manage')) { %>
+                        <section class="adm-card"><div class="adm-card-header"><div><h2 class="adm-card-title">Staff Settings</h2><p class="adm-card-subtitle">Roles, employment types, onboarding, training, and staff identifiers.</p></div></div><div class="adm-card-body"><form method="POST" action="/admin/settings/general/staff"><div class="settings-form-grid">
+                            <div class="settings-field"><label for="staff_categories">Staff categories</label><textarea id="staff_categories" name="staff_categories"><%= value('staff_categories', 'Registered Nurse\nHealthcare Assistant\nHome Care Assistant\nOther') %></textarea></div>
+                            <div class="settings-field"><label for="staff_employment_types">Employment types</label><textarea id="staff_employment_types" name="staff_employment_types"><%= value('staff_employment_types', 'Permanent\nPart-time\nTemporary\nAgency') %></textarea></div>
+                            <div class="settings-field"><label for="staff_statuses">Staff statuses</label><textarea id="staff_statuses" name="staff_statuses"><%= value('staff_statuses', 'Induction\nActive\nOn Leave\nInactive') %></textarea></div>
+                            <div class="settings-field"><label for="staff_onboarding_documents">Required onboarding documents</label><textarea id="staff_onboarding_documents" name="staff_onboarding_documents"><%= value('staff_onboarding_documents', 'Identification, right to work, vetting, references, qualifications') %></textarea></div>
+                            <div class="settings-field"><label for="staff_training_requirements">Training requirements</label><textarea id="staff_training_requirements" name="staff_training_requirements"><%= value('staff_training_requirements', 'Manual handling, safeguarding, infection prevention, CPR') %></textarea></div>
+                            <div class="settings-field"><label for="staff_id_prefix">Staff ID prefix</label><input id="staff_id_prefix" name="staff_id_prefix" value="<%= value('staff_id_prefix', 'EVK') %>"></div>
+                        </div><div class="settings-actions"><button class="settings-button">Save staff settings</button></div></form></div></section>
+                    <% } %>
+
+                    <% if (selectedTab === 'scheduling' && has('settings.manage')) { %>
+                        <section class="adm-card"><div class="adm-card-header"><div><h2 class="adm-card-title">Shift & Scheduling</h2><p class="adm-card-subtitle">Shift catalogue, default hours, availability, cancellation, and notifications.</p></div></div><div class="adm-card-body"><form method="POST" action="/admin/settings/general/scheduling"><div class="settings-form-grid">
+                            <div class="settings-field"><label for="scheduling_shift_types">Shift types</label><textarea id="scheduling_shift_types" name="scheduling_shift_types"><%= value('scheduling_shift_types', 'Short Day\nLong Day\nEvening\nNight\nWeekend\nBank Holiday\nEmergency / Last-Minute\nFlexible / Any Shift') %></textarea></div>
+                            <div class="settings-field"><label for="scheduling_default_times">Default shift times</label><textarea id="scheduling_default_times" name="scheduling_default_times"><%= value('scheduling_default_times', 'Short Day 08:00-14:00\nLong Day 08:00-20:00\nNight 20:00-08:00') %></textarea></div>
+                            <div class="settings-field"><label for="scheduling_availability_options">Availability options</label><textarea id="scheduling_availability_options" name="scheduling_availability_options"><%= value('scheduling_availability_options', 'Available\nUnavailable\nPreferred\nFlexible') %></textarea></div>
+                            <div class="settings-field"><label for="scheduling_cancellation_hours">Cancellation notice (hours)</label><input id="scheduling_cancellation_hours" name="scheduling_cancellation_hours" type="number" min="0" value="<%= value('scheduling_cancellation_hours', '24') %>"></div>
+                            <div class="settings-field"><label for="scheduling_notifications_enabled">Shift notifications</label><select id="scheduling_notifications_enabled" name="scheduling_notifications_enabled"><option value="1" <%= value('scheduling_notifications_enabled', '1') === '1' ? 'selected' : '' %>>Enabled</option><option value="0" <%= value('scheduling_notifications_enabled') === '0' ? 'selected' : '' %>>Disabled</option></select></div>
+                        </div><div class="settings-actions"><button class="settings-button">Save scheduling settings</button></div></form></div></section>
+                    <% } %>
+
+                    <% if (selectedTab === 'branding' && has('settings.manage')) { %>
+                        <section class="adm-card">
+                            <div class="adm-card-header"><div><h2 class="adm-card-title">Branding</h2><p class="adm-card-subtitle">Keep both portals aligned with the Everkind identity.</p></div></div>
+                            <div class="adm-card-body">
+                                <form method="POST" action="/admin/settings/general/branding">
+                                    <div class="settings-form-grid">
+                                        <div class="settings-field"><label for="branding_logo_url">Logo URL</label><input id="branding_logo_url" name="branding_logo_url" type="url" value="<%= value('branding_logo_url') %>" placeholder="/images/logo.png"></div>
+                                        <div class="settings-field"><label for="branding_accent_note">Brand guidance</label><textarea id="branding_accent_note" name="branding_accent_note"><%= value('branding_accent_note', 'Everkind green, navy and warm neutral accents') %></textarea></div>
+                                    </div>
+                                    <div class="settings-actions"><button class="settings-button" type="submit">Save branding</button></div>
+                                </form>
+                                <div class="settings-alert success" style="margin-top:1rem">Light and dark mode are available from the shared sidebar and are saved to this browser.</div>
+                            </div>
+                        </section>
+                    <% } %>
+
+                    <% if (selectedTab === 'users' && has('users.view')) { %>
+                        <section class="adm-card">
+                            <div class="adm-card-header"><div><h2 class="adm-card-title">Users & Permissions</h2><p class="adm-card-subtitle">Create, assign, disable, and revoke administrator access.</p></div></div>
+                            <div class="adm-card-body">
+                                <% if (has('users.create')) { %>
+                                    <form method="POST" action="/admin/settings/users">
+                                        <h3>Add administrator</h3>
+                                        <div class="settings-form-grid">
+                                            <div class="settings-field"><label for="new-name">Name</label><input id="new-name" name="name" required></div>
+                                            <div class="settings-field"><label for="new-email">Email</label><input id="new-email" name="email" type="email" required></div>
+                                            <div class="settings-field"><label for="new-phone">Phone</label><input id="new-phone" name="phone" type="tel"></div>
+                                            <div class="settings-field"><label for="new-department">Department</label><input id="new-department" name="department"></div>
+                                            <div class="settings-field"><label for="new-role">Role</label><select id="new-role" name="role" required><% roles.filter((role) => role.is_system).forEach((role) => { %><option value="<%= role.role_key %>"><%= role.label %></option><% }) %></select></div>
+                                            <div class="settings-field"><label for="new-password">Initial password</label><input id="new-password" name="password" type="password" minlength="<%= value('security_password_min_length', '12') %>" autocomplete="new-password" required></div>
+                                        </div>
+                                        <div class="settings-actions"><button class="settings-button" type="submit">Add user</button></div>
+                                    </form>
+                                    <hr>
+                                <% } %>
+                                <h3>Administrator accounts</h3>
+                                <% adminUsers.forEach((user) => { %>
+                                    <article class="settings-user-card">
+                                        <div class="settings-user-heading">
+                                            <div><strong><%= user.name || user.email %></strong><br><small><%= user.email %> · <%= user.phone || 'No phone' %> · <%= user.role_label %> · MFA: <%= Number(user.mfa_enabled) === 1 ? 'Enabled' : 'Not enabled' %> · Last login: <%= user.last_login || 'Never' %> · Created: <%= user.created_at || 'Unknown' %></small></div>
+                                            <span class="settings-status <%= Number(user.is_active) === 1 ? '' : 'disabled' %>"><%= Number(user.is_active) === 1 ? 'Active' : 'Disabled' %></span>
+                                        </div>
+                                        <form method="POST" action="/admin/settings/users/<%= user.id %>">
+                                            <div class="settings-form-grid">
+                                                <div class="settings-field"><label for="name-<%= user.id %>">Name</label><input id="name-<%= user.id %>" name="name" value="<%= user.name || '' %>" required></div>
+                                                <div class="settings-field"><label for="email-<%= user.id %>">Email</label><input id="email-<%= user.id %>" name="email" type="email" value="<%= user.email %>" required></div>
+                                                <div class="settings-field"><label for="phone-<%= user.id %>">Phone</label><input id="phone-<%= user.id %>" name="phone" type="tel" value="<%= user.phone || '' %>"></div>
+                                                <div class="settings-field"><label for="department-<%= user.id %>">Department</label><input id="department-<%= user.id %>" name="department" value="<%= user.department || '' %>"></div>
+                                                <div class="settings-field"><label for="role-<%= user.id %>">Role</label><select id="role-<%= user.id %>" name="role"><% roles.filter((role) => role.is_system).forEach((role) => { %><option value="<%= role.role_key %>" <%= user.role === role.role_key ? 'selected' : '' %>><%= role.label %></option><% }) %></select></div>
+                                            </div>
+                                            <div class="settings-actions"><button class="settings-button" type="submit">Save user</button></div>
+                                        </form>
+                                        <div class="settings-inline-actions">
+                                            <form method="POST" action="/admin/settings/users/<%= user.id %>/reset-access" onsubmit="return confirm('Revoke this administrator’s existing sessions?')"><button class="settings-button secondary" type="submit">Reset access</button></form>
+                                            <form method="POST" action="/admin/settings/users/<%= user.id %>/reset-mfa" onsubmit="return confirm('Reset this administrator’s MFA methods, recovery codes, and sessions?')"><button class="settings-button secondary" type="submit">Reset MFA</button></form>
+                                            <form method="POST" action="/admin/settings/users/<%= user.id %>/toggle" onsubmit="return confirm('<%= Number(user.is_active) === 1 ? 'Disable' : 'Enable' %> this administrator?')"><button class="settings-button <%= Number(user.is_active) === 1 ? 'danger' : '' %>" type="submit"><%= Number(user.is_active) === 1 ? 'Disable' : 'Enable' %></button></form>
+                                            <a class="settings-button secondary" href="/admin/settings?tab=audit">View audit activity</a>
+                                        </div>
+                                    </article>
+                                <% }) %>
+                            </div>
+                        </section>
+                    <% } %>
+
+                    <% if (selectedTab === 'roles' && has('roles.view')) { %>
+                        <section class="adm-card">
+                            <div class="adm-card-header"><div><h2 class="adm-card-title">Roles & Permissions</h2><p class="adm-card-subtitle">Extensible module-level permissions enforced by the server.</p></div></div>
+                            <div class="adm-card-body">
+                                <div class="adm-table-wrap">
+                                    <table class="adm-table permission-matrix">
+                                        <thead><tr><th>Module</th><% roles.filter((role) => role.is_system).forEach((role) => { %><th><%= role.label %></th><% }) %></tr></thead>
+                                        <tbody>
+                                            <% Object.entries(modules).forEach(([moduleKey, moduleLabel]) => { %>
+                                                <tr>
+                                                    <td><strong><%= moduleLabel %></strong><br><small>View / Create / Edit / Delete / Approve / Export / Manage</small></td>
+                                                    <% roles.filter((role) => role.is_system).forEach((role) => { const count = actions.filter((action) => role.permissions.includes(`${moduleKey}.${action}`)).length; %>
+                                                        <td><span class="<%= count ? 'permission-check' : '' %>"><%= count ? `${count}/${actions.length}` : '—' %></span></td>
+                                                    <% }) %>
+                                                </tr>
+                                            <% }) %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <% roles.forEach((role) => { %>
+                                    <details class="settings-user-card">
+                                        <summary><strong><%= role.label %></strong> — <%= role.description %></summary>
+                                        <p><%= role.permissions.join(', ') || 'No permissions assigned' %></p>
+                                    </details>
+                                <% }) %>
+                            </div>
+                        </section>
+                    <% } %>
+
+                    <% if (selectedTab === 'payroll' && has('payroll.view')) { %>
+                        <section class="adm-card">
+                            <div class="adm-card-header"><div><h2 class="adm-card-title">Payroll Rates</h2><p class="adm-card-subtitle">Default multipliers used for future payroll calculations.</p></div></div>
+                            <div class="adm-card-body">
+                                <form method="POST" action="/admin/settings/payroll">
+                                    <div class="settings-form-grid">
+                                        <div class="settings-field"><label for="nightPremium">Night premium</label><input id="nightPremium" name="nightPremium" type="number" min="0" step="0.01" value="<%= Number(payrollSettings.nightPremium || 0).toFixed(2) %>"></div>
+                                        <div class="settings-field"><label for="weekendPremium">Weekend premium</label><input id="weekendPremium" name="weekendPremium" type="number" min="0" step="0.01" value="<%= Number(payrollSettings.weekendPremium || 0).toFixed(2) %>"></div>
+                                        <div class="settings-field"><label for="bankHolidayPremium">Bank holiday premium</label><input id="bankHolidayPremium" name="bankHolidayPremium" type="number" min="0" step="0.01" value="<%= Number(payrollSettings.bankHolidayPremium || 0).toFixed(2) %>"></div>
+                                        <div class="settings-field"><label for="overtimePremium">Overtime premium</label><input id="overtimePremium" name="overtimePremium" type="number" min="0" step="0.01" value="<%= Number(payrollSettings.overtimePremium || 0).toFixed(2) %>"></div>
+                                        <div class="settings-field"><label for="overtimeWeeklyHours">Overtime threshold</label><input id="overtimeWeeklyHours" name="overtimeWeeklyHours" type="number" min="0.1" step="0.5" value="<%= Number(payrollSettings.overtimeWeeklyHours || 0).toFixed(1) %>"></div>
+                                        <div class="settings-field"><label for="mileageRatePerKm">Mileage rate per km</label><input id="mileageRatePerKm" name="mileageRatePerKm" type="number" min="0" step="0.01" value="<%= Number(payrollSettings.mileageRatePerKm || 0).toFixed(2) %>"></div>
+                                    </div>
+                                    <% if (has('payroll.manage')) { %><div class="settings-actions"><button class="settings-button" type="submit">Save payroll settings</button></div><% } %>
+                                </form>
+                                <% if (has('payroll.manage')) { %>
+                                    <hr>
+                                    <form method="POST" action="/admin/settings/general/payroll">
+                                        <div class="settings-form-grid">
+                                            <div class="settings-field"><label for="payroll_period">Payroll period</label><select id="payroll_period" name="payroll_period"><option <%= value('payroll_period', 'Monthly') === 'Monthly' ? 'selected' : '' %>>Monthly</option><option <%= value('payroll_period') === 'Fortnightly' ? 'selected' : '' %>>Fortnightly</option><option <%= value('payroll_period') === 'Weekly' ? 'selected' : '' %>>Weekly</option></select></div>
+                                            <div class="settings-field"><label for="payslip_delivery">Payslip delivery</label><select id="payslip_delivery" name="payslip_delivery"><option <%= value('payslip_delivery', 'Portal and email') === 'Portal and email' ? 'selected' : '' %>>Portal and email</option><option <%= value('payslip_delivery') === 'Portal only' ? 'selected' : '' %>>Portal only</option></select></div>
+                                            <div class="settings-field"><label for="payroll_approval_required">Approval before finalisation</label><select id="payroll_approval_required" name="payroll_approval_required"><option value="1" <%= value('payroll_approval_required', '1') === '1' ? 'selected' : '' %>>Required</option><option value="0" <%= value('payroll_approval_required') === '0' ? 'selected' : '' %>>Not required</option></select></div>
+                                        </div><div class="settings-actions"><button class="settings-button">Save payroll policy</button></div>
+                                    </form>
+                                <% } %>
+                            </div>
+                        </section>
+                    <% } %>
+
+                    <% if (selectedTab === 'notifications' && has('settings.manage')) { %>
+                        <section class="adm-card"><div class="adm-card-header"><div><h2 class="adm-card-title">Notifications</h2><p class="adm-card-subtitle">Operational and expiry notification defaults.</p></div></div><div class="adm-card-body"><form method="POST" action="/admin/settings/general/notifications"><div class="settings-form-grid"><div class="settings-field"><label for="notifications_enabled">System notifications</label><select id="notifications_enabled" name="notifications_enabled"><option value="1" <%= value('notifications_enabled', '1') === '1' ? 'selected' : '' %>>Enabled</option><option value="0" <%= value('notifications_enabled') === '0' ? 'selected' : '' %>>Disabled</option></select></div><div class="settings-field"><label for="expiry_reminder_days">Expiry reminders (days)</label><input id="expiry_reminder_days" name="expiry_reminder_days" value="<%= value('expiry_reminder_days', '90,60,30,7') %>"></div><div class="settings-field"><label for="shift_notification_channel">Shift channel</label><select id="shift_notification_channel" name="shift_notification_channel"><option <%= value('shift_notification_channel', 'Email and portal') === 'Email and portal' ? 'selected' : '' %>>Email and portal</option><option <%= value('shift_notification_channel') === 'Portal only' ? 'selected' : '' %>>Portal only</option><option <%= value('shift_notification_channel') === 'Email only' ? 'selected' : '' %>>Email only</option></select></div><div class="settings-field"><label for="notification_events">Enabled notification events</label><textarea id="notification_events" name="notification_events"><%= value('notification_events', 'Application received, interview scheduled, offer sent, staff approved, shift assigned, shift changed, shift cancelled, document expiry, training expiry') %></textarea></div></div><div class="settings-actions"><button class="settings-button">Save notifications</button></div></form></div></section>
+                    <% } %>
+
+                    <% if (selectedTab === 'security' && has('security.manage')) { %>
+                        <section class="adm-card">
+                            <div class="adm-card-header"><div><h2 class="adm-card-title">Security & MFA policy</h2><p class="adm-card-subtitle">Only Super Admins can change role enforcement. Global MFA remains off until explicitly enabled.</p></div></div>
+                            <div class="adm-card-body">
+                                <form method="POST" action="/admin/settings/general/security">
+                                    <div class="settings-form-grid">
+                                        <div class="settings-field"><label for="security_session_timeout_minutes">Session timeout (minutes)</label><input id="security_session_timeout_minutes" name="security_session_timeout_minutes" type="number" min="5" value="<%= value('security_session_timeout_minutes', '30') %>"></div>
+                                        <div class="settings-field"><label for="security_password_min_length">Minimum password length</label><input id="security_password_min_length" name="security_password_min_length" type="number" min="12" value="<%= value('security_password_min_length', '12') %>"></div>
+                                        <div class="settings-field"><label for="mfa_global_enabled">Global MFA enforcement</label><select id="mfa_global_enabled" name="mfa_global_enabled"><option value="0" <%= value('mfa_global_enabled', '0') === '0' ? 'selected' : '' %>>Off (trial/testing)</option><option value="1" <%= value('mfa_global_enabled') === '1' ? 'selected' : '' %>>On</option></select></div>
+                                        <% [['super_admin', 'Super Admin'], ['hr', 'HR'], ['payroll', 'Payroll'], ['manager', 'Manager'], ['staff', 'Staff']].forEach(([roleKey, roleLabel]) => { const defaultValue = roleKey === 'staff' ? '0' : '1'; %>
+                                            <div class="settings-field"><label for="mfa_role_<%= roleKey %>"><%= roleLabel %> MFA requirement</label><select id="mfa_role_<%= roleKey %>" name="mfa_role_<%= roleKey %>"><option value="1" <%= value(`mfa_role_${roleKey}`, defaultValue) === '1' ? 'selected' : '' %>>Required when global MFA is on</option><option value="0" <%= value(`mfa_role_${roleKey}`, defaultValue) === '0' ? 'selected' : '' %>>Optional</option></select></div>
+                                        <% }) %>
+                                    </div>
+                                    <div class="settings-actions"><button class="settings-button">Save security policy</button></div>
+                                </form>
+                                <hr>
+                                <h3>Duplicate identity review</h3>
+                                <p class="adm-card-subtitle">Duplicates are reported without changing or deleting historical records.</p>
+                                <% if (!duplicateIdentities.emails.length && !duplicateIdentities.phones.length) { %>
+                                    <div class="settings-alert success">No active duplicate emails or phone numbers were found.</div>
+                                <% } %>
+                                <% duplicateIdentities.emails.forEach((group) => { %>
+                                    <div class="settings-alert danger"><strong>Duplicate email:</strong> <%= group.normalized %> — <%= group.entries.map((entry) => `${entry.source} #${entry.id}`).join(', ') %></div>
+                                <% }) %>
+                                <% duplicateIdentities.phones.forEach((group) => { %>
+                                    <div class="settings-alert danger"><strong>Duplicate phone:</strong> <%= group.normalized %> — <%= group.entries.map((entry) => `${entry.source} #${entry.id}`).join(', ') %></div>
+                                <% }) %>
+                            </div>
+                        </section>
+                    <% } %>
+
+                    <% if (selectedTab === 'compliance' && has('settings.manage')) { %>
+                        <section class="adm-card"><div class="adm-card-header"><div><h2 class="adm-card-title">Compliance</h2><p class="adm-card-subtitle">Document expiry and scheduling safeguards.</p></div></div><div class="adm-card-body"><form method="POST" action="/admin/settings/general/compliance"><div class="settings-form-grid"><div class="settings-field"><label for="compliance_expiry_warning_days">Warning window (days)</label><input id="compliance_expiry_warning_days" name="compliance_expiry_warning_days" type="number" min="1" value="<%= value('compliance_expiry_warning_days', '30') %>"></div><div class="settings-field"><label for="compliance_block_expired">Expired document handling</label><select id="compliance_block_expired" name="compliance_block_expired"><option value="1" <%= value('compliance_block_expired', '1') === '1' ? 'selected' : '' %>>Block scheduling</option><option value="0" <%= value('compliance_block_expired') === '0' ? 'selected' : '' %>>Warn only</option></select></div><div class="settings-field"><label for="compliance_required_documents">Required staff documents</label><textarea id="compliance_required_documents" name="compliance_required_documents"><%= value('compliance_required_documents', 'Garda vetting, references, qualifications, professional registration, insurance, training certificates') %></textarea></div><div class="settings-field"><label for="compliance_training_requirements">Mandatory training</label><textarea id="compliance_training_requirements" name="compliance_training_requirements"><%= value('compliance_training_requirements', 'Manual handling, safeguarding, infection prevention, CPR') %></textarea></div><div class="settings-field"><label for="compliance_default_expiry_months">Default document expiry (months)</label><input id="compliance_default_expiry_months" name="compliance_default_expiry_months" type="number" min="1" value="<%= value('compliance_default_expiry_months', '12') %>"></div></div><div class="settings-actions"><button class="settings-button">Save compliance policy</button></div></form></div></section>
+                    <% } %>
+
+                    <% if (selectedTab === 'homecare' && has('settings.manage')) { %>
+                        <section class="adm-card"><div class="adm-card-header"><div><h2 class="adm-card-title">Home Care & Clients</h2><p class="adm-card-subtitle">Service catalogue, visit defaults, client states, and care-plan reviews.</p></div></div><div class="adm-card-body"><form method="POST" action="/admin/settings/general/homecare"><div class="settings-form-grid">
+                            <div class="settings-field"><label for="homecare_services">Care services</label><textarea id="homecare_services" name="homecare_services"><%= value('homecare_services', 'Personal care\nCompanionship\nMedication support\nRespite care') %></textarea></div>
+                            <div class="settings-field"><label for="homecare_categories">Care categories</label><textarea id="homecare_categories" name="homecare_categories"><%= value('homecare_categories', 'Low support\nModerate support\nComplex care') %></textarea></div>
+                            <div class="settings-field"><label for="homecare_visit_types">Visit types</label><textarea id="homecare_visit_types" name="homecare_visit_types"><%= value('homecare_visit_types', 'Scheduled\nAssessment\nReview\nEmergency') %></textarea></div>
+                            <div class="settings-field"><label for="homecare_visit_durations">Visit durations (minutes)</label><input id="homecare_visit_durations" name="homecare_visit_durations" value="<%= value('homecare_visit_durations', '30,45,60,90,120') %>"></div>
+                            <div class="settings-field"><label for="homecare_client_statuses">Client statuses</label><textarea id="homecare_client_statuses" name="homecare_client_statuses"><%= value('homecare_client_statuses', 'Enquiry\nAssessment\nActive\nPaused\nDischarged') %></textarea></div>
+                            <div class="settings-field"><label for="homecare_plan_review_days">Care-plan review interval (days)</label><input id="homecare_plan_review_days" name="homecare_plan_review_days" type="number" min="1" value="<%= value('homecare_plan_review_days', '90') %>"></div>
+                        </div><div class="settings-actions"><button class="settings-button">Save home care settings</button></div></form></div></section>
+                    <% } %>
+
+                    <% if (selectedTab === 'website' && has('settings.manage')) { %>
+                        <section class="adm-card"><div class="adm-card-header"><div><h2 class="adm-card-title">Website</h2><p class="adm-card-subtitle">Public contact, careers, consultation, social, footer, and notification defaults.</p></div></div><div class="adm-card-body"><form method="POST" action="/admin/settings/general/website"><div class="settings-form-grid">
+                            <div class="settings-field"><label for="website_contact_email">Website contact email</label><input id="website_contact_email" name="website_contact_email" type="email" value="<%= value('website_contact_email', value('company_email')) %>"></div>
+                            <div class="settings-field"><label for="website_contact_phone">Website contact phone</label><input id="website_contact_phone" name="website_contact_phone" value="<%= value('website_contact_phone', value('company_phone')) %>"></div>
+                            <div class="settings-field"><label for="website_careers_enabled">Careers</label><select id="website_careers_enabled" name="website_careers_enabled"><option value="1" <%= value('website_careers_enabled', '1') === '1' ? 'selected' : '' %>>Enabled</option><option value="0" <%= value('website_careers_enabled') === '0' ? 'selected' : '' %>>Disabled</option></select></div>
+                            <div class="settings-field"><label for="website_consultation_enabled">Consultation form</label><select id="website_consultation_enabled" name="website_consultation_enabled"><option value="1" <%= value('website_consultation_enabled', '1') === '1' ? 'selected' : '' %>>Enabled</option><option value="0" <%= value('website_consultation_enabled') === '0' ? 'selected' : '' %>>Disabled</option></select></div>
+                            <div class="settings-field"><label for="website_social_links">Social media links</label><textarea id="website_social_links" name="website_social_links"><%= value('website_social_links') %></textarea></div>
+                            <div class="settings-field"><label for="website_footer_text">Footer information</label><textarea id="website_footer_text" name="website_footer_text"><%= value('website_footer_text', 'Everkind Home Care - compassionate care, delivered professionally.') %></textarea></div>
+                            <div class="settings-field"><label for="website_notifications_enabled">Website notifications</label><select id="website_notifications_enabled" name="website_notifications_enabled"><option value="1" <%= value('website_notifications_enabled', '1') === '1' ? 'selected' : '' %>>Enabled</option><option value="0" <%= value('website_notifications_enabled') === '0' ? 'selected' : '' %>>Disabled</option></select></div>
+                        </div><div class="settings-actions"><button class="settings-button">Save website settings</button></div></form></div></section>
+                    <% } %>
+
+                    <% if (selectedTab === 'privacy' && has('settings.manage')) { %>
+                        <section class="adm-card"><div class="adm-card-header"><div><h2 class="adm-card-title">GDPR & Privacy</h2><p class="adm-card-subtitle">Retention and deletion-review controls.</p></div></div><div class="adm-card-body"><form method="POST" action="/admin/settings/general/privacy"><div class="settings-form-grid"><div class="settings-field"><label for="privacy_retention_days">Default retention (days)</label><input id="privacy_retention_days" name="privacy_retention_days" type="number" min="30" value="<%= value('privacy_retention_days', '2190') %>"></div><div class="settings-field"><label for="privacy_deletion_review_required">Deletion review</label><select id="privacy_deletion_review_required" name="privacy_deletion_review_required"><option value="1" <%= value('privacy_deletion_review_required', '1') === '1' ? 'selected' : '' %>>Super Admin approval required</option><option value="0" <%= value('privacy_deletion_review_required') === '0' ? 'selected' : '' %>>Not required</option></select></div></div><div class="settings-actions"><button class="settings-button">Save privacy controls</button></div></form></div></section>
+                    <% } %>
+
+                    <% if (selectedTab === 'audit' && has('audit.view')) { %>
+                        <section class="adm-card">
+                            <div class="adm-card-header"><div><h2 class="adm-card-title">Audit Logs</h2><p class="adm-card-subtitle">Authentication, permission, settings, payroll, and data-change events.</p></div></div>
+                            <div class="adm-table-wrap"><table class="adm-table"><thead><tr><th>User</th><th>Role</th><th>Action</th><th>Target</th><th>Result</th><th>Details</th><th>IP</th><th>When</th></tr></thead><tbody><% auditRows.forEach((row) => { %><tr><td><%= [row.actor_type, row.actor_identifier].filter(Boolean).join(': ') %></td><td><%= row.actor_role || '—' %></td><td><%= row.action %></td><td><%= [row.target_type, row.target_identifier].filter(Boolean).join(': ') %></td><td><%= row.outcome %></td><td><%= row.reason || '—' %></td><td><%= row.ip_address || '—' %></td><td><%= row.created_at %></td></tr><% }) %></tbody></table></div>
+                        </section>
+                    <% } %>
+
+                    <% if (selectedTab === 'system' && has('system.manage')) { %>
+                        <section class="adm-card">
+                            <div class="adm-card-header"><div><h2 class="adm-card-title">System</h2><p class="adm-card-subtitle">Application health and protected system controls.</p></div></div>
+                            <div class="adm-card-body">
+                                <p><strong>Active staff:</strong> <%= activeStaffCount %></p>
+                                <p><strong>Authentication:</strong> Secure sessions with database-backed RBAC</p>
+                                <p><strong>Database status:</strong> Connected</p>
+                                <p><strong>Restore controls:</strong> Database restores remain restricted to the secured hosting environment.</p>
+                                <div class="settings-inline-actions">
+                                    <form method="POST" action="/admin/settings/system/backup" onsubmit="return confirm('Create a protected database backup now?')"><button class="settings-button" type="submit">Create backup</button></form>
+                                    <a class="settings-button secondary" href="/admin/settings/system/export">Export system configuration</a>
+                                </div>
+                            </div>
+                            <% if (appStatusRows.length) { %><div class="adm-table-wrap"><table class="adm-table"><thead><tr><th>Key</th><th>Value</th><th>Updated</th></tr></thead><tbody><% appStatusRows.forEach((row) => { %><tr><td><%= row.key %></td><td><%= row.value %></td><td><%= row.updated_at || '—' %></td></tr><% }) %></tbody></table></div><% } %>
+                        </section>
+                    <% } %>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

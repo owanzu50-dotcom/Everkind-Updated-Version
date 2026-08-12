@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'clients', isAdmin: true, currentStaffName: currentStaffName, currentStaffEmail: currentStaffEmail }) %>
+
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title"><%= patient.name %></h1>
+                    <p class="adm-page-subtitle"><span class="adm-badge adm-badge-home-care">🏠 HOME CARE CLIENT</span> · <%= patient.clientId %> · <span class="adm-badge client-status-badge client-status-<%= patient.statusClass %>"><%= patient.status %></span></p>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <a href="/patients" class="adm-btn-secondary">Back to Clients</a>
+                    <a href="/patients/<%= patient.id %>/edit" class="adm-btn-primary">Edit Client</a>
+                    <form action="/patients/<%= patient.id %>/delete" method="POST" class="inline-form" onsubmit="return confirm('Archive <%= patient.name %>? The record will be removed from active lists but retained for history.')">
+                        <button type="submit" class="adm-btn-secondary">Archive</button>
+                    </form>
+                </div>
+            </div>
+
+            <% if (message) { %><p class="form-message success"><%= message %></p><% } %>
+
+            <div class="adm-content-grid">
+                <div class="adm-section">
+                    <div class="adm-card">
+                        <div class="client-detail-hero">
+                            <div class="client-photo-preview large">
+                                <% if (patient.photoUrl) { %>
+                                    <img src="<%= patient.photoUrl %>" alt="Client photo">
+                                <% } else { %>
+                                    <span><%= patient.name.charAt(0) %></span>
+                                <% } %>
+                            </div>
+                            <div class="client-detail-hero-copy">
+                                <div class="client-form-meta">Personal Information</div>
+                                <h2><%= patient.preferredName || patient.name %></h2>
+                                <div class="client-inline-list">
+                                    <span>DOB: <%= patient.dateOfBirth || 'Not set' %></span>
+                                    <span>Age: <%= patient.age || '—' %></span>
+                                    <span>Gender: <%= patient.gender || 'Not set' %></span>
+                                    <span>Language: <%= patient.primaryLanguage || 'Not set' %></span>
+                                </div>
+                                <div class="client-inline-list">
+                                    <span>Nationality: <%= patient.nationality || 'Not set' %></span>
+                                    <span>Marital Status: <%= patient.maritalStatus || 'Not set' %></span>
+                                    <span>Interpreter: <%= patient.interpreterRequired ? 'Required' : 'Not required' %></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Contact & Location</div></div>
+                        <div class="adm-card-body">
+                            <div class="client-inline-list">
+                                <span><strong>Address:</strong> <%= patient.address || 'Not set' %>, <%= patient.county || 'County not set' %>, <%= patient.eircode || 'No Eircode' %></span>
+                                <span><strong>Phone:</strong> <% if (patient.phone) { %><a href="tel:<%= patient.phone %>"><%= patient.phone %></a><% } else { %>Not provided<% } %></span>
+                                <span><strong>Alternative:</strong> <%= patient.alternativePhone || 'Not provided' %></span>
+                                <span><strong>Email:</strong> <%= patient.email || 'Not provided' %></span>
+                            </div>
+                            <div class="client-inline-list">
+                                <span><strong>Latitude:</strong> <%= patient.latitude || 'Not set' %></span>
+                                <span><strong>Longitude:</strong> <%= patient.longitude || 'Not set' %></span>
+                                <span><strong>Radius:</strong> <%= patient.geofenceRadiusMeters %>m</span>
+                            </div>
+                            <% if (patient.address) { %>
+                                <div style="margin-top:12px;">
+                                    <a class="adm-btn-secondary" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=<%= encodeURIComponent([patient.address, patient.county, patient.eircode].filter(Boolean).join(', ')) %>">Open in Google Maps</a>
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Assigned Care Team</div></div>
+                        <div class="adm-card-body">
+                            <% if (assignments.length) { %>
+                                <div class="client-assignment-summary">
+                                    <% assignments.forEach((assignment) => { %>
+                                        <article class="client-team-card">
+                                            <strong><%= assignment.name || ((assignment.first_name || '') + ' ' + (assignment.last_name || '')).trim() %></strong>
+                                            <p><%= assignment.assignment_role %></p>
+                                            <small><%= assignment.role || 'Care team member' %> · <%= assignment.status || 'Unknown' %></small>
+                                        </article>
+                                    <% }) %>
+                                </div>
+                            <% } else { %>
+                                <p class="client-muted">No staff have been assigned yet.</p>
+                            <% } %>
+                        </div>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Care Needs</div></div>
+                        <div class="adm-card-body client-tag-section">
+                            <% const careGroups = [
+                                ['Personal Care', patient.personalCareNeeds],
+                                ['Mobility', patient.mobilityNeeds],
+                                ['Medication & Clinical Tasks', patient.clinicalTasks],
+                                ['Medical Conditions', patient.medicalConditions],
+                                ['Daily Living', patient.dailyLivingNeeds],
+                                ['Risks', patient.riskFlags],
+                                ['Communication', patient.communicationNeedsList],
+                                ['Lifestyle', patient.lifestylePreferences],
+                                ['Equipment', patient.equipmentNeeds],
+                                ['Service Type', patient.serviceTypes],
+                            ]; %>
+                            <% careGroups.forEach(([label, items]) => { if (items && items.length) { %>
+                                <div class="client-tag-group">
+                                    <strong><%= label %></strong>
+                                    <div class="client-tag-list">
+                                        <% items.forEach((item) => { %><span class="client-tag"><%= item %></span><% }) %>
+                                    </div>
+                                </div>
+                            <% } }) %>
+                        </div>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Care Notes</div></div>
+                        <div class="adm-card-body" style="display:grid;gap:12px;">
+                            <% if (notes && notes.length) { %>
+                                <ul class="notes-list">
+                                    <% notes.forEach((entry) => { const noteDate = entry.created_at ? String(entry.created_at).replace('T', ' ').slice(0, 16) : 'Unknown'; %>
+                                        <li class="note-item">
+                                            <div class="note-topline">
+                                                <strong><%= entry.author %></strong>
+                                                <span class="note-severity <%= entry.severity.toLowerCase() %>"><%= entry.severity %></span>
+                                            </div>
+                                            <p><%= entry.note %></p>
+                                            <small><%= noteDate %></small>
+                                        </li>
+                                    <% }) %>
+                                </ul>
+                            <% } else { %>
+                                <p class="client-muted">No care notes have been recorded yet.</p>
+                            <% } %>
+
+                            <form action="/patients/<%= patient.id %>/notes" method="POST" class="note-form">
+                                <label>
+                                    Author
+                                    <input type="text" name="author" placeholder="Nurse or manager name" required>
+                                </label>
+                                <label>
+                                    Severity
+                                    <select name="severity">
+                                        <option value="Normal">Normal</option>
+                                        <option value="Watch">Watch</option>
+                                        <option value="Critical">Critical</option>
+                                    </select>
+                                </label>
+                                <label>
+                                    Observation
+                                    <textarea name="note" rows="4" placeholder="Add an observation, handover note, incident, or safeguarding update..." required></textarea>
+                                </label>
+                                <button type="submit">Add note</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="adm-section">
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Medical Information</div></div>
+                        <div class="adm-card-body client-inline-list">
+                            <span><strong>Diagnoses:</strong> <%= patient.diagnoses || 'Not recorded' %></span>
+                            <span><strong>Allergies:</strong> <%= patient.allergies || 'Not recorded' %></span>
+                            <span><strong>Medication:</strong> <%= patient.current_medication || 'Not recorded' %></span>
+                            <span><strong>Medication Schedule:</strong> <%= patient.medication_schedule || 'Not recorded' %></span>
+                            <span><strong>GP:</strong> <%= patient.gp_name || 'Not recorded' %> <%= patient.gp_phone ? '· ' + patient.gp_phone : '' %></span>
+                            <span><strong>Consultant:</strong> <%= patient.consultant_name || 'Not recorded' %></span>
+                            <span><strong>Hospital:</strong> <%= patient.hospital_name || 'Not recorded' %></span>
+                            <span><strong>Pharmacy:</strong> <%= patient.pharmacy_name || 'Not recorded' %></span>
+                            <span><strong>Vaccination:</strong> <%= patient.vaccination_status || 'Not recorded' %></span>
+                            <span><strong>DNAR:</strong> <%= patient.dnar_status || 'Not recorded' %></span>
+                            <span><strong>Falls Risk:</strong> <%= patient.falls_risk_level || 'Not recorded' %></span>
+                            <span><strong>Infection Risks:</strong> <%= patient.infection_risks || 'Not recorded' %></span>
+                        </div>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Emergency Contact</div></div>
+                        <div class="adm-card-body client-inline-list">
+                            <span><strong>Name:</strong> <%= patient.emergencyContactName || 'Not recorded' %></span>
+                            <span><strong>Relationship:</strong> <%= patient.emergencyContactRelationship || 'Not recorded' %></span>
+                            <span><strong>Phone:</strong> <% if (patient.emergencyContactPhone) { %><a href="tel:<%= patient.emergencyContactPhone %>"><%= patient.emergencyContactPhone %></a><% } else { %>Not recorded<% } %></span>
+                            <span><strong>Alternative Phone:</strong> <%= patient.emergencyContactAltPhone || 'Not recorded' %></span>
+                            <span><strong>Email:</strong> <% if (patient.emergencyContactEmail) { %><a href="mailto:<%= patient.emergencyContactEmail %>"><%= patient.emergencyContactEmail %></a><% } else { %>Not recorded<% } %></span>
+                            <span><strong>Address:</strong> <%= patient.emergencyContactAddress || 'Not recorded' %></span>
+                        </div>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Home Access</div></div>
+                        <div class="adm-card-body client-inline-list">
+                            <span><strong>Key Safe Code:</strong> <%= patient.key_safe_code || 'Not recorded' %></span>
+                            <span><strong>Door Code:</strong> <%= patient.door_code || 'Not recorded' %></span>
+                            <span><strong>Alarm Code:</strong> <%= patient.alarm_code || 'Not recorded' %></span>
+                            <span><strong>Parking:</strong> <%= patient.parking_instructions || 'Not recorded' %></span>
+                            <span><strong>Pets:</strong> <%= patient.pets || 'Not recorded' %></span>
+                            <span><strong>Lift Available:</strong> <%= patient.lift_available ? 'Yes' : 'No' %></span>
+                            <span><strong>Stairs:</strong> <%= patient.stairs || 'Not recorded' %></span>
+                            <span><strong>Access Notes:</strong> <%= patient.access_notes || 'Not recorded' %></span>
+                        </div>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Care Plan & Shift Instructions</div></div>
+                        <div class="adm-card-body client-rich-readonly">
+                            <% if (patient.carePlanSections.dailyRoutine) { %><article><strong>Daily Routine</strong><div><%- patient.carePlanSections.dailyRoutine %></div></article><% } %>
+                            <% if (patient.carePlanSections.personalPreferences) { %><article><strong>Personal Preferences</strong><div><%- patient.carePlanSections.personalPreferences %></div></article><% } %>
+                            <% if (patient.carePlanSections.likes) { %><article><strong>Likes</strong><div><%- patient.carePlanSections.likes %></div></article><% } %>
+                            <% if (patient.carePlanSections.dislikes) { %><article><strong>Dislikes</strong><div><%- patient.carePlanSections.dislikes %></div></article><% } %>
+                            <% if (patient.carePlanSections.communicationNeeds) { %><article><strong>Communication Needs</strong><div><%- patient.carePlanSections.communicationNeeds %></div></article><% } %>
+                            <% if (patient.carePlanSections.diet) { %><article><strong>Diet</strong><div><%- patient.carePlanSections.diet %></div></article><% } %>
+                            <% if (patient.carePlanSections.fluids) { %><article><strong>Fluids</strong><div><%- patient.carePlanSections.fluids %></div></article><% } %>
+                            <% if (patient.carePlanSections.behaviourSupport) { %><article><strong>Behaviour Support</strong><div><%- patient.carePlanSections.behaviourSupport %></div></article><% } %>
+                            <% if (patient.carePlanSections.riskInformation) { %><article><strong>Risk Information</strong><div><%- patient.carePlanSections.riskInformation %></div></article><% } %>
+                            <% if (patient.carePlanSections.careGoals) { %><article><strong>Care Goals</strong><div><%- patient.carePlanSections.careGoals %></div></article><% } %>
+                            <article>
+                                <strong>Shift Instructions</strong>
+                                <div><%- patient.shift_instructions || 'No shift instructions have been added yet.' %></div>
+                            </article>
+                        </div>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Scheduling Preferences</div></div>
+                        <div class="adm-card-body client-inline-list">
+                            <span><strong>Preferred Days:</strong> <%= (patient.preferredDays || []).join(', ') || 'Not recorded' %></span>
+                            <span><strong>Preferred Times:</strong> <%= (patient.preferredTimes || []).join(', ') || 'Not recorded' %></span>
+                            <span><strong>Visit Duration:</strong> <%= patient.visit_duration || patient.custom_visit_duration || 'Not recorded' %></span>
+                            <span><strong>Frequency:</strong> <%= patient.visit_frequency || patient.custom_visit_frequency || 'Not recorded' %></span>
+                            <span><strong>Preferred Staff:</strong> <%= patient.preferred_staff_gender || 'Not recorded' %></span>
+                        </div>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Documents</div></div>
+                        <div class="adm-card-body">
+                            <% if (documents.length) { %>
+                                <div class="client-document-list">
+                                    <% documents.forEach((document) => { %>
+                                        <article class="client-document-item">
+                                            <div>
+                                                <strong><%= document.title %></strong>
+                                                <p><%= document.category %> · <%= document.file_name %></p>
+                                                <small><%= Number(document.is_staff_visible || 0) ? 'Visible to assigned staff' : 'Admin only' %></small>
+                                            </div>
+                                            <a class="adm-btn-secondary" href="/patients/<%= patient.id %>/documents/<%= document.id %>/download">Download</a>
+                                        </article>
+                                    <% }) %>
+                                </div>
+                            <% } else { %>
+                                <p class="client-muted">No documents uploaded yet.</p>
+                            <% } %>
+                        </div>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Internal Notes</div></div>
+                        <div class="adm-card-body">
+                            <div class="client-internal-note"><%= patient.internal_notes || 'No internal notes recorded.' %></div>
+                        </div>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Audit Trail</div></div>
+                        <div class="adm-card-body">
+                            <% if (auditEvents.length) { %>
+                                <div class="client-audit-list">
+                                    <% auditEvents.forEach((event) => { %>
+                                        <article class="client-audit-item">
+                                            <strong><%= event.action %></strong>
+                                            <p><%= event.actor_type %><%= event.actor_identifier ? ' · ' + event.actor_identifier : '' %></p>
+                                            <small><%= String(event.created_at || '').replace('T', ' ').slice(0, 16) %><%= event.reason ? ' · ' + event.reason : '' %></small>
+                                        </article>
+                                    <% }) %>
+                                </div>
+                            <% } else { %>
+                                <p class="client-muted">No audit events have been logged yet.</p>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

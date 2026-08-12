@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+    <script>
+        try {
+            document.documentElement.dataset.theme = localStorage.getItem('everkind-portal-theme') === 'dark' ? 'dark' : 'light';
+        } catch (error) {
+            document.documentElement.dataset.theme = 'light';
+        }
+    </script>
+    <script src="/js/theme.js" defer></script>
+</head>
+<body class="portal-page">
+    <div class="portal-shell">
+        <div class="portal-card">
+            <div class="portal-branding">
+                <img class="brand-logo" src="/images/logo.png" alt="Everkind logo" />
+                <div>
+                    <h1>Everkind</h1>
+                    <p>Staff and admin portal</p>
+                </div>
+            </div>
+
+            <h2>Sign in to Everkind Portal</h2>
+            <p class="portal-subtext">Staff can access only their own rota, open shifts, profile, documents, and messages. Admins can access the operations hub.</p>
+            <% if (error) { %>
+                <div class="form-message error"><%= error %></div>
+            <% } %>
+
+            <form id="portal-login-form" class="portal-form">
+                <label>
+                    Email address
+                    <input type="email" name="email" placeholder="you@everkind.com" required>
+                </label>
+                <label>
+                    Password
+                    <input type="password" name="password" placeholder="Enter password" required>
+                </label>
+                <button type="submit" class="primary-button full-width">Continue to portal</button>
+            </form>
+
+            <section id="portal-mfa-panel" class="portal-mfa-panel" hidden aria-labelledby="portal-mfa-heading">
+                <h2 id="portal-mfa-heading">Verify your identity</h2>
+                <p class="portal-subtext">How would you like to verify your identity?</p>
+                <div id="portal-mfa-methods" class="portal-mfa-methods"></div>
+                <form id="portal-mfa-form" class="portal-form" hidden>
+                    <input type="hidden" name="method">
+                    <label>
+                        Verification code
+                        <input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" required>
+                    </label>
+                    <p id="portal-mfa-instructions" class="portal-subtext"></p>
+                    <button type="submit" class="primary-button full-width">Verify and sign in</button>
+                </form>
+                <button type="button" id="portal-mfa-restart" class="secondary-button full-width">Back to sign in</button>
+            </section>
+
+            <div class="portal-links">
+                <a href="/portal/forgot-password">Forgot password?</a>
+                <a href="/">Return to website</a>
+                <a href="/assessment">Request a care assessment</a>
+            </div>
+            <button type="button" class="login-theme-toggle" data-theme-toggle aria-label="Switch to dark mode">
+                <span data-theme-icon aria-hidden="true">☾</span>
+                <span data-theme-label>Dark mode</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const portalLoginForm = document.getElementById('portal-login-form');
+        const portalMfaPanel = document.getElementById('portal-mfa-panel');
+        const portalMfaMethods = document.getElementById('portal-mfa-methods');
+        const portalMfaForm = document.getElementById('portal-mfa-form');
+        const portalMfaInstructions = document.getElementById('portal-mfa-instructions');
+
+        const showPortalError = (message, anchor) => {
+            const existing = document.querySelector('.form-message.error.dynamic');
+            if (existing) existing.remove();
+            const alertBox = document.createElement('div');
+            alertBox.className = 'form-message error dynamic';
+            alertBox.textContent = message;
+            anchor.insertAdjacentElement('afterend', alertBox);
+        };
+
+        const chooseMfaMethod = async (method) => {
+            try {
+                const response = await fetch('/api/mfa/challenge', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ method })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Unable to start verification.');
+                portalMfaForm.elements.method.value = method;
+                portalMfaForm.elements.code.value = '';
+                portalMfaForm.elements.code.inputMode = method === 'recovery' ? 'text' : 'numeric';
+                portalMfaInstructions.textContent = data.message || 'Enter your verification code.';
+                portalMfaForm.hidden = false;
+                portalMfaForm.elements.code.focus();
+            } catch (error) {
+                showPortalError(error.message, portalMfaMethods);
+            }
+        };
+
+        const showMfaMethods = (methods) => {
+            portalLoginForm.hidden = true;
+            portalMfaPanel.hidden = false;
+            portalMfaMethods.replaceChildren();
+            methods.forEach((method) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'portal-mfa-method';
+                const title = document.createElement('strong');
+                title.textContent = method.label;
+                const detail = document.createElement('span');
+                detail.textContent = method.detail;
+                button.append(title, detail);
+                button.addEventListener('click', () => chooseMfaMethod(method.key));
+                portalMfaMethods.appendChild(button);
+            });
+        };
+
+        if (portalLoginForm) {
+            portalLoginForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const payload = Object.fromEntries(new FormData(portalLoginForm).entries());
+
+                try {
+                    const response = await fetch('/api/admin/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Unable to sign in.');
+                    }
+
+                    if (data.requiresMfa) {
+                        showMfaMethods(data.methods || []);
+                        return;
+                    }
+                    window.location.href = data.redirect || '/portal/dashboard';
+                } catch (error) {
+                    showPortalError(error.message, portalLoginForm);
+                }
+            });
+        }
+
+        portalMfaForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            try {
+                const payload = Object.fromEntries(new FormData(portalMfaForm).entries());
+                const response = await fetch('/api/mfa/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.message || 'Unable to verify the code.');
+                window.location.href = data.redirect || '/portal/dashboard';
+            } catch (error) {
+                showPortalError(error.message, portalMfaForm);
+            }
+        });
+
+        document.getElementById('portal-mfa-restart').addEventListener('click', () => window.location.reload());
+    </script>
+</body>
+</html>

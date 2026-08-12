@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'documents', isAdmin: false, currentStaffName: currentStaffName, currentStaffEmail: currentStaffEmail }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Documents</h1>
+                    <p class="adm-page-subtitle">Contracts, handbook, policies, payslips, and certificates provided by admin</p>
+                </div>
+            </div>
+
+            <div class="adm-card">
+                <% if (documents.length) { %>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead><tr><th>Title</th><th>Category</th><th>Download</th></tr></thead>
+                            <tbody>
+                                <% documents.forEach((doc) => { %>
+                                    <tr>
+                                        <td><strong><%= doc.title %></strong></td>
+                                        <td><%= doc.category %></td>
+                                        <td><a class="adm-btn-secondary" href="/portal/documents/<%= doc.id %>/download">Download</a></td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="adm-card-empty"><p>No documents are available for your account yet.</p></div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

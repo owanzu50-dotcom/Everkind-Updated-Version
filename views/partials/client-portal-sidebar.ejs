@@ -1,0 +1,53 @@
+<script>
+(function () {
+    try {
+        const savedTheme = localStorage.getItem('everkind-portal-theme');
+        document.documentElement.dataset.theme = savedTheme === 'dark' ? 'dark' : 'light';
+    } catch (error) {
+        document.documentElement.dataset.theme = 'light';
+    }
+}());
+</script>
+<script src="/js/theme.js" defer></script>
+
+<div class="portal-mobile-header">
+    <button type="button" class="portal-mobile-menu-button" data-portal-menu-toggle aria-label="Open navigation" aria-expanded="false" aria-controls="portal-drawer">
+        <span></span><span></span><span></span>
+    </button>
+    <a href="/facility-portal/dashboard" class="portal-mobile-brand">
+        <img class="brand-logo" src="/images/logo.png" alt="Everkind logo">
+        <div><strong>Everkind</strong><small>Facility Portal</small></div>
+    </a>
+    <span class="portal-mobile-user" aria-label="Facility account"><%= (typeof currentClientName !== 'undefined' && currentClientName) ? currentClientName.charAt(0).toUpperCase() : 'C' %></span>
+</div>
+
+<div class="portal-drawer-backdrop" data-portal-drawer-backdrop></div>
+
+<aside class="sidebar" id="portal-drawer" data-portal="client" aria-label="Facility portal navigation">
+    <a href="/facility-portal/dashboard" class="sidebar-brand" data-portal-nav-link>
+        <img class="brand-logo" src="/images/logo.png" alt="Everkind logo">
+        <div><strong>Everkind</strong><small>Facility Portal</small></div>
+    </a>
+
+    <nav class="sidebar-nav">
+        <a href="/facility-portal/dashboard" class="<%= active === 'dashboard' ? 'active' : '' %>" data-portal-nav-link><span class="sidebar-nav-icon" aria-hidden="true">▦</span><span class="sidebar-nav-label">Dashboard</span></a>
+        <a href="/facility-portal/requests/new" class="<%= active === 'new-request' ? 'active' : '' %>" data-portal-nav-link><span class="sidebar-nav-icon" aria-hidden="true">＋</span><span class="sidebar-nav-label">Request Staff</span></a>
+        <a href="/facility-portal/requests" class="<%= active === 'requests' ? 'active' : '' %>" data-portal-nav-link>
+            <span class="sidebar-nav-icon" aria-hidden="true">▤</span><span class="sidebar-nav-label">My Requests</span>
+            <% if (clientPortalCounts && clientPortalCounts.openRequests > 0) { %><span class="sidebar-count-badge"><%= clientPortalCounts.openRequests %></span><% } %>
+        </a>
+    </nav>
+
+    <div class="sidebar-footer">
+        <div class="sidebar-user-avatar"><%= (typeof currentClientName !== 'undefined' && currentClientName) ? currentClientName.charAt(0).toUpperCase() : 'C' %></div>
+        <div class="sidebar-user-info">
+            <span class="sidebar-user-name"><%= (typeof currentClientName !== 'undefined' && currentClientName) ? currentClientName : 'Facility Account' %></span>
+            <span class="sidebar-user-email"><%= (typeof currentClientEmail !== 'undefined' && currentClientEmail) ? currentClientEmail : 'facility@everkind.com' %></span>
+            <button type="button" class="portal-theme-toggle" data-theme-toggle aria-label="Switch to dark mode">
+                <span data-theme-icon aria-hidden="true">☾</span><span data-theme-label>Dark mode</span>
+            </button>
+            <div class="sidebar-footer-actions"><a href="/facility-portal/logout" data-portal-nav-link>Sign out</a></div>
+        </div>
+    </div>
+</aside>
+<script src="/js/portal-navigation.js" defer></script>

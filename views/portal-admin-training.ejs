@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'admin-training', isAdmin: true, currentStaffName, currentStaffEmail }) %>
+
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <span class="hr-dashboard-eyebrow">Learning and development</span>
+                    <h1 class="adm-page-title">Staff Training</h1>
+                    <p class="adm-page-subtitle">Review overdue, pending and upcoming mandatory training.</p>
+                </div>
+                <a href="/admin/hr-dashboard" class="adm-btn-secondary">Back to HR Dashboard</a>
+            </div>
+
+            <section class="hr-metric-grid" aria-label="Training overview">
+                <% [
+                    ['Overdue', metrics.overdueTraining, 'Requires immediate action', metrics.overdueTraining ? 'red' : 'green'],
+                    ['Pending', metrics.pendingTraining, 'Not yet completed', metrics.pendingTraining ? 'amber' : 'green'],
+                    ['Upcoming', metrics.upcomingTraining, 'Renewal approaching', 'blue']
+                ].forEach(([label, value, detail, tone]) => { %>
+                    <div class="adm-metric-card hr-metric-card">
+                        <span class="hr-metric-indicator hr-tone-<%= tone %>"></span>
+                        <span class="adm-metric-label"><%= label %></span>
+                        <span class="adm-metric-value"><%= value %></span>
+                        <span class="adm-metric-sub"><%= detail %></span>
+                    </div>
+                <% }); %>
+            </section>
+
+            <section class="adm-card">
+                <div class="adm-card-header">
+                    <div>
+                        <div class="adm-card-title">Training actions</div>
+                        <div class="adm-card-subtitle">Prioritised by urgency</div>
+                    </div>
+                </div>
+                <div class="adm-table-wrap">
+                    <table class="adm-table">
+                        <thead>
+                            <tr>
+                                <th>Staff member</th>
+                                <th>Training</th>
+                                <th>Status</th>
+                                <th>Expiry / due date</th>
+                                <th>Staff record</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (trainingAlerts.length) { trainingAlerts.forEach((record) => {
+                                const tone = record.state === 'overdue' ? 'red' : record.state === 'pending' ? 'amber' : 'blue';
+                            %>
+                                <tr>
+                                    <td><%= record.staff_name || 'Staff member' %></td>
+                                    <td><%= record.title || record.item || 'Mandatory training' %></td>
+                                    <td><span class="hr-status-badge hr-tone-<%= tone %>"><%= record.state %></span></td>
+                                    <td><%= record.expires_at || record.expiryDate ? String(record.expires_at || record.expiryDate).slice(0, 10) : 'Not recorded' %></td>
+                                    <td>
+                                        <% if (record.staff_id) { %>
+                                            <a href="/staff/<%= record.staff_id %>" class="hr-table-link">Open profile</a>
+                                        <% } else { %>
+                                            <span class="hr-table-detail">Unavailable</span>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }); } else { %>
+                                <tr><td colspan="5" class="hr-empty-state">No staff training actions are outstanding.</td></tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

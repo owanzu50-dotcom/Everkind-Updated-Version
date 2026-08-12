@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'website-content', isAdmin: true, currentStaffName, currentStaffEmail }) %>
+
+        <main class="portal-content">
+            <header class="portal-header">
+                <div>
+                    <span class="eyebrow">Website management</span>
+                    <h1>Homepage and careers content</h1>
+                </div>
+                <div class="header-actions">
+                    <a href="/" class="secondary-button">View public site</a>
+                </div>
+            </header>
+
+            <% if (typeof message !== 'undefined' && message) { %>
+                <div class="form-message success"><%= message %></div>
+            <% } %>
+            <% if (typeof error !== 'undefined' && error) { %>
+                <div class="form-message error"><%= error %></div>
+            <% } %>
+
+            <section class="website-cms-grid">
+                <article class="website-cms-card">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Announcements</h2>
+                            <p>Manage the live announcement ribbon across the public website.</p>
+                        </div>
+                    </div>
+                    <form class="portal-form website-cms-form" method="post" action="/admin/website-content/announcements">
+                        <input type="hidden" name="id" value="<%= editAnnouncement && editAnnouncement.id ? editAnnouncement.id : '' %>">
+                        <label>
+                            Headline
+                            <input type="text" name="headline" value="<%= editAnnouncement ? editAnnouncement.headline || '' : '' %>" required>
+                        </label>
+                        <label>
+                            Message
+                            <textarea name="message" rows="3"><%= editAnnouncement ? editAnnouncement.message || '' : '' %></textarea>
+                        </label>
+                        <div class="inline-fields">
+                            <label>
+                                Colour
+                                <select name="color">
+                                    <option value="emerald" <%= editAnnouncement && editAnnouncement.color === 'emerald' ? 'selected' : '' %>>Emerald</option>
+                                    <option value="blue" <%= editAnnouncement && editAnnouncement.color === 'blue' ? 'selected' : '' %>>Blue</option>
+                                    <option value="amber" <%= editAnnouncement && editAnnouncement.color === 'amber' ? 'selected' : '' %>>Amber</option>
+                                    <option value="rose" <%= editAnnouncement && editAnnouncement.color === 'rose' ? 'selected' : '' %>>Rose</option>
+                                </select>
+                            </label>
+                            <label>
+                                Priority
+                                <select name="priority">
+                                    <option value="normal" <%= editAnnouncement && editAnnouncement.priority === 'normal' ? 'selected' : '' %>>Normal</option>
+                                    <option value="high" <%= editAnnouncement && editAnnouncement.priority === 'high' ? 'selected' : '' %>>High</option>
+                                    <option value="urgent" <%= editAnnouncement && editAnnouncement.priority === 'urgent' ? 'selected' : '' %>>Urgent</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="inline-fields">
+                            <label class="checkbox-field">
+                                <input type="checkbox" name="enabled" value="1" <%= editAnnouncement && editAnnouncement.enabled ? 'checked' : '' %>>
+                                <span>Enabled</span>
+                            </label>
+                            <label class="checkbox-field">
+                                <input type="checkbox" name="auto_scroll" value="1" <%= editAnnouncement && editAnnouncement.auto_scroll ? 'checked' : '' %>>
+                                <span>Auto scroll</span>
+                            </label>
+                        </div>
+                        <div class="inline-fields">
+                            <label>
+                                Start date
+                                <input type="date" name="start_date" value="<%= editAnnouncement && editAnnouncement.start_date ? editAnnouncement.start_date : '' %>">
+                            </label>
+                            <label>
+                                End date
+                                <input type="date" name="end_date" value="<%= editAnnouncement && editAnnouncement.end_date ? editAnnouncement.end_date : '' %>">
+                            </label>
+                        </div>
+                        <button type="submit" class="primary-button">Save announcement</button>
+                    </form>
+                    <div class="website-cms-list">
+                        <% announcements.forEach((announcement) => { %>
+                            <div class="website-cms-list-item">
+                                <div>
+                                    <strong><%= announcement.headline %></strong>
+                                    <p><%= announcement.message || 'No message added.' %></p>
+                                </div>
+                                <div class="website-cms-actions">
+                                    <a class="secondary-button small" href="/admin/website-content?announcementId=<%= announcement.id %>">Edit</a>
+                                    <form method="post" action="/admin/website-content/announcements/delete">
+                                        <input type="hidden" name="id" value="<%= announcement.id %>">
+                                        <button type="submit" class="danger-button small">Delete</button>
+                                    </form>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                </article>
+
+                <article class="website-cms-card">
+                    <div class="panel-header">
+                        <div>
+                            <h2>Careers jobs</h2>
+                            <p>Publish live vacancies for the careers page.</p>
+                        </div>
+                    </div>
+                    <form class="portal-form website-cms-form" method="post" action="/admin/website-content/jobs">
+                        <input type="hidden" name="id" value="<%= editJob && editJob.id ? editJob.id : '' %>">
+                        <label>
+                            Job title
+                            <input type="text" name="title" value="<%= editJob ? editJob.title || '' : '' %>" required>
+                        </label>
+                        <div class="inline-fields">
+                            <label>
+                                Location
+                                <input type="text" name="location" value="<%= editJob ? editJob.location || '' : '' %>">
+                            </label>
+                            <label>
+                                County
+                                <input type="text" name="county" value="<%= editJob ? editJob.county || '' : '' %>">
+                            </label>
+                        </div>
+                        <div class="inline-fields">
+                            <label>
+                                Employment type
+                                <input type="text" name="employment_type" value="<%= editJob ? editJob.employment_type || '' : '' %>">
+                            </label>
+                            <label>
+                                Salary
+                                <input type="text" name="salary" value="<%= editJob ? editJob.salary || '' : '' %>">
+                            </label>
+                        </div>
+                        <label>
+                            Description
+                            <textarea name="description" rows="3"><%= editJob ? editJob.description || '' : '' %></textarea>
+                        </label>
+                        <label>
+                            Requirements
+                            <textarea name="requirements" rows="3"><%= editJob ? editJob.requirements || '' : '' %></textarea>
+                        </label>
+                        <label>
+                            Benefits
+                            <textarea name="benefits" rows="3"><%= editJob ? editJob.benefits || '' : '' %></textarea>
+                        </label>
+                        <label>
+                            Closing date
+                            <input type="date" name="closing_date" value="<%= editJob && editJob.closing_date ? editJob.closing_date : '' %>">
+                        </label>
+                        <div class="inline-fields">
+                            <label class="checkbox-field">
+                                <input type="checkbox" name="featured" value="1" <%= editJob && editJob.featured ? 'checked' : '' %>>
+                                <span>Featured</span>
+                            </label>
+                            <label class="checkbox-field">
+                                <input type="checkbox" name="urgent" value="1" <%= editJob && editJob.urgent ? 'checked' : '' %>>
+                                <span>Urgent</span>
+                            </label>
+                            <label class="checkbox-field">
+                                <input type="checkbox" name="published" value="1" <%= editJob && editJob.published ? 'checked' : '' %>>
+                                <span>Published</span>
+                            </label>
+                            <label class="checkbox-field">
+                                <input type="checkbox" name="archived" value="1" <%= editJob && editJob.archived ? 'checked' : '' %>>
+                                <span>Archived</span>
+                            </label>
+                        </div>
+                        <button type="submit" class="primary-button">Save job</button>
+                    </form>
+                    <div class="website-cms-list">
+                        <% jobs.forEach((job) => { %>
+                            <div class="website-cms-list-item">
+                                <div>
+                                    <strong><%= job.title %></strong>
+                                    <p><%= job.location || 'Location not set' %> · <%= job.employment_type || 'Employment type pending' %></p>
+                                </div>
+                                <div class="website-cms-actions">
+                                    <a class="secondary-button small" href="/admin/website-content?jobId=<%= job.id %>">Edit</a>
+                                    <form method="post" action="/admin/website-content/jobs/delete">
+                                        <input type="hidden" name="id" value="<%= job.id %>">
+                                        <button type="submit" class="danger-button small">Delete</button>
+                                    </form>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                </article>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

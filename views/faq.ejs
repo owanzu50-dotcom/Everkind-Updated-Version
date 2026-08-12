@@ -1,0 +1,40 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="public-page">
+    <%- include('partials/site-header', { active: 'faq' }) %>
+
+    <main class="container content-section narrow-page">
+        <div class="section-heading">
+            <span class="eyebrow">Help & answers</span>
+            <h1>Frequently asked questions</h1>
+        </div>
+        <div class="faq-list">
+            <details class="faq-item" open>
+                <summary>How quickly can care begin?</summary>
+                <p>In many cases, we can begin care within 24 to 48 hours after the initial assessment.</p>
+            </details>
+            <details class="faq-item">
+                <summary>Do you offer 24-hour support?</summary>
+                <p>Yes. We provide flexible support from short visits to 24/7 live-in care arrangements.</p>
+            </details>
+            <details class="faq-item">
+                <summary>Are carers Garda vetted?</summary>
+                <p>Yes. Every team member undergoes checks and mandatory training before assignment.</p>
+            </details>
+            <details class="faq-item">
+                <summary>Can I change my care schedule?</summary>
+                <p>Yes. Care plans are reviewed regularly and can be adjusted as needs change.</p>
+            </details>
+        </div>
+    </main>
+
+    <%- include('partials/site-footer') %>
+</body>
+</html>

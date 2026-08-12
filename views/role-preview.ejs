@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', {
+            active: '',
+            isAdmin: true,
+            currentStaffName,
+            currentStaffEmail,
+            adminAccess
+        }) %>
+        <main class="portal-content">
+            <div class="role-preview-banner">
+                <strong>Preview only:</strong> You are viewing the navigation and information boundary for Staff.
+                No staff identity has been assumed and no staff data is being changed.
+            </div>
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Staff Portal Preview</h1>
+                    <p class="adm-page-subtitle">A safe overview of the modules available to a signed-in staff member.</p>
+                </div>
+                <form method="POST" action="/admin/view-as/exit">
+                    <button class="adm-btn-primary" type="submit">Exit preview</button>
+                </form>
+            </div>
+            <div class="adm-content-grid role-preview-grid">
+                <% [
+                    ['Home', 'Upcoming shifts and important notices'],
+                    ['My Schedule', 'Personal assigned shifts only'],
+                    ['Weekly Roster', 'The staff member’s own rota'],
+                    ['Open Shifts', 'Eligible shifts available to claim'],
+                    ['Notifications', 'Personal operational notifications'],
+                    ['Messages', 'Messages between the staff member and coordinators'],
+                    ['My Profile', 'The staff member’s own profile and preferences'],
+                    ['Documents & Training', 'Personal compliance records'],
+                    ['My Payslips', 'The staff member’s own payslips only']
+                ].forEach(([name, description]) => { %>
+                    <article class="adm-card">
+                        <div class="adm-card-body">
+                            <h2 class="adm-card-title"><%= name %></h2>
+                            <p class="adm-card-subtitle"><%= description %></p>
+                        </div>
+                    </article>
+                <% }) %>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

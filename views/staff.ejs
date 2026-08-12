@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page portal-staff-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'staff', isAdmin: true, currentStaffName: typeof currentStaffName !== 'undefined' ? currentStaffName : '', currentStaffEmail: typeof currentStaffEmail !== 'undefined' ? currentStaffEmail : '' }) %>
+
+        <main class="portal-content">
+            <% 
+                const inductionMembers = inductionStaff || [];
+                const rosterMembers = rosterStaff || [];
+                const activeMembers = activeStaff || [];
+                const getBadgeClass = (statusValue) => {
+                    const normalizedStatus = String(statusValue || 'Active').toLowerCase();
+                    if (normalizedStatus === 'active' || normalizedStatus === 'available') return 'adm-badge-active';
+                    if (normalizedStatus === 'induction') return 'adm-badge-induction';
+                    if (normalizedStatus === 'on duty') return 'adm-badge-clocked-in';
+                    if (normalizedStatus === 'on leave') return 'adm-badge-on-leave';
+                    return 'adm-badge-inactive';
+                };
+                const highlightId = Number(highlightedStaffId || 0);
+            %>
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Staff</h1>
+                    <p class="adm-page-subtitle"><%= staff ? staff.length : 0 %> team member<%= (!staff || staff.length !== 1) ? 's' : '' %> registered · <%= inductionMembers.length %> in induction · <%= activeMembers.length %> active</p>
+                </div>
+                <a href="/staff/new" class="adm-btn-primary">➕ Add Staff</a>
+            </div>
+
+            <div class="adm-card">
+                <div class="adm-card-header">
+                    <div class="adm-card-title">Staff Directory</div>
+                    <div class="adm-search">
+                        <span>🔍</span>
+                        <input type="text" id="staff-search" placeholder="Search staff…" oninput="filterTable(this.value)" />
+                    </div>
+                </div>
+                <div class="adm-card-body">
+                    Hired applicants stay in the induction section until an administrator approves them as fully employed.
+                </div>
+            </div>
+
+            <div class="adm-card" id="induction-section" style="<%= activeSection === 'induction' ? 'scroll-margin-top:24px;' : '' %>">
+                <div class="adm-card-header">
+                    <div class="adm-card-title">Induction</div>
+                    <span class="adm-badge adm-badge-induction"><%= inductionMembers.length %> awaiting approval</span>
+                </div>
+
+                <% if (inductionMembers.length) { %>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table" data-staff-table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Staff ID</th>
+                                    <th>Role</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% inductionMembers.forEach((member) => { %>
+                                    <tr <%= highlightId === Number(member.id) ? 'style="background:#eff6ff;"' : '' %>>
+                                        <td>
+                                            <div style="display:flex;align-items:center;gap:10px;">
+                                                <div class="sidebar-user-avatar" style="width:34px;height:34px;font-size:0.82rem;flex-shrink:0;"><%= member.name.charAt(0) %></div>
+                                                <div class="adm-cell-name">
+                                                    <strong><%= member.name %></strong>
+                                                    <span>Awaiting full employment approval</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td style="font-family:monospace;font-size:0.8rem;color:#64748b;">#<%= String(member.id).padStart(4,'0') %></td>
+                                        <td><%= member.role || '—' %></td>
+                                        <td><%= member.phone || '—' %></td>
+                                        <td style="font-size:0.82rem;color:#64748b;"><%= member.email || '—' %></td>
+                                        <td>
+                                            <span class="adm-badge <%= getBadgeClass(member.status) %>"><%= member.status || 'Active' %></span>
+                                        </td>
+                                        <td>
+                                            <div class="adm-actions">
+                                                <form method="POST" action="/staff/<%= member.id %>/approve-employment" style="display:inline;" onsubmit="return confirm('Approve <%= member.name %> as fully employed?')">
+                                                    <button type="submit" class="adm-icon-btn" title="Approve employment">✅</button>
+                                                </form>
+                                                <a href="/staff/<%= member.id %>" class="adm-icon-btn" title="View details">👁️</a>
+                                                <a href="/staff/<%= member.id %>/edit" class="adm-icon-btn" title="Edit">✏️</a>
+                                                <form method="POST" action="/staff/<%= member.id %>/delete" style="display:inline;" onsubmit="return confirm('Delete <%= member.name %>? This cannot be undone.')">
+                                                    <input type="hidden" name="_method" value="DELETE">
+                                                    <button type="submit" class="adm-icon-btn adm-icon-btn-danger" title="Delete">🗑️</button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="adm-card-empty">
+                        <div class="adm-card-empty-icon">🎓</div>
+                        <p>No staff are currently in induction.</p>
+                    </div>
+                <% } %>
+            </div>
+
+            <div class="adm-card">
+                <div class="adm-card-header">
+                    <div class="adm-card-title">Staff Roster</div>
+                    <span class="adm-badge adm-badge-active"><%= rosterMembers.length %> schedulable staff</span>
+                </div>
+
+                <% if (rosterMembers.length) { %>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table" data-staff-table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Staff ID</th>
+                                    <th>Role</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% rosterMembers.forEach((member) => { %>
+                                    <tr <%= highlightId === Number(member.id) ? 'style="background:#eff6ff;"' : '' %>>
+                                        <td>
+                                            <div style="display:flex;align-items:center;gap:10px;">
+                                                <div class="sidebar-user-avatar" style="width:34px;height:34px;font-size:0.82rem;flex-shrink:0;"><%= member.name.charAt(0) %></div>
+                                                <div class="adm-cell-name">
+                                                    <strong><%= member.name %></strong>
+                                                    <span><%= String(member.status || '').toLowerCase() === 'induction' ? 'Induction staff member' : 'Staff member' %></span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td style="font-family:monospace;font-size:0.8rem;color:#64748b;">#<%= String(member.id).padStart(4,'0') %></td>
+                                        <td><%= member.role || '—' %></td>
+                                        <td><%= member.phone || '—' %></td>
+                                        <td style="font-size:0.82rem;color:#64748b;"><%= member.email || '—' %></td>
+                                        <td>
+                                            <span class="adm-badge <%= getBadgeClass(member.status) %>"><%= member.status || 'Active' %></span>
+                                        </td>
+                                        <td>
+                                            <div class="adm-actions">
+                                                <a href="/staff/<%= member.id %>" class="adm-icon-btn" title="View details">👁️</a>
+                                                <a href="/staff/<%= member.id %>/edit" class="adm-icon-btn" title="Edit">✏️</a>
+                                                <form method="POST" action="/staff/<%= member.id %>/delete" style="display:inline;" onsubmit="return confirm('Delete <%= member.name %>? This cannot be undone.')">
+                                                    <input type="hidden" name="_method" value="DELETE">
+                                                    <button type="submit" class="adm-icon-btn adm-icon-btn-danger" title="Delete">🗑️</button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="adm-card-empty">
+                        <div class="adm-card-empty-icon">👥</div>
+                        <p>No approved staff records yet.</p>
+                        <a href="/staff/new" class="adm-btn-primary" style="margin-top:12px;display:inline-flex;">Add first staff member</a>
+                    </div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    function filterTable(q) {
+        const rows = document.querySelectorAll('[data-staff-table] tbody tr');
+        const lq = q.toLowerCase();
+        rows.forEach(r => {
+            r.style.display = r.textContent.toLowerCase().includes(lq) ? '' : 'none';
+        });
+    }
+    </script>
+</body>
+</html>

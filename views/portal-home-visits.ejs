@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'care-visits', isAdmin: true, currentStaffName, currentStaffEmail }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Home Visits</h1>
+                    <p class="adm-page-subtitle">Home Care operational visits only.</p>
+                </div>
+            </div>
+            <div class="adm-metric-grid" style="margin-bottom:16px;">
+                <div class="adm-metric-card"><div class="adm-metric-icon blue">📅</div><span class="adm-metric-label">Today's Visits</span><span class="adm-metric-value"><%= summary.today %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon purple">✅</div><span class="adm-metric-label">Completed</span><span class="adm-metric-value"><%= summary.completed %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon amber">🟠</div><span class="adm-metric-label">Outstanding</span><span class="adm-metric-value"><%= summary.outstanding %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon blue">⛔</div><span class="adm-metric-label">Missed</span><span class="adm-metric-value"><%= summary.missed %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon purple">🚫</div><span class="adm-metric-label">Cancelled</span><span class="adm-metric-value"><%= summary.cancelled %></span></div>
+            </div>
+
+            <div class="adm-card" style="margin-bottom:16px;">
+                <form class="adm-card-body" method="GET" action="/admin/home-visits" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end;">
+                    <div class="adm-form-group">
+                        <label class="adm-form-label">Preset</label>
+                        <select class="adm-form-select" name="filter">
+                            <option value="today" <%= filter === 'today' ? 'selected' : '' %>>Today</option>
+                            <option value="tomorrow" <%= filter === 'tomorrow' ? 'selected' : '' %>>Tomorrow</option>
+                            <option value="this_week" <%= filter === 'this_week' ? 'selected' : '' %>>This Week</option>
+                            <option value="missed" <%= filter === 'missed' ? 'selected' : '' %>>Missed Visits</option>
+                            <option value="completed" <%= filter === 'completed' ? 'selected' : '' %>>Completed</option>
+                            <option value="cancelled" <%= filter === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="adm-form-group">
+                        <label class="adm-form-label">Date From</label>
+                        <input class="adm-form-input" type="date" name="date_from" value="<%= dateFrom || '' %>">
+                    </div>
+                    <div class="adm-form-group">
+                        <label class="adm-form-label">Date To</label>
+                        <input class="adm-form-input" type="date" name="date_to" value="<%= dateTo || '' %>">
+                    </div>
+                    <div class="adm-form-group">
+                        <button type="submit" class="adm-btn-primary">Apply Filters</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="adm-card">
+                <% if (visits.length) { %>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead>
+                                <tr>
+                                    <th>Visit ID</th>
+                                    <th>Client</th>
+                                    <th>Assigned Carer</th>
+                                    <th>Date</th>
+                                    <th>Start</th>
+                                    <th>Finish</th>
+                                    <th>Duration</th>
+                                    <th>Visit Type</th>
+                                    <th>Status</th>
+                                    <th>GPS</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% visits.forEach((visit) => { 
+                                    const start = visit.scheduledStart || '';
+                                    const end = visit.scheduledEnd || '';
+                                    const startTime = start ? start.slice(11, 16) : '—';
+                                    const endTime = end ? end.slice(11, 16) : '—';
+                                    const duration = start && end ? Math.max(0, Math.round((new Date(end.replace(' ', 'T')) - new Date(start.replace(' ', 'T'))) / 60000)) : 0;
+                                %>
+                                    <tr>
+                                        <td><strong><%= visit.shiftCode || ('HCV-' + String(visit.id || '').padStart(6, '0')) %></strong></td>
+                                        <td><span class="adm-badge adm-badge-home-care">🏠 HOME CARE</span><br><%= visit.homeCareClientName || visit.patientName %></td>
+                                        <td><%= visit.staffName || 'Awaiting assignment' %></td>
+                                        <td><%= (start || visit.shiftDate || '').slice(0, 10) %></td>
+                                        <td><%= startTime %></td>
+                                        <td><%= endTime %></td>
+                                        <td><%= duration ? (duration / 60).toFixed(1) + 'h' : '—' %></td>
+                                        <td><%= visit.serviceType || 'Personal Care' %></td>
+                                        <td><span class="adm-badge adm-badge-<%= visit.statusClass %>"><%= (visit.operationalStatus || visit.status || '').replace(/_/g, ' ') %></span></td>
+                                        <td><%= visit.latitude && visit.longitude ? 'Verified' : 'Pending' %></td>
+                                        <td style="max-width:220px;"><%= visit.notes || visit.careInstructions || '—' %></td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="adm-card-empty"><p>No home visits found for the selected filters.</p></div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

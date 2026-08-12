@@ -1,0 +1,46 @@
+<% const publicContact = websiteContact || {
+    phoneDisplay: "+353 89 985 9907",
+    phoneHref: "tel:+353899859907",
+    emailDisplay: "Everkind@outlook.ie",
+    emailHref: "mailto:Everkind@outlook.ie",
+    whatsappHref: "https://wa.me/353899859907"
+}; %>
+<footer class="site-footer">
+    <div class="container">
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <img class="brand-logo footer-logo" src="/logo.png" alt="Everkind Home Care Logo" />
+                <p>Providing professional healthcare staffing and compassionate care support for hospitals, nursing homes, and healthcare facilities across Ireland.</p>
+            </div>
+            <div>
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/services">Our Services</a></li>
+                    <li><a href="/about">About Us</a></li>
+                    <li><a href="/testimonials">Testimonials</a></li>
+                    <li><a href="/faq">FAQ</a></li>
+                    <li><a href="/careers">Careers</a></li>
+                    <li><a href="/contact">Contact</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4>Contact Us</h4>
+                <ul>
+                    <li><a href="https://maps.google.com/?q=31+Usher's+Mill+Green,+Moneymore,+Drogheda,+Louth,+A92A3VC,+Ireland" target="_blank" rel="noopener noreferrer">31 Usher's Mill Green<br>Moneymore, Drogheda<br>Louth, A92A3VC, Ireland</a></li>
+                    <li><a href="<%= publicContact.phoneHref %>"><%= publicContact.phoneDisplay %></a></li>
+                    <li><a href="<%= publicContact.emailHref %>"><%= publicContact.emailDisplay %></a></li>
+                    <li><a href="<%= publicContact.whatsappHref %>" target="_blank" rel="noopener noreferrer">WhatsApp Us</a></li>
+                    <li>Available 24/7</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; <%= new Date().getFullYear() %> Everkind Home Care Limited. All rights reserved.</p>
+            <div class="footer-links">
+                <a href="/contact">Privacy Policy</a>
+                <a href="/contact">Terms of Service</a>
+            </div>
+        </div>
+    </div>
+</footer>

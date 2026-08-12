@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'messages', isAdmin: false, currentStaffName: currentStaffName, currentStaffEmail: currentStaffEmail }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Messages</h1>
+                    <p class="adm-page-subtitle">Read and reply to management messages</p>
+                </div>
+            </div>
+
+            <div class="adm-content-grid">
+                <div class="adm-card">
+                    <div class="adm-card-header"><div class="adm-card-title">Inbox</div></div>
+                    <% if (messages.length) { %>
+                        <div class="adm-card-body" style="display:grid;gap:12px;">
+                            <% messages.forEach((message) => { %>
+                                <article class="staff-message-item">
+                                    <div style="display:flex;justify-content:space-between;gap:12px;">
+                                        <div>
+                                            <strong><%= message.subject || 'Message' %></strong>
+                                            <p class="staff-message-meta"><%= message.sender_name %> · <%= String(message.created_at || '').slice(0, 16).replace('T', ' ') %></p>
+                                        </div>
+                                        <span class="adm-badge adm-badge-<%= message.sender_type === 'admin' ? 'new' : 'reviewing' %>"><%= message.sender_type %></span>
+                                    </div>
+                                    <p><%= message.body %></p>
+                                </article>
+                            <% }) %>
+                        </div>
+                    <% } else { %>
+                        <div class="adm-card-empty"><p>No messages yet.</p></div>
+                    <% } %>
+                </div>
+
+                <div class="adm-card">
+                    <div class="adm-card-header"><div class="adm-card-title">Reply to management</div></div>
+                    <form class="adm-card-body" method="POST" action="/portal/messages" style="display:grid;gap:12px;">
+                        <div class="adm-form-group"><label class="adm-form-label">Subject</label><input class="adm-form-input" name="subject" placeholder="Shift query"></div>
+                        <div class="adm-form-group"><label class="adm-form-label">Message</label><textarea class="adm-form-textarea" name="body" rows="7" required placeholder="Write your reply..."></textarea></div>
+                        <button class="adm-btn-primary" type="submit">Send message</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

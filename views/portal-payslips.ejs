@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %> — Everkind Admin</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <style>
+        .ps-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; }
+        .ps-header h1 { font-size:1.45rem; font-weight:800; color:#17324b; margin:0; }
+        .ps-header p { color:#64748b; font-size:0.88rem; margin:4px 0 0; }
+        .ps-summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+        .ps-stat { background:#fff; border-radius:12px; padding:1rem 1.2rem; box-shadow:0 1px 4px rgba(0,0,0,0.07); }
+        .ps-stat-label { font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; font-weight:600; }
+        .ps-stat-value { font-size:1.5rem; font-weight:800; color:#17324b; margin-top:2px; }
+        .ps-stat-value.green { color:#1a7c3e; }
+        .ps-stat-value.amber { color:#d97706; }
+        .ps-stat-value.red { color:#dc2626; }
+
+        .ps-card { background:#fff; border-radius:14px; box-shadow:0 1px 4px rgba(0,0,0,0.07); overflow:hidden; }
+        .ps-table-wrap { overflow-x:auto; }
+        .ps-table { width:100%; border-collapse:collapse; font-size:0.875rem; }
+        .ps-table thead th { background:#17324b; color:#fff; padding:11px 14px; text-align:left; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em; white-space:nowrap; }
+        .ps-table tbody tr { border-bottom:1px solid #f1f5f9; transition:background 0.12s; }
+        .ps-table tbody tr:hover { background:#f8fafc; }
+        .ps-table td { padding:11px 14px; color:#334155; vertical-align:middle; }
+        .ps-table td.name { font-weight:600; color:#17324b; }
+
+        .ps-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; }
+        .ps-badge.scheduled { background:#fff3cd; color:#92400e; }
+        .ps-badge.sent { background:#d1fae5; color:#065f46; }
+        .ps-badge.failed { background:#fee2e2; color:#991b1b; }
+        .ps-badge.not_scheduled { background:#f1f5f9; color:#64748b; }
+        .ps-badge.smtp_not_configured { background:#fce7f3; color:#9d174d; }
+        .ps-badge.no_file_or_email { background:#fef3c7; color:#78350f; }
+
+        .ps-actions { display:flex; gap:6px; flex-wrap:wrap; }
+        .ps-btn { display:inline-flex; align-items:center; gap:4px; padding:5px 10px; border-radius:7px; font-size:0.78rem; font-weight:600; cursor:pointer; border:none; text-decoration:none; transition:opacity 0.15s; }
+        .ps-btn:hover { opacity:0.85; }
+        .ps-btn.dl { background:#1a7c3e; color:#fff; }
+        .ps-btn.email { background:#0ea5e9; color:#fff; }
+        .ps-btn.regen { background:#f59e0b; color:#fff; }
+        .ps-btn.print { background:#7c3aed; color:#fff; }
+        .ps-btn:disabled { opacity:0.45; cursor:not-allowed; }
+
+        .ps-empty { text-align:center; padding:3rem 1rem; color:#94a3b8; }
+        .ps-empty .icon { font-size:2.5rem; margin-bottom:0.5rem; }
+        .ps-empty p { font-size:0.95rem; }
+
+        .ps-toast { position:fixed; bottom:24px; right:24px; background:#1a7c3e; color:#fff; padding:12px 20px; border-radius:10px; font-size:0.9rem; font-weight:600; box-shadow:0 4px 16px rgba(0,0,0,0.15); opacity:0; transition:opacity 0.3s; z-index:9999; pointer-events:none; }
+        .ps-toast.show { opacity:1; }
+        .ps-toast.error { background:#dc2626; }
+
+        @media (max-width: 768px) {
+            .ps-header { flex-direction:column; align-items:stretch; gap:0.85rem; }
+            .ps-header h1 { font-size:1.2rem; }
+            .ps-summary-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+            .ps-card { border-radius:16px; }
+            .ps-table { min-width: 920px; }
+            .ps-table thead th,
+            .ps-table td { padding: 10px 12px; }
+            .ps-actions { flex-direction:column; align-items:stretch; }
+            .ps-btn { width:100%; justify-content:center; }
+        }
+
+        @media (max-width: 480px) {
+            .ps-summary-grid { grid-template-columns:1fr; }
+            .ps-header a { width:100%; }
+        }
+    </style>
+</head>
+<body>
+<div class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'payslips' }) %>
+        <main class="portal-content">
+
+        <div class="ps-header">
+            <div>
+                <h1>💳 Payslips</h1>
+                <p>Generated payslips and email delivery status</p>
+            </div>
+            <a href="/admin/payroll" class="ps-btn dl" style="padding:8px 16px;font-size:0.85rem;">← Back to Payroll</a>
+        </div>
+
+        <%
+            const total = payslips.length;
+            const sent = payslips.filter(p => p.email_status === 'sent').length;
+            const scheduled = payslips.filter(p => p.email_status === 'scheduled').length;
+            const failed = payslips.filter(p => p.email_status === 'failed').length;
+        %>
+        <div class="ps-summary-grid">
+            <div class="ps-stat"><div class="ps-stat-label">Total Payslips</div><div class="ps-stat-value"><%= total %></div></div>
+            <div class="ps-stat"><div class="ps-stat-label">Emails Sent</div><div class="ps-stat-value green"><%= sent %></div></div>
+            <div class="ps-stat"><div class="ps-stat-label">Scheduled</div><div class="ps-stat-value amber"><%= scheduled %></div></div>
+            <div class="ps-stat"><div class="ps-stat-label">Failed</div><div class="ps-stat-value red"><%= failed %></div></div>
+        </div>
+
+        <div class="ps-card">
+            <div class="ps-table-wrap">
+                <% if (payslips.length === 0) { %>
+                <div class="ps-empty">
+                    <div class="icon">💳</div>
+                    <p>No payslips generated yet.</p>
+                    <p style="font-size:0.82rem;margin-top:4px;">Payslips are generated automatically when payroll is approved.</p>
+                </div>
+                <% } else { %>
+                <table class="ps-table">
+                    <thead>
+                        <tr>
+                            <th>Staff Member</th>
+                            <th>Role</th>
+                            <th>Period</th>
+                            <th>Payment Date</th>
+                            <th>Net Pay</th>
+                            <th>Gross Pay</th>
+                            <th>Email Status</th>
+                            <th>Ref</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <% payslips.forEach(ps => { %>
+                    <tr>
+                        <td class="name"><%= ps.staff_name %></td>
+                        <td style="color:#64748b;"><%= ps.staff_role || '—' %></td>
+                        <td style="white-space:nowrap;">
+                            <%= new Date(ps.period_start).toLocaleDateString('en-IE',{day:'2-digit',month:'short',year:'numeric'}) %>
+                            –
+                            <%= new Date(ps.period_end).toLocaleDateString('en-IE',{day:'2-digit',month:'short',year:'numeric'}) %>
+                        </td>
+                        <td style="white-space:nowrap;">
+                            <%= ps.payment_date ? new Date(ps.payment_date).toLocaleDateString('en-IE',{day:'2-digit',month:'short',year:'numeric'}) : '—' %>
+                        </td>
+                        <td><strong>€<%= Number(ps.net_pay||0).toFixed(2) %></strong></td>
+                        <td style="color:#64748b;">€<%= Number(ps.gross_pay||0).toFixed(2) %></td>
+                        <td>
+                            <span class="ps-badge <%= ps.email_status || 'not_scheduled' %>">
+                                <% if (ps.email_status === 'sent') { %>✅ Sent
+                                <% } else if (ps.email_status === 'scheduled') { %>⏰ Scheduled
+                                <% } else if (ps.email_status === 'failed') { %>❌ Failed
+                                <% } else if (ps.email_status === 'smtp_not_configured') { %>⚠️ No SMTP
+                                <% } else if (ps.email_status === 'no_file_or_email') { %>⚠️ No Email
+                                <% } else { %>— Not Scheduled
+                                <% } %>
+                            </span>
+                            <% if (ps.email_sent_at) { %>
+                            <div style="font-size:0.7rem;color:#94a3b8;margin-top:2px;">
+                                <%= new Date(ps.email_sent_at).toLocaleString('en-IE') %>
+                            </div>
+                            <% } %>
+                        </td>
+                        <td style="font-size:0.75rem;color:#94a3b8;font-family:monospace;"><%= ps.payslip_ref || '—' %></td>
+                        <td>
+                            <div class="ps-actions">
+                                <a href="/admin/payroll/payslip/<%= ps.id %>" class="ps-btn" style="background:#0f766e;color:#fff;" title="Open payslip details">👁 View</a>
+                                <a href="/admin/payroll/payslip/<%= ps.id %>?print=1" target="_blank" rel="noopener noreferrer" class="ps-btn print" title="Open printable payslip">🖨 Print</a>
+                                <a href="/admin/payroll/payslip/<%= ps.id %>/download" class="ps-btn dl" title="Download PDF">⬇ PDF</a>
+                                <button class="ps-btn email" onclick="emailPayslip(<%= ps.id %>, <%= ps.staff_id %>, '<%= ps.period_start %>', '<%= ps.period_end %>')" title="Email payslip now">✉ Email</button>
+                                <button class="ps-btn regen" onclick="regenPayslip(<%= ps.staff_id %>, '<%= ps.period_start %>', '<%= ps.period_end %>', '<%= ps.payment_date || '' %>')" title="Regenerate PDF">↺ Regen</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <% }) %>
+                    </tbody>
+                </table>
+                <% } %>
+            </div>
+        </div>
+
+        </main>
+    </div>
+</div>
+
+<div class="ps-toast" id="ps-toast"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
+    const content = document.querySelector('.portal-content');
+    if (content) {
+        content.scrollTop = 0;
+    }
+});
+
+function showToast(msg, isError) {
+    const t = document.getElementById('ps-toast');
+    t.textContent = msg;
+    t.className = 'ps-toast show' + (isError ? ' error' : '');
+    setTimeout(() => t.className = 'ps-toast', 3000);
+}
+
+async function emailPayslip(id, staffId, periodStart, periodEnd) {
+    if (!confirm('Email this payslip to the staff member now?')) return;
+    try {
+        const r = await fetch(`/api/admin/payroll/${staffId}/email-payslip`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ periodStart, periodEnd }),
+        });
+        const d = await r.json();
+        if (d.success) { showToast('✅ Payslip emailed successfully'); setTimeout(() => location.reload(), 1500); }
+        else showToast('❌ ' + (d.error || d.message), true);
+    } catch { showToast('❌ Network error', true); }
+}
+
+async function regenPayslip(staffId, periodStart, periodEnd, paymentDate) {
+    if (!confirm('Regenerate the payslip PDF for this record?')) return;
+    try {
+        const r = await fetch(`/api/admin/payroll/${staffId}/generate-payslip`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ periodStart, periodEnd, paymentDate }),
+        });
+        const d = await r.json();
+        if (d.success) { showToast('✅ Payslip regenerated (Ref: ' + d.payslipRef + ')'); setTimeout(() => location.reload(), 1500); }
+        else showToast('❌ ' + (d.error || d.message), true);
+    } catch { showToast('❌ Network error', true); }
+}
+</script>
+</body>
+</html>

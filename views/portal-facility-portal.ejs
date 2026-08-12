@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'facility-portal', isAdmin: true, currentStaffName, currentStaffEmail }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Facility Portal</h1>
+                    <p class="adm-page-subtitle">Registrations, approvals, account access and temporary passwords.</p>
+                </div>
+            </div>
+            <% if (approvedFacilityEmail && approvedFacilityTemporaryPassword) { %>
+                <div class="adm-card" style="margin-bottom:1rem;">
+                    <div class="adm-card-title">Temporary login generated</div>
+                    <p style="margin:0.5rem 0 0;color:#334155;">Facility Email: <strong><%= approvedFacilityEmail %></strong></p>
+                    <p style="margin:0.25rem 0 0;color:#334155;">Temporary Password: <strong><%= approvedFacilityTemporaryPassword %></strong></p>
+                    <p style="margin:0.5rem 0 0;color:#64748b;font-size:0.85rem;">Share once through a secure channel. Facility must change it on first login.</p>
+                </div>
+            <% } %>
+            <div class="adm-metric-grid" style="margin-bottom:16px;">
+                <div class="adm-metric-card"><div class="adm-metric-icon amber">⏳</div><span class="adm-metric-label">Pending Approvals</span><span class="adm-metric-value"><%= summary.pendingApprovals %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon green">✅</div><span class="adm-metric-label">Approved Accounts</span><span class="adm-metric-value"><%= summary.approvedAccounts %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon purple">🚫</div><span class="adm-metric-label">Suspended Accounts</span><span class="adm-metric-value"><%= summary.suspendedAccounts %></span></div>
+            </div>
+            <div class="adm-card">
+                <% if (registrations.length) { %>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead>
+                                <tr>
+                                    <th>Organisation</th>
+                                    <th>Type</th>
+                                    <th>Primary Contact</th>
+                                    <th>Status</th>
+                                    <th>Account Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% registrations.forEach((account) => { %>
+                                    <tr>
+                                        <td><strong><%= account.accountId %></strong><br><%= account.organization_name %><br><span style="font-size:0.8rem;color:#64748b;"><%= account.email %></span></td>
+                                        <td><%= account.organization_type || 'Not set' %></td>
+                                        <td><%= account.contact_first_name %> <%= account.contact_last_name %><br><span style="font-size:0.8rem;color:#64748b;"><%= account.mobile_number %></span></td>
+                                        <td><span class="adm-badge adm-badge-<%= account.statusClass %>"><%= String(account.status || '').replace(/_/g, ' ') %></span></td>
+                                        <td>
+                                            <form method="POST" action="/portal/client-accounts/<%= account.id %>/status" class="inline-admin-form">
+                                                <select class="adm-form-select" name="status">
+                                                    <% registrationStatuses.forEach((status) => { %>
+                                                        <option value="<%= status %>" <%= account.status === status ? 'selected' : '' %>><%= status.replace(/_/g, ' ') %></option>
+                                                    <% }) %>
+                                                </select>
+                                                <input class="adm-form-input" type="text" name="review_notes" value="<%= account.review_notes || '' %>" placeholder="Review notes">
+                                                <button type="submit" class="adm-btn-secondary">Save</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="adm-card-empty"><p>No facility registrations yet.</p></div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

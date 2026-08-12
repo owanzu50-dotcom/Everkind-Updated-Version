@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+</head>
+<body class="portal-shell-page">
+    <%
+        const careNeedSections = [
+            { key: 'personalCare', name: 'personal_care_needs', label: 'Personal Care' },
+            { key: 'mobility', name: 'mobility_needs', label: 'Mobility' },
+            { key: 'clinicalTasks', name: 'clinical_task_needs', label: 'Medication & Clinical Tasks' },
+            { key: 'medicalConditions', name: 'medical_condition_needs', label: 'Medical Conditions' },
+            { key: 'dailyLiving', name: 'daily_living_needs', label: 'Daily Living' },
+            { key: 'risks', name: 'risk_needs', label: 'Risks' },
+            { key: 'communication', name: 'communication_needs', label: 'Communication' },
+            { key: 'lifestyle', name: 'lifestyle_needs', label: 'Lifestyle' },
+            { key: 'equipment', name: 'equipment_needs', label: 'Equipment' },
+            { key: 'serviceTypes', name: 'service_type_needs', label: 'Service Type' },
+        ];
+        const richTextSections = [
+            { name: 'care_plan_daily_routine', label: 'Daily Routine', value: patient.carePlanSections.dailyRoutine },
+            { name: 'care_plan_preferences', label: 'Personal Preferences', value: patient.carePlanSections.personalPreferences },
+            { name: 'care_plan_likes', label: 'Likes', value: patient.carePlanSections.likes },
+            { name: 'care_plan_dislikes', label: 'Dislikes', value: patient.carePlanSections.dislikes },
+            { name: 'care_plan_communication', label: 'Communication Needs', value: patient.carePlanSections.communicationNeeds },
+            { name: 'care_plan_diet', label: 'Diet', value: patient.carePlanSections.diet },
+            { name: 'care_plan_fluids', label: 'Fluids', value: patient.carePlanSections.fluids },
+            { name: 'care_plan_behaviour_support', label: 'Behaviour Support', value: patient.carePlanSections.behaviourSupport },
+            { name: 'care_plan_risk_information', label: 'Risk Information', value: patient.carePlanSections.riskInformation },
+            { name: 'care_plan_goals', label: 'Care Goals', value: patient.carePlanSections.careGoals },
+        ];
+        const assignmentMap = {};
+        (patient.assignments || []).forEach((assignment) => { assignmentMap[assignment.assignmentRole] = String(assignment.staffId); });
+    %>
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'clients', isAdmin: true, currentStaffName: currentStaffName, currentStaffEmail: currentStaffEmail }) %>
+
+        <main class="portal-content">
+            <div class="client-toast-stack" id="client-toast-stack"></div>
+
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title"><%= mode === 'new' ? 'Add Client' : 'Edit Client' %></h1>
+                    <p class="adm-page-subtitle">Create a complete HIQA-ready client profile with care, scheduling, GPS, and staff assignment details.</p>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <a href="/patients" class="adm-btn-secondary">Back to Clients</a>
+                    <% if (mode === 'edit' && patient.id) { %>
+                        <a href="/patients/<%= patient.id %>" class="adm-btn-primary">Open Client Profile</a>
+                    <% } %>
+                </div>
+            </div>
+
+            <% if (error) { %>
+                <p class="form-message error"><%= error %></p>
+            <% } %>
+
+            <form id="client-form" action="<%= mode === 'new' ? '/patients' : '/patients/' + patient.id + '/update' %>" method="POST" class="client-record-form">
+                <div class="client-form-shell adm-card">
+                    <div class="client-form-header">
+                        <div class="client-form-identity">
+                            <div class="client-photo-preview">
+                                <% if (patient.photo_url) { %>
+                                    <img id="photo-preview-image" src="<%= patient.photo_url %>" alt="Client profile photo">
+                                <% } else { %>
+                                    <span id="photo-preview-initial"><%= (patient.first_name || 'C').charAt(0).toUpperCase() %></span>
+                                <% } %>
+                            </div>
+                            <div>
+                                <div class="client-form-meta">Client ID</div>
+                                <strong class="client-form-id"><%= patient.clientId || 'Generated on save' %></strong>
+                                <p class="client-form-hint">Status defaults to Active and synchronises across the admin, staff, schedule, attendance, live tracking, and reporting areas.</p>
+                            </div>
+                        </div>
+                        <div class="client-form-actions">
+                            <button type="submit" class="adm-btn-primary">Save Client</button>
+                            <button type="button" class="adm-btn-secondary" id="clear-draft-button">Clear Draft</button>
+                        </div>
+                    </div>
+
+                    <div class="client-tab-list" role="tablist" aria-label="Client record sections">
+                        <button type="button" class="client-tab active" data-tab="personal">Personal</button>
+                        <button type="button" class="client-tab" data-tab="contact">Contact & GPS</button>
+                        <button type="button" class="client-tab" data-tab="status-team">Status & Team</button>
+                        <button type="button" class="client-tab" data-tab="care-needs">Care Needs</button>
+                        <button type="button" class="client-tab" data-tab="medical">Medical & Emergency</button>
+                        <button type="button" class="client-tab" data-tab="care-plan">Care Plan & Access</button>
+                        <button type="button" class="client-tab" data-tab="schedule">Schedule & Documents</button>
+                        <button type="button" class="client-tab" data-tab="notes">Internal Notes</button>
+                    </div>
+
+                    <section class="client-tab-panel active" data-tab-panel="personal">
+                        <div class="adm-form-grid-3">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">First Name *</span>
+                                <input class="adm-form-input" type="text" name="first_name" value="<%= patient.first_name %>" required>
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Last Name *</span>
+                                <input class="adm-form-input" type="text" name="last_name" value="<%= patient.last_name %>" required>
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Preferred Name</span>
+                                <input class="adm-form-input" type="text" name="preferred_name" value="<%= patient.preferred_name %>">
+                            </label>
+                        </div>
+
+                        <div class="adm-form-grid-3">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Date of Birth *</span>
+                                <input class="adm-form-input" type="date" name="date_of_birth" id="date-of-birth" value="<%= patient.date_of_birth %>" required>
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Age</span>
+                                <input class="adm-form-input" type="text" id="client-age" value="<%= patient.age || '' %>" readonly>
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Gender</span>
+                                <input class="adm-form-input" type="text" name="gender" value="<%= patient.gender %>" list="gender-options">
+                            </label>
+                        </div>
+
+                        <div class="adm-form-grid-3">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Marital Status</span>
+                                <input class="adm-form-input" type="text" name="marital_status" value="<%= patient.marital_status %>" list="marital-status-options">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Nationality</span>
+                                <input class="adm-form-input" type="text" name="nationality" value="<%= patient.nationality %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">PPS Number</span>
+                                <input class="adm-form-input" type="text" name="pps_number" value="<%= patient.pps_number %>">
+                            </label>
+                        </div>
+
+                        <div class="adm-form-grid-3">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Primary Language</span>
+                                <input class="adm-form-input" type="text" name="primary_language" value="<%= patient.primary_language %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Interpreter Required</span>
+                                <select class="adm-form-input" name="interpreter_required">
+                                    <option value="0" <%= !patient.interpreter_required ? 'selected' : '' %>>No</option>
+                                    <option value="1" <%= patient.interpreter_required ? 'selected' : '' %>>Yes</option>
+                                </select>
+                            </label>
+                            <div class="adm-form-group">
+                                <span class="adm-form-label">Profile Photo</span>
+                                <input class="adm-form-input" type="file" id="photo-file-input" accept="image/*">
+                                <input type="hidden" name="photo_url" id="photo-url-input" value="<%= patient.photo_url %>">
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="client-tab-panel" data-tab-panel="contact">
+                        <div class="adm-form-grid-2">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Home Address *</span>
+                                <input class="adm-form-input" type="text" name="address" id="client-address" value="<%= patient.address %>" required>
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">County</span>
+                                <input class="adm-form-input" type="text" name="county" id="client-county" value="<%= patient.county %>">
+                            </label>
+                        </div>
+                        <div class="adm-form-grid-3">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Eircode</span>
+                                <input class="adm-form-input" type="text" name="eircode" id="client-eircode" value="<%= patient.eircode %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Phone Number *</span>
+                                <input class="adm-form-input" type="tel" name="phone" value="<%= patient.phone %>" required>
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Alternative Phone Number</span>
+                                <input class="adm-form-input" type="tel" name="alternative_phone" value="<%= patient.alternative_phone %>">
+                            </label>
+                        </div>
+                        <label class="adm-form-group">
+                            <span class="adm-form-label">Email Address</span>
+                            <input class="adm-form-input" type="email" name="email" value="<%= patient.email %>">
+                        </label>
+
+                        <div class="client-geofence-card">
+                            <div class="client-geofence-header">
+                                <div>
+                                    <h2>GPS Geofence</h2>
+                                    <p>This location will be used for GPS-verified clock in and clock out.</p>
+                                </div>
+                                <button type="button" class="adm-btn-primary" id="locate-address-button">Locate From Address</button>
+                            </div>
+                            <div class="adm-form-grid-3">
+                                <label class="adm-form-group">
+                                    <span class="adm-form-label">Latitude</span>
+                                    <input class="adm-form-input" type="number" step="any" name="latitude" id="client-latitude" value="<%= patient.latitude %>" required>
+                                </label>
+                                <label class="adm-form-group">
+                                    <span class="adm-form-label">Longitude</span>
+                                    <input class="adm-form-input" type="number" step="any" name="longitude" id="client-longitude" value="<%= patient.longitude %>" required>
+                                </label>
+                                <label class="adm-form-group">
+                                    <span class="adm-form-label">Radius (metres)</span>
+                                    <input class="adm-form-input" type="number" min="25" name="geofence_radius_meters" id="client-radius" value="<%= patient.geofence_radius_meters %>">
+                                </label>
+                            </div>
+                            <div id="client-map"></div>
+                        </div>
+                    </section>
+
+                    <section class="client-tab-panel" data-tab-panel="status-team">
+                        <div class="adm-form-grid-3">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Client Status</span>
+                                <input class="adm-form-input" type="text" name="status" value="<%= patient.status %>" list="status-options">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Care Level</span>
+                                <input class="adm-form-input" type="text" name="care_level" value="<%= patient.care_level %>" placeholder="e.g. High support">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Falls Risk Level</span>
+                                <input class="adm-form-input" type="text" name="falls_risk_level" value="<%= patient.falls_risk_level || patient.risk_level %>" list="risk-level-options">
+                            </label>
+                        </div>
+
+                        <div class="client-assignment-grid">
+                            <% careTeamRoles.forEach((role) => { %>
+                                <div class="client-assignment-card">
+                                    <div class="adm-card-title"><%= role.label %></div>
+                                    <input class="adm-form-input client-staff-search" type="search" placeholder="Search active staff" data-select-target="<%= role.key %>-staff-select">
+                                    <select class="adm-form-input client-staff-select" id="<%= role.key %>-staff-select" name="<%= role.key %>_staff_id">
+                                        <option value="">Unassigned</option>
+                                        <% staffOptions.forEach((staffMember) => { %>
+                                            <option value="<%= staffMember.id %>" <%= assignmentMap[role.key] === String(staffMember.id) ? 'selected' : '' %>><%= staffMember.name %> - <%= staffMember.role %></option>
+                                        <% }) %>
+                                    </select>
+                                </div>
+                            <% }) %>
+                        </div>
+                    </section>
+
+                    <section class="client-tab-panel" data-tab-panel="care-needs">
+                        <div class="client-care-grid">
+                            <% careNeedSections.forEach((section) => { const selectedValues = patient[section.key === 'personalCare' ? 'personalCareNeeds' : section.key === 'mobility' ? 'mobilityNeeds' : section.key === 'clinicalTasks' ? 'clinicalTasks' : section.key === 'medicalConditions' ? 'medicalConditions' : section.key === 'dailyLiving' ? 'dailyLivingNeeds' : section.key === 'risks' ? 'riskFlags' : section.key === 'communication' ? 'communicationNeedsList' : section.key === 'lifestyle' ? 'lifestylePreferences' : section.key === 'equipment' ? 'equipmentNeeds' : 'serviceTypes']; %>
+                                <details class="client-checklist-card" open>
+                                    <summary>
+                                        <span><%= section.label %></span>
+                                        <span class="client-checklist-count"><%= selectedValues.length %> selected</span>
+                                    </summary>
+                                    <input class="adm-form-input client-checklist-search" type="search" placeholder="Filter <%= section.label.toLowerCase() %>" data-filter-list="<%= section.key %>">
+                                    <div class="client-checklist-list" data-checklist="<%= section.key %>">
+                                        <% (careNeedCatalog[section.key] || []).forEach((option) => { %>
+                                            <label class="client-checklist-item">
+                                                <input type="checkbox" name="<%= section.name %>" value="<%= option %>" <%= selectedValues.includes(option) ? 'checked' : '' %>>
+                                                <span><%= option %></span>
+                                            </label>
+                                        <% }) %>
+                                    </div>
+                                </details>
+                            <% }) %>
+                        </div>
+                    </section>
+
+                    <section class="client-tab-panel" data-tab-panel="medical">
+                        <div class="adm-form-grid-2">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Diagnoses</span>
+                                <textarea class="adm-form-textarea" rows="3" name="diagnoses"><%= patient.diagnoses %></textarea>
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Allergies</span>
+                                <textarea class="adm-form-textarea" rows="3" name="allergies"><%= patient.allergies %></textarea>
+                            </label>
+                        </div>
+                        <div class="adm-form-grid-2">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Current Medication</span>
+                                <textarea class="adm-form-textarea" rows="3" name="current_medication"><%= patient.current_medication %></textarea>
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Medication Schedule</span>
+                                <textarea class="adm-form-textarea" rows="3" name="medication_schedule"><%= patient.medication_schedule %></textarea>
+                            </label>
+                        </div>
+                        <div class="adm-form-grid-3">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">GP Name</span>
+                                <input class="adm-form-input" type="text" name="gp_name" value="<%= patient.gp_name %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">GP Phone</span>
+                                <input class="adm-form-input" type="tel" name="gp_phone" value="<%= patient.gp_phone %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Consultant</span>
+                                <input class="adm-form-input" type="text" name="consultant_name" value="<%= patient.consultant_name %>">
+                            </label>
+                        </div>
+                        <div class="adm-form-grid-3">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Hospital</span>
+                                <input class="adm-form-input" type="text" name="hospital_name" value="<%= patient.hospital_name %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Pharmacy</span>
+                                <input class="adm-form-input" type="text" name="pharmacy_name" value="<%= patient.pharmacy_name %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Vaccination Status</span>
+                                <input class="adm-form-input" type="text" name="vaccination_status" value="<%= patient.vaccination_status %>">
+                            </label>
+                        </div>
+                        <div class="adm-form-grid-3">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">DNAR Status</span>
+                                <input class="adm-form-input" type="text" name="dnar_status" value="<%= patient.dnar_status %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Risk Level</span>
+                                <input class="adm-form-input" type="text" name="risk_level" value="<%= patient.risk_level %>" list="risk-level-options">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Infection Risks</span>
+                                <input class="adm-form-input" type="text" name="infection_risks" value="<%= patient.infection_risks %>">
+                            </label>
+                        </div>
+
+                        <div class="client-section-divider"></div>
+                        <h2 class="adm-card-title">Emergency Contact</h2>
+                        <div class="adm-form-grid-3">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Full Name</span>
+                                <input class="adm-form-input" type="text" name="emergency_contact_name" value="<%= patient.emergency_contact_name %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Relationship</span>
+                                <input class="adm-form-input" type="text" name="emergency_contact_relationship" value="<%= patient.emergency_contact_relationship %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Phone Number</span>
+                                <input class="adm-form-input" type="tel" name="emergency_contact_phone" value="<%= patient.emergency_contact_phone %>">
+                            </label>
+                        </div>
+                        <div class="adm-form-grid-3">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Alternative Phone</span>
+                                <input class="adm-form-input" type="tel" name="emergency_contact_alt_phone" value="<%= patient.emergency_contact_alt_phone %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Email</span>
+                                <input class="adm-form-input" type="email" name="emergency_contact_email" value="<%= patient.emergency_contact_email %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Address</span>
+                                <input class="adm-form-input" type="text" name="emergency_contact_address" value="<%= patient.emergency_contact_address %>">
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="client-tab-panel" data-tab-panel="care-plan">
+                        <div class="client-rich-grid">
+                            <% richTextSections.forEach((section) => { %>
+                                <div class="client-rich-card">
+                                    <label class="adm-form-label"><%= section.label %></label>
+                                    <div class="client-rich-toolbar">
+                                        <button type="button" data-command="bold">Bold</button>
+                                        <button type="button" data-command="italic">Italic</button>
+                                        <button type="button" data-command="insertUnorderedList">Bullets</button>
+                                        <button type="button" data-command="insertParagraph">Paragraph</button>
+                                    </div>
+                                    <div class="client-rich-editor" contenteditable="true" data-target="<%= section.name %>"><%- section.value || '' %></div>
+                                    <textarea hidden name="<%= section.name %>" id="<%= section.name %>"><%- section.value || '' %></textarea>
+                                </div>
+                            <% }) %>
+                        </div>
+
+                        <div class="client-section-divider"></div>
+                        <div class="client-rich-card">
+                            <label class="adm-form-label">Shift Instructions</label>
+                            <p class="client-form-hint">Everything entered here will appear in future shifts for this client.</p>
+                            <div class="client-rich-toolbar">
+                                <button type="button" data-command="bold">Bold</button>
+                                <button type="button" data-command="italic">Italic</button>
+                                <button type="button" data-command="insertUnorderedList">Bullets</button>
+                                <button type="button" data-command="insertOrderedList">Numbered</button>
+                            </div>
+                            <div class="client-rich-editor" contenteditable="true" data-target="shift_instructions"><%- patient.shift_instructions || '' %></div>
+                            <textarea hidden name="shift_instructions" id="shift_instructions"><%- patient.shift_instructions || '' %></textarea>
+                        </div>
+
+                        <div class="client-section-divider"></div>
+                        <h2 class="adm-card-title">Home Access</h2>
+                        <div class="adm-form-grid-3">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Key Safe Code</span>
+                                <input class="adm-form-input" type="text" name="key_safe_code" value="<%= patient.key_safe_code %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Door Code</span>
+                                <input class="adm-form-input" type="text" name="door_code" value="<%= patient.door_code %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Alarm Code</span>
+                                <input class="adm-form-input" type="text" name="alarm_code" value="<%= patient.alarm_code %>">
+                            </label>
+                        </div>
+                        <div class="adm-form-grid-3">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Parking Instructions</span>
+                                <input class="adm-form-input" type="text" name="parking_instructions" value="<%= patient.parking_instructions %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Pets</span>
+                                <input class="adm-form-input" type="text" name="pets" value="<%= patient.pets %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Lift Available</span>
+                                <select class="adm-form-input" name="lift_available">
+                                    <option value="0" <%= !patient.lift_available ? 'selected' : '' %>>No</option>
+                                    <option value="1" <%= patient.lift_available ? 'selected' : '' %>>Yes</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="adm-form-grid-2">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Stairs</span>
+                                <input class="adm-form-input" type="text" name="stairs" value="<%= patient.stairs %>">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Access Notes</span>
+                                <textarea class="adm-form-textarea" rows="3" name="access_notes"><%= patient.access_notes %></textarea>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="client-tab-panel" data-tab-panel="schedule">
+                        <h2 class="adm-card-title">Scheduling Preferences</h2>
+                        <div class="client-chip-row">
+                            <% schedulingPreferenceOptions.preferredDays.forEach((day) => { %>
+                                <label class="client-chip">
+                                    <input type="checkbox" name="preferred_days" value="<%= day %>" <%= (patient.preferredDays || []).includes(day) ? 'checked' : '' %>>
+                                    <span><%= day %></span>
+                                </label>
+                            <% }) %>
+                        </div>
+                        <div class="client-chip-row">
+                            <% schedulingPreferenceOptions.preferredTimes.forEach((time) => { %>
+                                <label class="client-chip">
+                                    <input type="checkbox" name="preferred_times" value="<%= time %>" <%= (patient.preferredTimes || []).includes(time) ? 'checked' : '' %>>
+                                    <span><%= time %></span>
+                                </label>
+                            <% }) %>
+                        </div>
+                        <div class="adm-form-grid-3">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Visit Duration</span>
+                                <select class="adm-form-input" name="visit_duration">
+                                    <option value="">Select duration</option>
+                                    <% schedulingPreferenceOptions.visitDurations.forEach((option) => { %>
+                                        <option value="<%= option %>" <%= patient.visit_duration === option ? 'selected' : '' %>><%= option %></option>
+                                    <% }) %>
+                                </select>
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Custom Visit Duration</span>
+                                <input class="adm-form-input" type="text" name="custom_visit_duration" value="<%= patient.custom_visit_duration %>" placeholder="e.g. 90 mins">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Frequency</span>
+                                <select class="adm-form-input" name="visit_frequency">
+                                    <option value="">Select frequency</option>
+                                    <% schedulingPreferenceOptions.frequencies.forEach((option) => { %>
+                                        <option value="<%= option %>" <%= patient.visit_frequency === option ? 'selected' : '' %>><%= option %></option>
+                                    <% }) %>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="adm-form-grid-2">
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Custom Frequency</span>
+                                <input class="adm-form-input" type="text" name="custom_visit_frequency" value="<%= patient.custom_visit_frequency %>" placeholder="e.g. Every second weekend">
+                            </label>
+                            <label class="adm-form-group">
+                                <span class="adm-form-label">Preferred Staff</span>
+                                <select class="adm-form-input" name="preferred_staff_gender">
+                                    <option value="">Select preference</option>
+                                    <% schedulingPreferenceOptions.staffPreferences.forEach((option) => { %>
+                                        <option value="<%= option %>" <%= patient.preferred_staff_gender === option ? 'selected' : '' %>><%= option %></option>
+                                    <% }) %>
+                                </select>
+                            </label>
+                        </div>
+
+                        <div class="client-section-divider"></div>
+                        <div class="client-document-card">
+                            <div class="client-geofence-header">
+                                <div>
+                                    <h2>Documents</h2>
+                                    <p>Upload client documents and control whether they appear for assigned staff in the staff app.</p>
+                                </div>
+                            </div>
+                            <div class="adm-form-grid-3">
+                                <label class="adm-form-group">
+                                    <span class="adm-form-label">Document Category</span>
+                                    <select class="adm-form-input" id="document-category">
+                                        <% documentCategories.forEach((category) => { %>
+                                            <option value="<%= category %>"><%= category %></option>
+                                        <% }) %>
+                                    </select>
+                                </label>
+                                <label class="adm-form-group">
+                                    <span class="adm-form-label">Document Title</span>
+                                    <input class="adm-form-input" type="text" id="document-title" placeholder="e.g. Latest risk assessment">
+                                </label>
+                                <label class="adm-form-group">
+                                    <span class="adm-form-label">Document File</span>
+                                    <input class="adm-form-input" type="file" id="document-file-input">
+                                </label>
+                            </div>
+                            <label class="client-inline-toggle">
+                                <input type="checkbox" id="document-visibility" checked>
+                                <span>Allow assigned staff to download this document</span>
+                            </label>
+                            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                                <button type="button" class="adm-btn-secondary" id="add-document-button">Add Document</button>
+                            </div>
+                            <input type="hidden" name="documents_payload" id="documents-payload">
+                            <div class="client-document-list" id="client-document-list"></div>
+                        </div>
+                    </section>
+
+                    <section class="client-tab-panel" data-tab-panel="notes">
+                        <label class="adm-form-group">
+                            <span class="adm-form-label">Internal Notes</span>
+                            <textarea class="adm-form-textarea" rows="8" name="internal_notes" placeholder="Visible only to admins and managers. This will never appear in the staff app."><%= patient.internal_notes %></textarea>
+                        </label>
+                    </section>
+                </div>
+
+                <div class="form-actions" style="margin-top:16px;">
+                    <button type="submit" class="adm-btn-primary">Save Client</button>
+                    <a href="/patients" class="adm-btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <datalist id="gender-options">
+        <option value="Female"></option>
+        <option value="Male"></option>
+        <option value="Non-binary"></option>
+        <option value="Prefer not to say"></option>
+    </datalist>
+    <datalist id="marital-status-options">
+        <option value="Single"></option>
+        <option value="Married"></option>
+        <option value="Widowed"></option>
+        <option value="Separated"></option>
+        <option value="Divorced"></option>
+        <option value="Partnered"></option>
+    </datalist>
+    <datalist id="status-options">
+        <% patientStatusOptions.forEach((status) => { %><option value="<%= status %>"></option><% }) %>
+    </datalist>
+    <datalist id="risk-level-options">
+        <option value="Low"></option>
+        <option value="Moderate"></option>
+        <option value="High"></option>
+        <option value="Critical"></option>
+    </datalist>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+    (function () {
+        const form = document.getElementById('client-form');
+        const mode = "<%= mode %>";
+        const patientId = "<%= patient.id || '' %>";
+        const draftKey = 'everkind.client-draft.' + (patientId || 'new');
+        const toastStack = document.getElementById('client-toast-stack');
+        const initialDocuments = <%- JSON.stringify(patient.documents || []) %>;
+        const photoUrlInput = document.getElementById('photo-url-input');
+        const photoPreviewImage = document.getElementById('photo-preview-image');
+        const photoPreviewInitial = document.getElementById('photo-preview-initial');
+        const documentsPayloadInput = document.getElementById('documents-payload');
+        const documentList = document.getElementById('client-document-list');
+        const documentsState = Array.isArray(initialDocuments) ? initialDocuments.slice() : [];
+
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = 'client-toast ' + (type || 'info');
+            toast.textContent = message;
+            toastStack.appendChild(toast);
+            setTimeout(() => toast.remove(), 2800);
+        }
+
+        document.querySelectorAll('.client-tab').forEach((button) => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.client-tab').forEach((tab) => tab.classList.remove('active'));
+                document.querySelectorAll('.client-tab-panel').forEach((panel) => panel.classList.remove('active'));
+                button.classList.add('active');
+                document.querySelector('[data-tab-panel="' + button.dataset.tab + '"]').classList.add('active');
+            });
+        });
+
+        document.querySelectorAll('.client-staff-search').forEach((input) => {
+            input.addEventListener('input', () => {
+                const select = document.getElementById(input.dataset.selectTarget);
+                const query = input.value.toLowerCase();
+                Array.from(select.options).forEach((option, index) => {
+                    if (index === 0) {
+                        option.hidden = false;
+                        return;
+                    }
+                    option.hidden = query && !option.text.toLowerCase().includes(query);
+                });
+            });
+        });
+
+        document.querySelectorAll('.client-checklist-search').forEach((input) => {
+            input.addEventListener('input', () => {
+                const container = document.querySelector('[data-checklist="' + input.dataset.filterList + '"]');
+                const query = input.value.toLowerCase();
+                container.querySelectorAll('.client-checklist-item').forEach((item) => {
+                    item.style.display = item.textContent.toLowerCase().includes(query) ? '' : 'none';
+                });
+            });
+        });
+
+        function syncRichEditors() {
+            document.querySelectorAll('.client-rich-editor').forEach((editor) => {
+                const target = document.getElementById(editor.dataset.target);
+                if (target) {
+                    target.value = editor.innerHTML.trim();
+                }
+            });
+        }
+
+        document.querySelectorAll('.client-rich-toolbar button').forEach((button) => {
+            button.addEventListener('click', () => {
+                const editor = button.closest('.client-rich-card').querySelector('.client-rich-editor');
+                editor.focus();
+                document.execCommand(button.dataset.command, false, null);
+                syncRichEditors();
+                saveDraft();
+            });
+        });
+
+        document.querySelectorAll('.client-rich-editor').forEach((editor) => {
+            editor.addEventListener('input', () => {
+                syncRichEditors();
+                saveDraft();
+            });
+        });
+
+        function renderDocuments() {
+            documentsPayloadInput.value = JSON.stringify(documentsState);
+            if (!documentsState.length) {
+                documentList.innerHTML = '<div class="adm-card-empty"><p>No documents added yet.</p></div>';
+                return;
+            }
+            documentList.innerHTML = documentsState.map((document, index) => `
+                <article class="client-document-item">
+                    <div>
+                        <strong>${document.title}</strong>
+                        <p>${document.category} - ${document.fileName}</p>
+                        <small>${document.isStaffVisible ? 'Visible to assigned staff' : 'Admin only'}</small>
+                    </div>
+                    <button type="button" class="adm-btn-secondary" data-remove-document="${index}">Remove</button>
+                </article>
+            `).join('');
+
+            documentList.querySelectorAll('[data-remove-document]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    documentsState.splice(Number(button.dataset.removeDocument), 1);
+                    renderDocuments();
+                    saveDraft();
+                });
+            });
+        }
+
+        document.getElementById('add-document-button').addEventListener('click', async () => {
+            const fileInput = document.getElementById('document-file-input');
+            const titleInput = document.getElementById('document-title');
+            const categoryInput = document.getElementById('document-category');
+            const visibilityInput = document.getElementById('document-visibility');
+            const file = fileInput.files[0];
+            const title = titleInput.value.trim() || (file ? file.name.replace(/\.[^.]+$/, '') : '');
+            if (!file) {
+                showToast('Choose a document before adding it.', 'error');
+                return;
+            }
+            const dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('The document could not be read.'));
+                reader.readAsDataURL(file);
+            });
+            documentsState.push({
+                title,
+                category: categoryInput.value,
+                fileName: file.name,
+                mimeType: file.type || 'application/octet-stream',
+                dataUrl,
+                isStaffVisible: visibilityInput.checked
+            });
+            fileInput.value = '';
+            titleInput.value = '';
+            categoryInput.value = '<%= documentCategories[0] %>';
+            visibilityInput.checked = true;
+            renderDocuments();
+            saveDraft();
+            showToast('Document added to this client record.', 'success');
+        });
+
+        document.getElementById('photo-file-input').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+            const dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('The image could not be read.'));
+                reader.readAsDataURL(file);
+            });
+            photoUrlInput.value = dataUrl;
+            if (photoPreviewImage) {
+                photoPreviewImage.src = dataUrl;
+            } else if (photoPreviewInitial) {
+                photoPreviewInitial.outerHTML = '<img id="photo-preview-image" src="' + dataUrl + '" alt="Client profile photo">';
+            }
+            saveDraft();
+        });
+
+        const latitudeInput = document.getElementById('client-latitude');
+        const longitudeInput = document.getElementById('client-longitude');
+        const radiusInput = document.getElementById('client-radius');
+        const map = L.map('client-map').setView([53.3498, -6.2603], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        const circle = L.circle([53.3498, -6.2603], { radius: Number(radiusInput.value) || 100 }).addTo(map);
+        const marker = L.marker([53.3498, -6.2603], { draggable: true }).addTo(map);
+
+        function setMapPosition(lat, lng, shouldPan) {
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                return;
+            }
+            marker.setLatLng([lat, lng]);
+            circle.setLatLng([lat, lng]);
+            circle.setRadius(Number(radiusInput.value) || 100);
+            latitudeInput.value = lat;
+            longitudeInput.value = lng;
+            if (shouldPan) {
+                map.setView([lat, lng], 16);
+            }
+        }
+
+        const initialLat = Number(latitudeInput.value);
+        const initialLng = Number(longitudeInput.value);
+        if (Number.isFinite(initialLat) && Number.isFinite(initialLng)) {
+            setMapPosition(initialLat, initialLng, true);
+        }
+        marker.on('dragend', () => {
+            const position = marker.getLatLng();
+            setMapPosition(position.lat, position.lng, false);
+            saveDraft();
+        });
+        radiusInput.addEventListener('input', () => {
+            circle.setRadius(Number(radiusInput.value) || 100);
+            saveDraft();
+        });
+        latitudeInput.addEventListener('change', () => setMapPosition(Number(latitudeInput.value), Number(longitudeInput.value), true));
+        longitudeInput.addEventListener('change', () => setMapPosition(Number(latitudeInput.value), Number(longitudeInput.value), true));
+
+        document.getElementById('locate-address-button').addEventListener('click', async () => {
+            const payload = {
+                address: document.getElementById('client-address').value,
+                county: document.getElementById('client-county').value,
+                eircode: document.getElementById('client-eircode').value
+            };
+            try {
+                const response = await fetch('/api/patients/geocode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || 'The address could not be located.');
+                }
+                setMapPosition(Number(data.latitude), Number(data.longitude), true);
+                showToast('GPS coordinates updated from the client address.', 'success');
+                saveDraft();
+            } catch (error) {
+                showToast(error.message || 'The address could not be located.', 'error');
+            }
+        });
+
+        function calculateAge(value) {
+            if (!value) return '';
+            const birthDate = new Date(value + 'T12:00:00');
+            if (Number.isNaN(birthDate.getTime())) return '';
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDelta = today.getMonth() - birthDate.getMonth();
+            if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < birthDate.getDate())) age -= 1;
+            return age >= 0 ? age : '';
+        }
+
+        const dobInput = document.getElementById('date-of-birth');
+        const ageInput = document.getElementById('client-age');
+        dobInput.addEventListener('change', () => {
+            ageInput.value = calculateAge(dobInput.value);
+            saveDraft();
+        });
+
+        function buildDraftSnapshot() {
+            syncRichEditors();
+            const formData = new FormData(form);
+            const payload = {};
+            for (const [key, value] of formData.entries()) {
+                if (payload[key] !== undefined) {
+                    if (!Array.isArray(payload[key])) {
+                        payload[key] = [payload[key]];
+                    }
+                    payload[key].push(value);
+                } else {
+                    payload[key] = value;
+                }
+            }
+            payload.documents_payload = documentsState;
+            return payload;
+        }
+
+        let draftTimer = null;
+        function saveDraft() {
+            clearTimeout(draftTimer);
+            draftTimer = setTimeout(() => {
+                localStorage.setItem(draftKey, JSON.stringify(buildDraftSnapshot()));
+            }, 250);
+        }
+
+        function applyDraft(snapshot) {
+            Object.entries(snapshot).forEach(([key, value]) => {
+                if (key === 'documents_payload') {
+                    documentsState.splice(0, documentsState.length, ...value);
+                    renderDocuments();
+                    return;
+                }
+                const fields = form.querySelectorAll('[name="' + key + '"]');
+                if (!fields.length) return;
+                fields.forEach((field) => {
+                    if (field.type === 'checkbox') {
+                        const values = Array.isArray(value) ? value : [value];
+                        field.checked = values.includes(field.value);
+                    } else if (field.type === 'radio') {
+                        field.checked = String(value) === field.value;
+                    } else {
+                        field.value = value;
+                    }
+                });
+            });
+            document.querySelectorAll('.client-rich-editor').forEach((editor) => {
+                const target = document.getElementById(editor.dataset.target);
+                if (target) {
+                    editor.innerHTML = target.value || '';
+                }
+            });
+            if (photoUrlInput.value) {
+                if (document.getElementById('photo-preview-image')) {
+                    document.getElementById('photo-preview-image').src = photoUrlInput.value;
+                }
+            }
+            setMapPosition(Number(latitudeInput.value), Number(longitudeInput.value), true);
+        }
+
+        const savedDraft = localStorage.getItem(draftKey);
+        if (mode === 'new' && savedDraft) {
+            try {
+                const snapshot = JSON.parse(savedDraft);
+                if (confirm('Restore your saved client draft?')) {
+                    applyDraft(snapshot);
+                    showToast('Saved draft restored.', 'info');
+                }
+            } catch (error) {
+                localStorage.removeItem(draftKey);
+            }
+        }
+
+        document.getElementById('clear-draft-button').addEventListener('click', () => {
+            localStorage.removeItem(draftKey);
+            showToast('Saved draft cleared for this form.', 'info');
+        });
+
+        form.addEventListener('input', saveDraft);
+        form.addEventListener('change', saveDraft);
+        form.addEventListener('submit', () => {
+            syncRichEditors();
+            renderDocuments();
+            localStorage.removeItem(draftKey);
+        });
+
+        renderDocuments();
+        syncRichEditors();
+        ageInput.value = ageInput.value || calculateAge(dobInput.value);
+    }());
+    </script>
+</body>
+</html>

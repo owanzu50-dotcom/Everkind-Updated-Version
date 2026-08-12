@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'staff', isAdmin: true, currentStaffName: currentStaffName, currentStaffEmail: currentStaffEmail }) %>
+
+        <main class="portal-content">
+            <% 
+                const isInduction = String(staffMember.status || '').toLowerCase() === 'induction';
+                const inductionChecklist = staffMember.inductionChecklist || [];
+                const inductionSummary = staffMember.inductionChecklistSummary || { total: 0, completed: 0, outstanding: 0, percent: 0 };
+                const showInductionChecklist = isInduction || inductionChecklist.some((item) => item.completed);
+                const portalLoginLabel = !staffMember.portalLoginEnabled
+                    ? 'Not enabled'
+                    : (staffMember.portalLoginSuspended || staffMember.portalLoginDeactivated ? 'Restricted' : 'Enabled');
+            %>
+            <header class="portal-header">
+                <div>
+                    <span class="eyebrow">Staff profile</span>
+                    <h1><%= staffMember.name %></h1>
+                    <p class="portal-subtext"><%= staffMember.role || 'Staff member' %> • <%= staffMember.employmentType || '—' %></p>
+                </div>
+                <div class="header-actions">
+                    <% if (isInduction) { %>
+                        <form method="POST" action="/staff/<%= staffMember.id %>/approve-employment" style="display:inline;" onsubmit="return confirm('Approve <%= staffMember.name %> as fully employed?')">
+                            <button type="submit" class="primary-button">Approve employment</button>
+                        </form>
+                    <% } %>
+                    <a href="/staff/<%= staffMember.id %>/edit" class="secondary-button">Edit profile</a>
+                    <a href="/staff" class="secondary-button">Back to roster</a>
+                </div>
+            </header>
+
+            <section class="portal-panel">
+                <div class="panel-header">
+                    <h2>Overview</h2>
+                    <span class="badge badge-scheduled"><%= staffMember.status || 'Active' %></span>
+                </div>
+                <div class="detail-grid">
+                    <div>
+                        <ul class="detail-list">
+                            <li><strong>Email:</strong> <%= staffMember.email || '—' %></li>
+                            <li><strong>Mobile:</strong> <%= staffMember.mobileNumber || '—' %></li>
+                            <li><strong>Employee number:</strong> <%= staffMember.employeeNumber || '—' %></li>
+                            <li><strong>Eligible Services:</strong> <%= (staffMember.serviceTypes || []).join(', ') || 'Both' %></li>
+                            <li><strong>Portal login:</strong> <%= portalLoginLabel %></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <ul class="detail-list">
+                            <li><strong>Compliance:</strong> <%= staffMember.complianceSummary && staffMember.complianceSummary.overallCompliance ? staffMember.complianceSummary.overallCompliance : 0 %>%</li>
+                            <li><strong>Training completed:</strong> <%= staffMember.complianceSummary && staffMember.complianceSummary.trainingCompleted ? staffMember.complianceSummary.trainingCompleted : 0 %></li>
+                            <li><strong>Training outstanding:</strong> <%= staffMember.complianceSummary && staffMember.complianceSummary.trainingOutstanding ? staffMember.complianceSummary.trainingOutstanding : 0 %></li>
+                            <li><strong>Certificates expiring:</strong> <%= staffMember.complianceSummary && staffMember.complianceSummary.certificatesExpiring ? staffMember.complianceSummary.certificatesExpiring : 0 %></li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <% if (showInductionChecklist) { %>
+            <section class="portal-panel" id="induction-checklist">
+                <div class="panel-header">
+                    <h2>Induction checklist</h2>
+                    <span class="badge badge-scheduled"><%= inductionSummary.completed %>/<%= inductionSummary.total %> complete</span>
+                </div>
+                <p class="portal-subtext" style="margin-top:0;">Track onboarding progress before approving this team member as fully employed.</p>
+                <div class="detail-grid">
+                    <div>
+                        <ul class="detail-list">
+                            <li><strong>Completed:</strong> <%= inductionSummary.completed %></li>
+                            <li><strong>Outstanding:</strong> <%= inductionSummary.outstanding %></li>
+                            <li><strong>Progress:</strong> <%= inductionSummary.percent %>%</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <% if (isInduction) { %>
+                            <p style="margin-top:0;">This staff member remains in induction until an administrator approves them as fully employed.</p>
+                        <% } else { %>
+                            <p style="margin-top:0;">This induction record is kept for audit after employment approval.</p>
+                        <% } %>
+                    </div>
+                </div>
+                <form method="POST" action="/staff/<%= staffMember.id %>/induction-checklist" class="portal-form" style="margin-top:16px;">
+                    <div style="display:grid;gap:12px;">
+                        <% inductionChecklist.forEach((item) => { %>
+                            <label style="display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid #e2e8f0;border-radius:12px;">
+                                <input type="checkbox" name="induction_<%= item.key %>" value="1" <%= item.completed ? 'checked' : '' %> style="margin-top:4px;">
+                                <span>
+                                    <strong><%= item.label %></strong><br>
+                                    <span style="color:#64748b;"><%= item.description %></span>
+                                    <% if (item.completedAt) { %><br><small>Completed: <%= String(item.completedAt).slice(0, 10) %></small><% } %>
+                                </span>
+                            </label>
+                        <% }) %>
+                    </div>
+                    <div class="form-actions" style="margin-top:16px;">
+                        <button type="submit" class="primary-button">Save checklist</button>
+                    </div>
+                </form>
+            </section>
+            <% } %>
+
+            <section class="portal-panel">
+                <div class="panel-header">
+                    <h2>Personal, contact & employment</h2>
+                </div>
+                <div class="detail-grid">
+                    <div>
+                        <ul class="detail-list">
+                            <li><strong>Date of birth:</strong> <%= staffMember.dateOfBirth || '—' %></li>
+                            <li><strong>Gender:</strong> <%= staffMember.gender || '—' %></li>
+                            <li><strong>Nationality:</strong> <%= staffMember.nationality || '—' %></li>
+                            <li><strong>PPS number:</strong> <%= staffMember.ppsNumber || '—' %></li>
+                            <li><strong>Driving licence:</strong> <%= staffMember.drivingLicenceNumber || '—' %></li>
+                            <li><strong>Right to work:</strong> <%= staffMember.rightToWork || '—' %></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <ul class="detail-list">
+                            <li><strong>Home address:</strong> <%= staffMember.homeAddress || '—' %></li>
+                            <li><strong>Eircode / County:</strong> <%= [staffMember.eircode, staffMember.county].filter(Boolean).join(' / ') || '—' %></li>
+                            <li><strong>Status:</strong> <%= staffMember.status || '—' %></li>
+                            <li><strong>Start date:</strong> <%= staffMember.startDate || staffMember.start_date || '—' %></li>
+                            <li><strong>Hourly rate:</strong> <%= staffMember.hourlyRate || '—' %></li>
+                            <li><strong>Payroll number:</strong> <%= staffMember.payrollNumber || '—' %></li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section class="portal-panel">
+                <div class="panel-header">
+                    <h2>Qualifications, skills & availability</h2>
+                </div>
+                <div class="detail-grid">
+                    <div>
+                        <ul class="detail-list">
+                            <li><strong>QQI:</strong> <%= (staffMember.qqiQualifications || []).join(', ') || '—' %></li>
+                            <li><strong>Professional registration:</strong> <%= (staffMember.professionalRegistration || []).join(', ') || '—' %></li>
+                            <li><strong>NMBI:</strong> <%= staffMember.nmbiNumber || '—' %> <%= staffMember.nmbiExpiryDate ? `(Exp: ${staffMember.nmbiExpiryDate})` : '' %></li>
+                            <li><strong>Skills:</strong> <%= (staffMember.skillsSpecialities || []).join(', ') || '—' %></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <ul class="detail-list">
+                            <li><strong>Languages:</strong> <%= (staffMember.languages || []).join(', ') || '—' %></li>
+                            <li><strong>Availability days:</strong> <%= (staffMember.availabilityDays || []).join(', ') || '—' %></li>
+                            <li><strong>Shift preferences:</strong> <%= (staffMember.shiftPreferences || []).join(', ') || '—' %></li>
+                            <li><strong>Preferred working area:</strong> <%= staffMember.preferredWorkingArea || '—' %></li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section class="portal-panel">
+                <div class="panel-header">
+                    <h2>Training, certifications & attendance</h2>
+                </div>
+                <div class="detail-grid">
+                    <div>
+                        <h3>Mandatory training records</h3>
+                        <% if (staffMember.trainingRecords && staffMember.trainingRecords.length) { %>
+                            <ul class="detail-list">
+                                <% staffMember.trainingRecords.forEach((record) => { %>
+                                    <li><strong><%= record.item %>:</strong> <%= record.completed ? 'Completed' : 'Outstanding' %><%= record.expiryDate ? ` • Exp: ${record.expiryDate}` : '' %></li>
+                                <% }) %>
+                            </ul>
+                        <% } else { %>
+                            <p>No training records available.</p>
+                        <% } %>
+                        <h3>Additional certification records</h3>
+                        <% if (staffMember.certificationRecords && staffMember.certificationRecords.length) { %>
+                            <ul class="detail-list">
+                                <% staffMember.certificationRecords.forEach((record) => { %>
+                                    <li><strong><%= record.item %>:</strong> <%= record.issueDate || 'No issue date' %> to <%= record.expiryDate || 'No expiry date' %></li>
+                                <% }) %>
+                            </ul>
+                        <% } else { %>
+                            <p>No certification records available.</p>
+                        <% } %>
+                    </div>
+                    <div>
+                        <h3>Attendance summary</h3>
+                        <ul class="detail-list">
+                            <li><strong>Total shifts:</strong> <%= attendanceSummary ? attendanceSummary.totalShifts : 0 %></li>
+                            <li><strong>Clock ins:</strong> <%= attendanceSummary ? attendanceSummary.clockIns : 0 %></li>
+                            <li><strong>Clock outs:</strong> <%= attendanceSummary ? attendanceSummary.clockOuts : 0 %></li>
+                            <li><strong>Garda vetting:</strong> <%= staffMember.gardaVettingStatus || 'Pending' %></li>
+                        </ul>
+                        <h3>Upcoming shifts</h3>
+                        <% if (upcomingShifts && upcomingShifts.length) { %>
+                            <ul class="detail-list">
+                                <% upcomingShifts.forEach((shift) => { %>
+                                    <li><span class="adm-badge <%= shift.serviceDivision === 'agency-staffing' ? 'adm-badge-agency' : 'adm-badge-home-care' %>"><%= shift.serviceDivision === 'agency-staffing' ? '🏥 AGENCY' : '🏠 HOME CARE' %></span> <strong><%= shift.displayEntityName || shift.patientName %>:</strong> <%= shift.scheduledStart || 'Scheduled' %> (<%= shift.status %>)</li>
+                                <% }) %>
+                            </ul>
+                        <% } else { %>
+                            <p>No upcoming shifts scheduled.</p>
+                        <% } %>
+                    </div>
+                </div>
+            </section>
+
+            <section class="portal-panel">
+                <div class="panel-header">
+                    <h2>Assigned clients, documents & notes</h2>
+                </div>
+                <div class="detail-grid">
+                    <div>
+                        <h3>Assigned clients</h3>
+                        <% if (assignedClients && assignedClients.length) { %>
+                            <ul class="detail-list">
+                                <% assignedClients.forEach((patient) => { %>
+                                    <li><%= patient.name %></li>
+                                <% }) %>
+                            </ul>
+                        <% } else { %>
+                            <p>No clients assigned yet.</p>
+                        <% } %>
+                        <h3>Internal notes</h3>
+                        <p><%= staffMember.internalNotes || 'No internal notes recorded.' %></p>
+                    </div>
+                    <div>
+                        <h3>Documents</h3>
+                        <% if (staffDocuments && staffDocuments.length) { %>
+                            <ul class="detail-list">
+                                <% staffDocuments.forEach((document) => { %>
+                                    <li><strong><%= document.category %>:</strong> <%= document.file_name %></li>
+                                <% }) %>
+                            </ul>
+                        <% } else { %>
+                            <p>No documents uploaded yet.</p>
+                        <% } %>
+                        <h3>Staff notes</h3>
+                        <p><%= staffMember.staffNotes || 'No staff-facing notes recorded.' %></p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

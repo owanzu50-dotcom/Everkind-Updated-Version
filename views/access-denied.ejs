@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', {
+            active: '',
+            isAdmin,
+            currentStaffName,
+            currentStaffEmail,
+            adminAccess: typeof adminAccess !== 'undefined' ? adminAccess : null
+        }) %>
+        <main class="portal-content access-denied-page">
+            <section class="access-denied-card" aria-labelledby="access-denied-title">
+                <div class="access-denied-icon" aria-hidden="true">!</div>
+                <p class="access-denied-eyebrow">Permission required</p>
+                <h1 id="access-denied-title"><%= title %></h1>
+                <p><%= message %></p>
+                <dl>
+                    <div>
+                        <dt>Current role</dt>
+                        <dd><%= currentRole %></dd>
+                    </div>
+                    <% if (requiredPermission) { %>
+                        <div>
+                            <dt>Required permission</dt>
+                            <dd><code><%= requiredPermission %></code></dd>
+                        </div>
+                    <% } %>
+                </dl>
+                <div class="access-denied-actions">
+                    <a class="adm-btn-primary" href="<%= isAdmin ? '/admin/dashboard' : '/portal/home' %>">Return to dashboard</a>
+                    <% if (isAdmin && typeof adminAccess !== 'undefined' && adminAccess && adminAccess.isPreview) { %>
+                        <form method="POST" action="/admin/view-as/exit">
+                            <button class="adm-btn-secondary" type="submit">Exit role preview</button>
+                        </form>
+                    <% } %>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

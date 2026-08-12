@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Payslips — Everkind</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <style>
+        .sps-header { margin-bottom:1.5rem; }
+        .sps-header h1 { font-size:1.4rem; font-weight:800; color:#17324b; margin:0 0 4px; }
+        .sps-header p { color:#64748b; font-size:0.87rem; margin:0; }
+
+        .sps-card { background:#fff; border-radius:14px; box-shadow:0 1px 4px rgba(0,0,0,0.07); overflow:hidden; }
+        .sps-table-wrap { overflow-x:auto; }
+        .sps-table { width:100%; border-collapse:collapse; font-size:0.875rem; }
+        .sps-table thead th { background:#17324b; color:#fff; padding:11px 14px; text-align:left; font-size:0.77rem; text-transform:uppercase; letter-spacing:0.04em; white-space:nowrap; }
+        .sps-table tbody tr { border-bottom:1px solid #f1f5f9; transition:background 0.12s; }
+        .sps-table tbody tr:last-child { border-bottom:none; }
+        .sps-table tbody tr:hover { background:#f8fafc; }
+        .sps-table td { padding:12px 14px; color:#334155; vertical-align:middle; }
+
+        .sps-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; }
+        .sps-badge.sent { background:#d1fae5; color:#065f46; }
+        .sps-badge.scheduled { background:#fff3cd; color:#92400e; }
+        .sps-badge.not_scheduled, .sps-badge.other { background:#f1f5f9; color:#64748b; }
+
+        .sps-btn { display:inline-flex; align-items:center; gap:4px; padding:6px 14px; border-radius:8px; font-size:0.82rem; font-weight:600; cursor:pointer; border:none; text-decoration:none; background:#1a7c3e; color:#fff; transition:opacity 0.15s; }
+        .sps-btn:hover { opacity:0.85; }
+        .sps-btn.print { background:#7c3aed; }
+
+        .sps-empty { text-align:center; padding:3rem 1rem; color:#94a3b8; }
+        .sps-empty .icon { font-size:2.5rem; margin-bottom:0.5rem; }
+
+        .sps-net { font-size:1.05rem; font-weight:800; color:#1a7c3e; }
+
+        .sps-info { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:14px 18px; margin-bottom:1.2rem; font-size:0.88rem; color:#14532d; }
+    </style>
+</head>
+<body>
+<div class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'payslips', isAdmin: false, currentStaffName: currentStaffName, currentStaffEmail: currentStaffEmail }) %>
+        <main class="portal-content">
+
+        <div class="sps-header">
+            <h1>💳 My Payslips</h1>
+            <p>Your payslip history — download PDF copies of your past payslips</p>
+        </div>
+
+        <% if (payslips.length > 0) { %>
+        <div class="sps-info">
+            💡 Your payslips are generated automatically when payroll is approved. Download any payslip as a PDF.
+            If you have a query about your pay, contact <strong>payroll@everkind.ie</strong>.
+        </div>
+        <% } %>
+
+        <div class="sps-card">
+            <div class="sps-table-wrap">
+                <% if (payslips.length === 0) { %>
+                <div class="sps-empty">
+                    <div class="icon">💳</div>
+                    <p style="font-weight:600;color:#475569;">No payslips available yet</p>
+                    <p style="font-size:0.83rem;margin-top:4px;">Your payslips will appear here once payroll has been processed and approved.</p>
+                </div>
+                <% } else { %>
+                <table class="sps-table">
+                    <thead>
+                        <tr>
+                            <th>Pay Period</th>
+                            <th>Payment Date</th>
+                            <th>Net Pay</th>
+                            <th>Gross Pay</th>
+                            <th>Email Status</th>
+                            <th>Reference</th>
+                            <th>Download</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <% payslips.forEach(ps => { %>
+                    <tr>
+                        <td style="white-space:nowrap;font-weight:600;">
+                            <%= new Date(ps.period_start).toLocaleDateString('en-IE',{day:'2-digit',month:'short',year:'numeric'}) %>
+                            –
+                            <%= new Date(ps.period_end).toLocaleDateString('en-IE',{day:'2-digit',month:'short',year:'numeric'}) %>
+                        </td>
+                        <td style="white-space:nowrap;color:#1a7c3e;font-weight:600;">
+                            <%= ps.payment_date ? new Date(ps.payment_date).toLocaleDateString('en-IE',{day:'2-digit',month:'short',year:'numeric'}) : 'TBC' %>
+                        </td>
+                        <td><span class="sps-net">€<%= Number(ps.net_pay||0).toFixed(2) %></span></td>
+                        <td style="color:#64748b;">€<%= Number(ps.gross_pay||0).toFixed(2) %></td>
+                        <td>
+                            <% if (ps.email_status === 'sent') { %>
+                                <span class="sps-badge sent">✅ Emailed</span>
+                            <% } else if (ps.email_status === 'scheduled') { %>
+                                <span class="sps-badge scheduled">⏰ Email Scheduled</span>
+                            <% } else { %>
+                                <span class="sps-badge not_scheduled">— Not Scheduled</span>
+                            <% } %>
+                        </td>
+                        <td style="font-size:0.75rem;color:#94a3b8;font-family:monospace;"><%= ps.payslip_ref || '—' %></td>
+                        <td>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <a href="/portal/payslip/<%= ps.id %>" class="sps-btn" style="background:#0f766e;">👁 View</a>
+                                <a href="/portal/payslip/<%= ps.id %>?print=1" target="_blank" rel="noopener noreferrer" class="sps-btn print">🖨 Print</a>
+                                <a href="/portal/payslip/<%= ps.id %>/download" class="sps-btn">⬇ Download PDF</a>
+                            </div>
+                        </td>
+                    </tr>
+                    <% }) %>
+                    </tbody>
+                </table>
+                <% } %>
+            </div>
+        </div>
+
+        </main>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
+    const content = document.querySelector('.portal-content');
+    if (content) {
+        content.scrollTop = 0;
+    }
+});
+</script>
+</body>
+</html>

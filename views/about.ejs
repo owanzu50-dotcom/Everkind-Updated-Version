@@ -1,0 +1,148 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Everkind brings experienced care support and dependable staffing expertise to families and healthcare organisations across Ireland.">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="public-page">
+    <%- include('partials/site-header', { active: 'about' }) %>
+
+    <main id="main-content" tabindex="-1">
+        <section class="hero-section">
+            <div class="container hero-grid hero-grid--staffing">
+                <div class="hero-copy reveal-on-scroll">
+                    <span class="eyebrow">Who we are</span>
+                    <h1>New agency. Seasoned professionals.</h1>
+                    <p class="hero-subtitle">Everkind brings together professional care experience and modern staffing capability so families and healthcare organisations can rely on a calm, well-supported service.</p>
+                    <div class="hero-actions">
+                        <a href="/contact" class="primary-button large">Meet the team</a>
+                        <a href="/services" class="secondary-button large">View our services</a>
+                    </div>
+                </div>
+                <div class="hero-panel hero-panel--staffing reveal-on-scroll">
+                    <div class="hero-image-card">
+                        <img src="/images/about-hero.png" alt="Everkind care professionals in a professional environment" loading="eager">
+                        <div class="hero-image-badge">Reliable support for home care and staffing needs</div>
+                    </div>
+                    <div class="hero-panel__meta">
+                        <div><strong>Care-led</strong><span>professional values</span></div>
+                        <div><strong>Trusted</strong><span>across Ireland</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="container content-section">
+            <div class="about-story-layout">
+                <div class="reveal-on-scroll">
+                    <span class="eyebrow">Our story</span>
+                    <h2>Built on real care experience, modern staffing expertise and a thoughtful approach.</h2>
+                    <p>Everkind was created to bring a more dependable and human experience to care at home and staffing support across Ireland. We combine hands-on care knowledge with a modern recruitment mindset so every need is handled with compassion and clarity.</p>
+                    <p>Whether the need is a home care assessment, emergency staffing cover or a permanent recruitment partnership, our team takes a calm and professional approach from the very first conversation.</p>
+                    <div class="hero-actions">
+                        <a href="/assessment" class="primary-button">Request a consultation</a>
+                        <a href="/careers" class="secondary-button">Explore careers</a>
+                    </div>
+                </div>
+                <div class="about-story-card reveal-on-scroll">
+                    <img src="/images/hero.png" alt="Healthcare professionals supporting patients" loading="lazy">
+                    <div class="about-stats-grid">
+                        <div class="about-stat-card"><strong>24/7</strong><span>Support</span></div>
+                        <div class="about-stat-card"><strong>100%</strong><span>Care focus</span></div>
+                        <div class="about-stat-card"><strong>Irish</strong><span>service</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="container content-section">
+            <div class="section-heading narrow reveal-on-scroll">
+                <span class="eyebrow">Our values</span>
+                <h2>The standards that guide every conversation and placement.</h2>
+            </div>
+            <div class="about-values-grid">
+                <article class="content-card about-value-card reveal-on-scroll floating-lift">
+                    <div class="benefit-card__icon" aria-hidden="true">💚</div>
+                    <h3>Respect</h3>
+                    <p>We approach every client, family and candidate with dignity, patience and care.</p>
+                </article>
+                <article class="content-card about-value-card reveal-on-scroll floating-lift">
+                    <div class="benefit-card__icon" aria-hidden="true">🛡️</div>
+                    <h3>Safety</h3>
+                    <p>We are committed to professional standards, clear communication and safe delivery.</p>
+                </article>
+                <article class="content-card about-value-card reveal-on-scroll floating-lift">
+                    <div class="benefit-card__icon" aria-hidden="true">🤝</div>
+                    <h3>Reliability</h3>
+                    <p>We are dependable, responsive and focused on delivering what we promise.</p>
+                </article>
+                <article class="content-card about-value-card reveal-on-scroll floating-lift">
+                    <div class="benefit-card__icon" aria-hidden="true">🌿</div>
+                    <h3>Continuity</h3>
+                    <p>We support long-term relationships that bring comfort and consistency to care.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="container content-section">
+            <div class="facility-layout facility-layout--reverse">
+                <div class="facility-layout__content reveal-on-scroll">
+                    <span class="eyebrow">Why families and facilities choose us</span>
+                    <h2>Professional support that feels calm, clear and personal.</h2>
+                    <p>We understand that care decisions and recruitment decisions are deeply personal. That is why we take a measured and thoughtful approach that balances professionalism with empathy.</p>
+                    <ul class="check-list">
+                        <li>Clear guidance for families and healthcare providers</li>
+                        <li>Flexible support for home care and staffing needs</li>
+                        <li>A modern service model that stays grounded in care</li>
+                    </ul>
+                    <a href="/contact" class="primary-button">Contact Everkind</a>
+                </div>
+                <div class="facility-layout__image reveal-on-scroll">
+                    <img src="/images/home-companionship.png" alt="A caring home support environment" loading="lazy">
+                    <div class="facility-layout__badge">Caring support that feels personal</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="container content-section">
+            <div class="home-cta reveal-on-scroll">
+                <div>
+                    <span class="eyebrow">Ready to talk?</span>
+                    <h2>Contact Everkind and let us help you find the right support.</h2>
+                </div>
+                <div class="hero-actions">
+                    <a href="/contact" class="primary-button">Contact Us</a>
+                    <a href="/services" class="secondary-button">Explore Services</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <%- include('partials/site-footer') %>
+
+    <script>
+        (function () {
+            const reveals = document.querySelectorAll('.reveal-on-scroll');
+            if (!('IntersectionObserver' in window) || !reveals.length) {
+                reveals.forEach((element) => element.classList.add('is-visible'));
+                return;
+            }
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('is-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.18 });
+
+            reveals.forEach((element) => observer.observe(element));
+        })();
+    </script>
+</body>
+</html>

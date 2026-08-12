@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'reports', isAdmin: true, currentStaffName: currentStaffName, currentStaffEmail: typeof currentStaffEmail !== 'undefined' ? currentStaffEmail : '' }) %>
+
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Reports</h1>
+                    <p class="adm-page-subtitle">Generate and export care data reports</p>
+                </div>
+            </div>
+            <% const summary = shiftSummary || { all: 0, homeCare: 0, agency: 0, open: 0, inProgress: 0, completed: 0 }; %>
+            <div class="adm-metric-grid" style="margin-bottom:16px;">
+                <div class="adm-metric-card"><div class="adm-metric-icon blue">📅</div><span class="adm-metric-label">All Shifts</span><span class="adm-metric-value"><%= summary.all %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon green">🏠</div><span class="adm-metric-label">Home Care</span><span class="adm-metric-value"><%= summary.homeCare %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon blue">🏥</div><span class="adm-metric-label">Agency</span><span class="adm-metric-value"><%= summary.agency %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon amber">🟠</div><span class="adm-metric-label">Open</span><span class="adm-metric-value"><%= summary.open %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon blue">🔵</div><span class="adm-metric-label">In Progress</span><span class="adm-metric-value"><%= summary.inProgress %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon purple">✅</div><span class="adm-metric-label">Completed</span><span class="adm-metric-value"><%= summary.completed %></span></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">
+                <div class="adm-card" style="overflow:visible;">
+                    <div class="adm-card-body">
+                        <div style="font-size:1.5rem;margin-bottom:8px;">📊</div>
+                        <div class="adm-card-title">Attendance Report</div>
+                        <p style="font-size:0.82rem;color:#64748b;margin-top:6px;">Clock-in/out records, hours worked, and late arrivals.</p>
+                        <a href="/portal/attendance" class="adm-btn-secondary" style="margin-top:14px;display:inline-flex;">View Report</a>
+                    </div>
+                </div>
+                <div class="adm-card" style="overflow:visible;">
+                    <div class="adm-card-body">
+                        <div style="font-size:1.5rem;margin-bottom:8px;">👥</div>
+                        <div class="adm-card-title">Staff Report</div>
+                        <p style="font-size:0.82rem;color:#64748b;margin-top:6px;">All staff members, roles, and employment status.</p>
+                        <a href="/staff" class="adm-btn-secondary" style="margin-top:14px;display:inline-flex;">View Report</a>
+                    </div>
+                </div>
+                <div class="adm-card" style="overflow:visible;">
+                    <div class="adm-card-body">
+                        <div style="font-size:1.5rem;margin-bottom:8px;">🏠</div>
+                        <div class="adm-card-title">Client Report</div>
+                        <p style="font-size:0.82rem;color:#64748b;margin-top:6px;">Active clients, care plans, and visit history.</p>
+                        <a href="/patients" class="adm-btn-secondary" style="margin-top:14px;display:inline-flex;">View Report</a>
+                    </div>
+                </div>
+                <div class="adm-card" style="overflow:visible;">
+                    <div class="adm-card-body">
+                        <div style="font-size:1.5rem;margin-bottom:8px;">🛡️</div>
+                        <div class="adm-card-title">Compliance Report</div>
+                        <p style="font-size:0.82rem;color:#64748b;margin-top:6px;">Vetting, training expiry, and certification status.</p>
+                        <a href="/portal/compliance" class="adm-btn-secondary" style="margin-top:14px;display:inline-flex;">View Report</a>
+                    </div>
+                </div>
+                <div class="adm-card" style="overflow:visible;">
+                    <div class="adm-card-body">
+                        <div style="font-size:1.5rem;margin-bottom:8px;">📋</div>
+                        <div class="adm-card-title">Applications Report</div>
+                        <p style="font-size:0.82rem;color:#64748b;margin-top:6px;">Recruitment pipeline, statuses, and hire rate.</p>
+                        <a href="/portal/applications" class="adm-btn-secondary" style="margin-top:14px;display:inline-flex;">View Report</a>
+                    </div>
+                </div>
+                <div class="adm-card" style="overflow:visible;">
+                    <div class="adm-card-body">
+                        <div style="font-size:1.5rem;margin-bottom:8px;">📅</div>
+                        <div class="adm-card-title">Schedule Report</div>
+                        <p style="font-size:0.82rem;color:#64748b;margin-top:6px;">All scheduled, completed, and cancelled shifts.</p>
+                        <a href="/portal/shifts" class="adm-btn-secondary" style="margin-top:14px;display:inline-flex;">View Report</a>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

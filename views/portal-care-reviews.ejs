@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'care-reviews', isAdmin: true, currentStaffName, currentStaffEmail }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Care Reviews</h1>
+                    <p class="adm-page-subtitle">Review planning and completion for Home Care clients.</p>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <a class="adm-btn-secondary" href="/admin/care-reviews/export">Export</a>
+                    <button class="adm-btn-secondary" type="button" onclick="window.print()">Print</button>
+                </div>
+            </div>
+            <div class="adm-metric-grid" style="margin-bottom:16px;">
+                <div class="adm-metric-card"><div class="adm-metric-icon blue">📅</div><span class="adm-metric-label">Upcoming Reviews</span><span class="adm-metric-value"><%= summary.upcoming %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon purple">✅</div><span class="adm-metric-label">Completed Reviews</span><span class="adm-metric-value"><%= summary.completed %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon amber">⚠️</div><span class="adm-metric-label">Overdue Reviews</span><span class="adm-metric-value"><%= summary.overdue %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon blue">🛡️</div><span class="adm-metric-label">Risk Reviews</span><span class="adm-metric-value"><%= summary.risk %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon green">💊</div><span class="adm-metric-label">Medication Reviews</span><span class="adm-metric-value"><%= summary.medication %></span></div>
+            </div>
+
+            <div class="adm-card" style="margin-bottom:16px;">
+                <form class="adm-card-body" method="POST" action="/portal/care-reviews" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end;">
+                    <div class="adm-form-group">
+                        <label class="adm-form-label">Client</label>
+                        <select class="adm-form-select" name="patient_id" required>
+                            <option value="">Select Home Care Client</option>
+                            <% clients.forEach((client) => { %>
+                                <option value="<%= client.id %>"><%= client.home_care_client_id || ('HC-' + String(client.id).padStart(5, '0')) %> · <%= client.name %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div class="adm-form-group">
+                        <label class="adm-form-label">Review Type</label>
+                        <select class="adm-form-select" name="review_type">
+                            <% reviewTypes.forEach((reviewType) => { %>
+                                <option value="<%= reviewType %>"><%= reviewType.charAt(0).toUpperCase() + reviewType.slice(1) %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div class="adm-form-group">
+                        <label class="adm-form-label">Due Date</label>
+                        <input class="adm-form-input" type="date" name="due_date" required>
+                    </div>
+                    <div class="adm-form-group">
+                        <label class="adm-form-label">Assign Reviewer</label>
+                        <select class="adm-form-select" name="reviewer_staff_id">
+                            <option value="">Unassigned</option>
+                            <% staff.forEach((member) => { %>
+                                <option value="<%= member.id %>"><%= member.name %> · <%= member.role %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div class="adm-form-group">
+                        <label class="adm-form-label">Notes</label>
+                        <input class="adm-form-input" type="text" name="notes" placeholder="Review notes">
+                    </div>
+                    <div class="adm-form-group">
+                        <button type="submit" class="adm-btn-primary">Create Review</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="adm-card">
+                <% if (reviews.length) { %>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th>Review Type</th>
+                                    <th>Due Date</th>
+                                    <th>Reviewer</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% reviews.forEach((review) => { %>
+                                    <tr>
+                                        <td><strong><%= review.home_care_client_id || ('HC-' + String(review.patient_id || '').padStart(5, '0')) %></strong><br><%= review.patient_name %></td>
+                                        <td><%= String(review.review_type || 'care').replace(/_/g, ' ') %></td>
+                                        <td><%= review.due_date %></td>
+                                        <td><%= review.reviewer_name || 'Unassigned' %></td>
+                                        <td><span class="adm-badge adm-badge-<%= review.status === 'completed' ? 'completed' : 'scheduled' %>"><%= String(review.status || 'upcoming').replace(/_/g, ' ') %></span></td>
+                                        <td>
+                                            <div class="inline-admin-actions">
+                                                <form method="POST" action="/portal/care-reviews/<%= review.id %>/assign" class="inline-admin-form">
+                                                    <select class="adm-form-select" name="reviewer_staff_id">
+                                                        <option value="">Unassigned</option>
+                                                        <% staff.forEach((member) => { %>
+                                                            <option value="<%= member.id %>"><%= member.name %></option>
+                                                        <% }) %>
+                                                    </select>
+                                                    <button class="adm-btn-secondary" type="submit">Assign Reviewer</button>
+                                                </form>
+                                                <% if (review.status !== 'completed') { %>
+                                                    <form method="POST" action="/portal/care-reviews/<%= review.id %>/complete">
+                                                        <button class="adm-btn-primary" type="submit">Complete Review</button>
+                                                    </form>
+                                                <% } %>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="adm-card-empty"><p>No care reviews yet. Create the first review above.</p></div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

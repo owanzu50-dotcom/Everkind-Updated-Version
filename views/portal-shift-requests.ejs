@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'shift-requests', isAdmin: true, currentStaffName, currentStaffEmail }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Shift Requests</h1>
+                    <p class="adm-page-subtitle">Facility staffing requests and approval workflow.</p>
+                </div>
+            </div>
+            <div class="adm-metric-grid" style="margin-bottom:16px;">
+                <div class="adm-metric-card"><div class="adm-metric-icon blue">📨</div><span class="adm-metric-label">Total Requests</span><span class="adm-metric-value"><%= summary.total %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon amber">⏳</div><span class="adm-metric-label">Pending</span><span class="adm-metric-value"><%= summary.pending %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon blue">📤</div><span class="adm-metric-label">Awaiting Staff</span><span class="adm-metric-value"><%= summary.awaitingStaff %></span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon green">✅</div><span class="adm-metric-label">Confirmed</span><span class="adm-metric-value"><%= summary.confirmed %></span></div>
+            </div>
+
+            <div class="adm-card">
+                <% if (requests.length) { %>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead>
+                                <tr>
+                                    <th>Facility</th>
+                                    <th>Ward / Unit</th>
+                                    <th>Role</th>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Hours</th>
+                                    <th>Staff Required</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% requests.forEach((item) => { %>
+                                    <tr>
+                                        <td><strong><%= item.clientName %></strong><br><span style="font-size:0.8rem;color:#64748b;"><%= item.facility_type || 'Healthcare Facility' %></span></td>
+                                        <td><%= item.ward_unit || item.resident_unit || 'General' %></td>
+                                        <td><%= item.staff_required %></td>
+                                        <td><%= item.shift_date %></td>
+                                        <td><%= item.start_time %> - <%= item.end_time %></td>
+                                        <td><%= item.totalPaidHours ? item.totalPaidHours.toFixed(1) : '—' %></td>
+                                        <td><%= item.quantityRequired %></td>
+                                        <td><span class="adm-badge adm-badge-<%= item.priority === 'Emergency' ? 'cancelled' : item.priority === 'Urgent' ? 'awaiting' : 'scheduled' %>"><%= item.priority %></span></td>
+                                        <td><span class="adm-badge adm-badge-<%= item.statusClass %>"><%= String(item.status || '').replace(/_/g, ' ') %></span></td>
+                                        <td>
+                                            <div class="inline-admin-actions">
+                                                <form method="POST" action="/portal/client-requests/<%= item.id %>/status" class="inline-admin-form">
+                                                    <select class="adm-form-select" name="status">
+                                                        <% requestStatuses.forEach((status) => { %>
+                                                            <option value="<%= status %>" <%= item.status === status ? 'selected' : '' %>><%= status.replace(/_/g, ' ') %></option>
+                                                        <% }) %>
+                                                    </select>
+                                                    <button type="submit" class="adm-btn-secondary">Approve / Reject</button>
+                                                </form>
+                                                <form method="POST" action="/portal/client-requests/<%= item.id %>/publish-open-shift" onsubmit="return confirm('Publish this request as an open shift?')">
+                                                    <button type="submit" class="adm-btn-secondary">Publish</button>
+                                                </form>
+                                                <form method="POST" action="/portal/client-requests/<%= item.id %>/assign" class="inline-admin-form">
+                                                    <select class="adm-form-select" name="staff_id" required>
+                                                        <option value="">Assign staff…</option>
+                                                        <% staff.forEach((member) => { if (String(member.employmentStatus || member.status || '').toLowerCase() === 'active') { %>
+                                                            <option value="<%= member.id %>"><%= member.name %> · <%= member.role %></option>
+                                                        <% } }) %>
+                                                    </select>
+                                                    <button type="submit" class="adm-btn-primary">Assign</button>
+                                                </form>
+                                                <form method="POST" action="/portal/client-requests/<%= item.id %>/duplicate" onsubmit="return confirm('Duplicate this request?')">
+                                                    <button type="submit" class="adm-btn-secondary">Duplicate</button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="adm-card-empty"><p>No shift requests available.</p></div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

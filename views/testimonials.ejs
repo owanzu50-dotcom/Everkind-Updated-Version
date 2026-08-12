@@ -1,0 +1,62 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Everkind testimonials will appear here once approved by the administrator.">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="public-page">
+    <%- include('partials/site-header', { active: 'testimonials' }) %>
+
+    <main id="main-content" tabindex="-1" class="container content-section">
+        <div class="section-heading narrow">
+            <span class="eyebrow">Testimonials</span>
+            <h1>Testimonials will appear here once approved by the administrator.</h1>
+        </div>
+
+        <div class="facility-layout">
+            <div class="facility-layout__image">
+                <img src="/images/about-hero.png" alt="Healthcare team and care professionals" />
+                <div class="facility-layout__badge">Approved client feedback</div>
+            </div>
+            <div class="testimonial-grid">
+                <article class="content-card testimonial-card">
+                    <p class="testimonial-card__quote">“Testimonials will appear here once approved by the administrator.”</p>
+                    <div class="testimonial-card__meta">
+                        <div class="testimonial-avatar" aria-hidden="true"></div>
+                        <div>
+                            <strong>Administrator approved</strong>
+                            <p class="client-muted">Published with permission only.</p>
+                        </div>
+                    </div>
+                </article>
+                <article class="content-card testimonial-card">
+                    <p class="testimonial-card__quote">Real reviews from clients, families, and healthcare partners will be shared here as soon as they are approved.</p>
+                    <div class="testimonial-card__meta">
+                        <div class="testimonial-avatar" aria-hidden="true"></div>
+                        <div>
+                            <strong>Coming soon</strong>
+                            <p class="client-muted">Admin-managed and compliant.</p>
+                        </div>
+                    </div>
+                </article>
+                <article class="content-card testimonial-card">
+                    <p class="testimonial-card__quote">We believe trust is earned through reliable support, clear communication, and person-centred care.</p>
+                    <div class="testimonial-card__meta">
+                        <div class="testimonial-avatar" aria-hidden="true"></div>
+                        <div>
+                            <strong>Everkind values</strong>
+                            <p class="client-muted">Every review will be genuine.</p>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </main>
+
+    <%- include('partials/site-footer') %>
+</body>
+</html>

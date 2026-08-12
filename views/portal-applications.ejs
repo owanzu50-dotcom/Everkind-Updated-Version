@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page portal-applications-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'applications', isAdmin: true, currentStaffName: currentStaffName, currentStaffEmail: typeof currentStaffEmail !== 'undefined' ? currentStaffEmail : '' }) %>
+
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Applications</h1>
+                    <p class="adm-page-subtitle"><%= applications ? applications.length : 0 %> application<%= (!applications || applications.length !== 1) ? 's' : '' %> received</p>
+                </div>
+            </div>
+
+            <% const workflowStages = typeof recruitmentStages !== 'undefined' && Array.isArray(recruitmentStages) ? recruitmentStages : [];
+               const stageLabelMap = {};
+               workflowStages.forEach((stage) => { stageLabelMap[stage.key] = stage.label; });
+               const statuses = ['all'].concat(workflowStages.map((stage) => stage.key));
+               const warmStages = new Set(['reviewing', 'interview_scheduled', 'interview_completed', 'offer_sent', 'pre_employment_checks']);
+               const mutedStages = new Set(['rejected', 'archived']);
+               const getFilterTone = (statusKey, countValue) => {
+                   if (!countValue) return 'zero';
+                   if (statusKey === 'all') return 'all';
+                   if (warmStages.has(statusKey)) return 'warm';
+                   if (mutedStages.has(statusKey)) return 'muted';
+                   return 'green';
+               };
+               const counts = {};
+               statuses.forEach((s) => {
+                   counts[s] = s === 'all'
+                       ? (applications ? applications.length : 0)
+                       : (applications ? applications.filter((a) => a.status === s).length : 0);
+               });
+               const activeFilter = typeof filter !== 'undefined' ? filter : 'all';
+               const filtered = activeFilter === 'all' ? applications : (applications || []).filter((a) => a.status === activeFilter);
+            %>
+
+            <section class="adm-card adm-applications-filters">
+                <div class="adm-card-body">
+                    <div class="adm-filter-tabs adm-filter-tabs--applications">
+                        <% statuses.forEach((s) => { %>
+                            <button class="adm-filter-tab adm-filter-tab--<%= getFilterTone(s, counts[s]) %> <%= activeFilter === s ? 'active' : '' %>" onclick="setFilter('<%= s %>')">
+                                <%= s === 'all' ? 'All' : (stageLabelMap[s] || s) %>
+                                <span class="tab-count tab-count--<%= getFilterTone(s, counts[s]) %>"><%= counts[s] %></span>
+                            </button>
+                        <% }) %>
+                    </div>
+                </div>
+            </section>
+
+            <section class="adm-card">
+                <% if (filtered && filtered.length) { %>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table adm-table--applications" id="app-table">
+                            <thead>
+                                <tr>
+                                    <th>Applicant</th>
+                                    <th>Position</th>
+                                    <th>Phone</th>
+                                    <th>Applied Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% filtered.forEach((app) => { %>
+                                    <tr data-status="<%= app.status %>">
+                                        <td data-label="Applicant">
+                                            <div style="display:flex;align-items:center;gap:10px;">
+                                                <div class="sidebar-user-avatar" style="width:34px;height:34px;font-size:0.82rem;flex-shrink:0;background:#7c3aed;"><%= app.name ? app.name.charAt(0).toUpperCase() : '?' %></div>
+                                                <div class="adm-cell-name">
+                                                    <strong><%= app.name || '—' %></strong>
+                                                    <% if (app.first_name || app.surname) { %>
+                                                        <span style="font-size:0.72rem;color:#64748b;"><%= app.first_name || '—' %> · <%= app.surname || '—' %></span>
+                                                    <% } %>
+                                                    <span><%= app.email || '—' %><% if (app.application_ref) { %> · Ref: <%= app.application_ref %><% } %></span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td data-label="Position"><%= app.role || app.position || '—' %></td>
+                                        <td data-label="Phone" style="font-size:0.82rem;"><%= app.phone || '—' %></td>
+                                        <td data-label="Applied Date" style="font-size:0.8rem;color:#64748b;"><%= app.created_at ? app.created_at.slice(0,10) : '—' %></td>
+                                        <td data-label="Status">
+                                            <span class="adm-badge adm-badge-<%= String(app.status || 'new').replace(/_/g, '-') %>"><%= stageLabelMap[app.status || 'new'] || (app.status || 'new') %></span>
+                                            <% if (app.staff_member_id) { %>
+                                                <div style="font-size:0.74rem;color:#64748b;margin-top:4px;">Staff record in <strong><%= app.staff_member_status || 'Induction' %></strong></div>
+                                            <% } %>
+                                        </td>
+                                        <td data-label="Actions">
+                                            <details class="adm-action-menu">
+                                                <summary class="adm-action-trigger">Actions ▾</summary>
+                                                <div class="adm-action-menu-panel">
+                                                    <button type="button" class="adm-action-menu-item" data-action="view-profile" data-app="<%= encodeURIComponent(JSON.stringify(app)) %>">View Profile</button>
+                                                    <button type="button" class="adm-action-menu-item" data-action="edit-details" data-app="<%= encodeURIComponent(JSON.stringify(app)) %>">Edit Details</button>
+                                                    <button type="button" class="adm-action-menu-item" data-action="move-stage" data-app="<%= encodeURIComponent(JSON.stringify(app)) %>">Move to Stage</button>
+                                                    <% if (app.staff_member_id) { %>
+                                                        <a href="/staff/<%= app.staff_member_id %>" class="adm-action-menu-item">Open Staff Profile</a>
+                                                    <% } else { %>
+                                                        <form method="POST" action="/portal/applications/<%= app.id %>/hire" onsubmit="return confirm('Hire <%= app.name %> and move them into induction?')">
+                                                            <button type="submit" class="adm-action-menu-item">Approve / hire</button>
+                                                        </form>
+                                                    <% } %>
+                                                    <% if (app.email) { %>
+                                                        <a href="mailto:<%= app.email %>?subject=Everkind%20Application" class="adm-action-menu-item">Email Applicant</a>
+                                                    <% } %>
+                                                    <% if (app.cv_url) { %>
+                                                        <a href="<%= app.cv_url %>" target="_blank" rel="noreferrer" class="adm-action-menu-item">Download CV</a>
+                                                    <% } %>
+                                                    <form method="POST" action="/portal/applications/<%= app.id %>/status" onsubmit="return confirm('Generate an offer for <%= app.name %>?')">
+                                                        <input type="hidden" name="status" value="offer_sent">
+                                                        <button type="submit" class="adm-action-menu-item">Generate offer</button>
+                                                    </form>
+                                                    <form method="POST" action="/portal/applications/<%= app.id %>/status" onsubmit="return confirm('Reject <%= app.name %>?')">
+                                                        <input type="hidden" name="status" value="rejected">
+                                                        <button type="submit" class="adm-action-menu-item">Reject</button>
+                                                    </form>
+                                                    <form method="POST" action="/portal/applications/<%= app.id %>/status" onsubmit="return confirm('Archive this application?')">
+                                                        <input type="hidden" name="status" value="archived">
+                                                        <button type="submit" class="adm-action-menu-item">Archive</button>
+                                                    </form>
+                                                    <form method="POST" action="/portal/applications/<%= app.id %>/delete" onsubmit="return confirm('Delete this application?')">
+                                                        <button type="submit" class="adm-action-menu-item danger">Delete</button>
+                                                    </form>
+                                                </div>
+                                            </details>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="adm-card-empty">
+                        <div class="adm-card-empty-icon">📋</div>
+                        <p>No applications <%= activeFilter !== 'all' ? 'with status "' + activeFilter + '"' : 'yet' %>.</p>
+                        <% if (activeFilter === 'all') { %>
+                            <p style="font-size:0.8rem;margin-top:6px;">Applications submitted on the website will appear here automatically.</p>
+                            <a href="/apply" target="_blank" class="adm-btn-secondary" style="margin-top:12px;display:inline-flex;">View apply form →</a>
+                        <% } %>
+                    </div>
+                <% } %>
+            </section>
+        </main>
+    </div>
+
+    <div class="adm-modal-overlay" id="app-modal" style="display:none;" onclick="if(event.target===this)closeModal()">
+        <div class="adm-modal adm-modal--application">
+            <div class="adm-modal-header">
+                <span class="adm-modal-title" id="app-modal-title">Application</span>
+                <button class="adm-modal-close" onclick="closeModal()" aria-label="Close modal">✕</button>
+            </div>
+            <div class="adm-modal-body" id="app-modal-body"></div>
+            <div class="adm-modal-footer" id="app-modal-footer"></div>
+        </div>
+    </div>
+
+    <script>
+    const STATUS_LIST = <%- JSON.stringify((Array.isArray(recruitmentStages) ? recruitmentStages : []).map((stage) => stage.key)) %>;
+    const STATUS_LABELS = <%- JSON.stringify((Array.isArray(recruitmentStages) ? recruitmentStages : []).reduce((acc, stage) => { acc[stage.key] = stage.label; return acc; }, {})) %>;
+    const APP_TIMELINES = <%- JSON.stringify(typeof applicationTimelinesById !== 'undefined' ? applicationTimelinesById : {}) %>;
+    const APPLICATION_AVAILABILITY_GROUPS = <%- JSON.stringify(typeof applicationAvailabilityGroups !== 'undefined' ? applicationAvailabilityGroups : { days: [], shifts: [], flexibility: [] }) %>;
+    const APPLICATION_AVAILABILITY_OPTIONS = <%- JSON.stringify(typeof allApplicationAvailabilityOptions !== 'undefined' ? allApplicationAvailabilityOptions : []) %>;
+    const escapeHtml = (value) => String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+    function parseAvailabilitySelections(value) {
+        const raw = String(value || "").trim();
+        if (!raw) return [];
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                return parsed.filter((item) => APPLICATION_AVAILABILITY_OPTIONS.includes(item));
+            }
+            if (parsed && typeof parsed === "object") {
+                const merged = [
+                    ...(Array.isArray(parsed.selections) ? parsed.selections : []),
+                    ...(Array.isArray(parsed.days) ? parsed.days : []),
+                    ...(Array.isArray(parsed.shifts) ? parsed.shifts : []),
+                    ...(Array.isArray(parsed.flexibility) ? parsed.flexibility : []),
+                ];
+                return [...new Set(merged.filter((item) => APPLICATION_AVAILABILITY_OPTIONS.includes(item)))];
+            }
+        } catch (error) {
+            const split = raw.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean);
+            return [...new Set(split.filter((item) => APPLICATION_AVAILABILITY_OPTIONS.includes(item)))];
+        }
+        return [];
+    }
+
+    function getAvailabilityGroupsFromSelections(selections) {
+        const current = Array.isArray(selections) ? selections : [];
+        return {
+            days: (APPLICATION_AVAILABILITY_GROUPS.days || []).filter((item) => current.includes(item)),
+            shifts: (APPLICATION_AVAILABILITY_GROUPS.shifts || []).filter((item) => current.includes(item)),
+            flexibility: (APPLICATION_AVAILABILITY_GROUPS.flexibility || []).filter((item) => current.includes(item)),
+        };
+    }
+
+    function renderAvailabilityReadonly(app) {
+        const selections = parseAvailabilitySelections(app.availability || "");
+        const grouped = getAvailabilityGroupsFromSelections(selections);
+        const groupRows = [];
+        if (grouped.days.length) {
+            groupRows.push(`<div><strong>Days:</strong> ${grouped.days.map(escapeHtml).join(", ")}</div>`);
+        }
+        if (grouped.shifts.length) {
+            groupRows.push(`<div><strong>Shift Preferences:</strong> ${grouped.shifts.map(escapeHtml).join(", ")}</div>`);
+        }
+        if (grouped.flexibility.length) {
+            groupRows.push(`<div><strong>Flexibility:</strong> ${grouped.flexibility.map(escapeHtml).join(", ")}</div>`);
+        }
+        if (groupRows.length) {
+            return `<div class="adm-app-readonly" style="display:grid;gap:8px;">${groupRows.join("")}</div>`;
+        }
+        const fallbackText = String(app.availability || "").trim();
+        if (fallbackText) {
+            return `<p class="adm-app-readonly">${escapeHtml(fallbackText)}</p>`;
+        }
+        return `<p class="adm-app-readonly">No availability provided.</p>`;
+    }
+
+    function renderAvailabilityPicker(selectedValues) {
+        const selectedSet = new Set(Array.isArray(selectedValues) ? selectedValues : []);
+        const allSelected = APPLICATION_AVAILABILITY_OPTIONS.length > 0
+            && APPLICATION_AVAILABILITY_OPTIONS.every((option) => selectedSet.has(option));
+        const sectionHtml = (title, key) => {
+            const options = APPLICATION_AVAILABILITY_GROUPS[key] || [];
+            return `
+                <div class="adm-availability-group">
+                    <strong>${escapeHtml(title)}</strong>
+                    <div class="adm-availability-options">
+                        ${options.map((option) => `
+                            <label class="adm-availability-option">
+                                <input type="checkbox" class="adm-availability-checkbox" value="${escapeHtml(option)}" ${selectedSet.has(option) ? "checked" : ""}>
+                                <span>${escapeHtml(option)}</span>
+                            </label>
+                        `).join("")}
+                    </div>
+                </div>
+            `;
+        };
+        return `
+            <div class="adm-availability-picker" id="adm-availability-picker">
+                <label class="adm-availability-option adm-availability-select-all">
+                    <input type="checkbox" id="adm-availability-select-all" ${allSelected ? "checked" : ""}>
+                    <span>Select All</span>
+                </label>
+                ${sectionHtml("Days", "days")}
+                ${sectionHtml("Shift Preferences", "shifts")}
+                ${sectionHtml("Flexibility", "flexibility")}
+            </div>
+        `;
+    }
+
+    function bindAvailabilityPicker() {
+        const picker = document.getElementById("adm-availability-picker");
+        if (!picker) return;
+        const allCheckbox = document.getElementById("adm-availability-select-all");
+        const optionCheckboxes = Array.from(picker.querySelectorAll(".adm-availability-checkbox"));
+        const syncSelectAll = () => {
+            if (!allCheckbox) return;
+            allCheckbox.checked = optionCheckboxes.length > 0 && optionCheckboxes.every((checkbox) => checkbox.checked);
+        };
+        if (allCheckbox) {
+            allCheckbox.addEventListener("change", () => {
+                optionCheckboxes.forEach((checkbox) => {
+                    checkbox.checked = allCheckbox.checked;
+                });
+            });
+        }
+        optionCheckboxes.forEach((checkbox) => {
+            checkbox.addEventListener("change", syncSelectAll);
+        });
+        syncSelectAll();
+    }
+
+    function collectAvailabilitySelections() {
+        return Array.from(document.querySelectorAll("#adm-availability-picker .adm-availability-checkbox:checked"))
+            .map((checkbox) => checkbox.value)
+            .filter((value) => APPLICATION_AVAILABILITY_OPTIONS.includes(value));
+    }
+
+    function setFilter(status) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("filter", status);
+        window.location.href = url.toString();
+    }
+
+    function parseAppData(encodedApp) {
+        try {
+            return JSON.parse(decodeURIComponent(encodedApp));
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function formatTimelineHtml(appId) {
+        const entries = APP_TIMELINES[appId] || [];
+        if (!entries.length) {
+            return '<p style="margin:0;color:#64748b;">No timeline events yet.</p>';
+        }
+        return entries.map((event) => `
+            <div class="adm-app-timeline-item">
+                <strong>${escapeHtml(event.title || (STATUS_LABELS[event.stage] || event.stage))}</strong><br>
+                <small>${event.createdAt ? String(event.createdAt).replace("T", " ").slice(0, 16) : ""}${event.actorIdentifier ? " · " + escapeHtml(event.actorIdentifier) : ""}</small>
+                ${event.notes ? `<div style="margin-top:4px;color:#475569;">${escapeHtml(event.notes)}</div>` : ""}
+            </div>
+        `).join("");
+    }
+
+    function openModal(title, bodyHtml, footerHtml) {
+        document.getElementById("app-modal-title").textContent = title;
+        document.getElementById("app-modal-body").innerHTML = bodyHtml;
+        document.getElementById("app-modal-footer").innerHTML = footerHtml;
+        document.getElementById("app-modal").style.display = "flex";
+    }
+
+    function closeModal() {
+        document.getElementById("app-modal").style.display = "none";
+    }
+
+    function closeAllActionMenus(exceptMenu) {
+        document.querySelectorAll(".adm-action-menu[open]").forEach((menu) => {
+            if (exceptMenu && menu === exceptMenu) return;
+            menu.open = false;
+            menu.classList.remove("menu-up", "menu-left");
+        });
+    }
+
+    function positionActionMenu(menu) {
+        const panel = menu.querySelector(".adm-action-menu-panel");
+        if (!panel) return;
+        menu.classList.remove("menu-up", "menu-left");
+
+        const menuRect = menu.getBoundingClientRect();
+        const panelHeight = panel.offsetHeight || 0;
+        const panelWidth = panel.offsetWidth || 0;
+        const viewportH = window.innerHeight;
+        const viewportW = window.innerWidth;
+        const gutter = 10;
+        const openUp = (viewportH - menuRect.bottom) < (panelHeight + gutter) && menuRect.top > (panelHeight + gutter);
+        const openLeft = (menuRect.right - panelWidth) < gutter;
+
+        if (openUp) {
+            menu.classList.add("menu-up");
+        }
+        if (openLeft) {
+            menu.classList.add("menu-left");
+        }
+    }
+
+    function openViewProfile(app) {
+        const nameSegments = String(app.name || "").trim().split(/\s+/).filter(Boolean);
+        const firstName = String(app.first_name || nameSegments[0] || "").trim();
+        const surname = String(app.surname || nameSegments.slice(1).join(" ") || "").trim();
+        const bodyHtml = `
+            <div class="adm-app-modal-grid">
+                <div class="adm-form-group"><label class="adm-form-label">Full name</label><p class="adm-app-readonly">${escapeHtml(app.name || "—")}</p></div>
+                <div class="adm-form-group"><label class="adm-form-label">First name</label><p class="adm-app-readonly">${escapeHtml(firstName || "—")}</p></div>
+                <div class="adm-form-group"><label class="adm-form-label">Surname</label><p class="adm-app-readonly">${escapeHtml(surname || "—")}</p></div>
+                <div class="adm-form-group"><label class="adm-form-label">Position applied</label><p class="adm-app-readonly">${escapeHtml(app.role || app.position || "—")}</p></div>
+                <div class="adm-form-group"><label class="adm-form-label">Email</label><p class="adm-app-readonly">${escapeHtml(app.email || "—")}</p></div>
+                <div class="adm-form-group"><label class="adm-form-label">Phone</label><p class="adm-app-readonly">${escapeHtml(app.phone || "—")}</p></div>
+                <div class="adm-form-group"><label class="adm-form-label">Applied date</label><p class="adm-app-readonly">${escapeHtml(app.created_at ? app.created_at.slice(0, 10) : "—")}</p></div>
+                <div class="adm-form-group"><label class="adm-form-label">Current stage</label><p class="adm-app-readonly">${escapeHtml(STATUS_LABELS[app.status] || app.status || "new")}</p></div>
+            </div>
+            <div class="adm-form-group">
+                <label class="adm-form-label">Availability / notes</label>
+                ${renderAvailabilityReadonly(app)}
+            </div>
+            <div class="adm-form-group">
+                <label class="adm-form-label">Application timeline</label>
+                <div class="adm-app-timeline">${formatTimelineHtml(app.id)}</div>
+            </div>
+        `;
+        const footerHtml = `<button class="adm-btn-secondary" type="button" onclick="closeModal()">Close</button>`;
+        openModal("View Applicant Profile", bodyHtml, footerHtml);
+    }
+
+    function openEditDetails(app) {
+        const nameSegments = String(app.name || "").trim().split(/\s+/).filter(Boolean);
+        const firstName = String(app.first_name || nameSegments[0] || "").trim();
+        const surname = String(app.surname || nameSegments.slice(1).join(" ") || "").trim();
+        const availabilitySelections = parseAvailabilitySelections(app.availability || "");
+        const availabilityLegacy = availabilitySelections.length ? "" : String(app.availability || "").trim();
+        const bodyHtml = `
+            <form id="app-edit-form" class="portal-form" style="gap:14px;">
+                <div class="adm-app-modal-grid">
+                    <label class="adm-form-group">
+                        <span class="adm-form-label">First Name</span>
+                        <input class="adm-form-input" name="first_name" value="${escapeHtml(firstName)}" required>
+                    </label>
+                    <label class="adm-form-group">
+                        <span class="adm-form-label">Surname</span>
+                        <input class="adm-form-input" name="surname" value="${escapeHtml(surname)}" required>
+                    </label>
+                    <label class="adm-form-group">
+                        <span class="adm-form-label">Email</span>
+                        <input class="adm-form-input" name="email" type="email" value="${escapeHtml(app.email || "")}" required>
+                    </label>
+                    <label class="adm-form-group">
+                        <span class="adm-form-label">Phone</span>
+                        <input class="adm-form-input" name="phone" value="${escapeHtml(app.phone || "")}">
+                    </label>
+                    <label class="adm-form-group">
+                        <span class="adm-form-label">Position</span>
+                        <input class="adm-form-input" name="role" value="${escapeHtml(app.role || app.position || "")}">
+                    </label>
+                </div>
+                <label class="adm-form-group">
+                    <span class="adm-form-label">Availability</span>
+                    <input type="hidden" name="availabilityLegacy" value="${escapeHtml(availabilityLegacy)}">
+                    ${renderAvailabilityPicker(availabilitySelections)}
+                </label>
+                <p id="app-edit-message" class="form-message" aria-live="polite"></p>
+            </form>
+        `;
+        const footerHtml = `
+            <button class="adm-btn-secondary" type="button" onclick="closeModal()">Cancel</button>
+            <button class="adm-btn-primary" type="button" id="app-edit-save">Save Changes</button>
+        `;
+        openModal("Edit Applicant Details", bodyHtml, footerHtml);
+        bindAvailabilityPicker();
+
+        document.getElementById("app-edit-save").onclick = async () => {
+            const form = document.getElementById("app-edit-form");
+            const payload = Object.fromEntries(new FormData(form).entries());
+            payload.availabilitySelections = collectAvailabilitySelections();
+            const messageEl = document.getElementById("app-edit-message");
+            messageEl.className = "form-message";
+            messageEl.textContent = "";
+            try {
+                const response = await fetch(`/portal/applications/${app.id}/details`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || "Could not save changes.");
+                }
+                messageEl.classList.add("success");
+                messageEl.textContent = "Application details saved.";
+                setTimeout(() => window.location.reload(), 350);
+            } catch (error) {
+                messageEl.classList.add("error");
+                messageEl.textContent = error.message;
+            }
+        };
+    }
+
+    function openMoveStage(app) {
+        const bodyHtml = `
+            <form id="app-stage-form" class="portal-form" style="gap:14px;">
+                <div class="adm-form-group">
+                    <label class="adm-form-label">Current stage</label>
+                    <p class="adm-app-readonly">${escapeHtml(STATUS_LABELS[app.status] || app.status || "new")}</p>
+                </div>
+                <label class="adm-form-group">
+                    <span class="adm-form-label">Move to stage</span>
+                    <select class="adm-form-select" name="status" required>
+                        ${STATUS_LIST.map((s) => `<option value="${s}" ${app.status === s ? "selected" : ""}>${escapeHtml(STATUS_LABELS[s] || s)}</option>`).join("")}
+                    </select>
+                </label>
+                <label class="adm-form-group">
+                    <span class="adm-form-label">Stage notes (optional)</span>
+                    <textarea class="adm-form-textarea" name="notes" rows="4" placeholder="Add a note for this stage update..."></textarea>
+                </label>
+                <p id="app-stage-message" class="form-message" aria-live="polite"></p>
+            </form>
+        `;
+        const footerHtml = `
+            <button class="adm-btn-secondary" type="button" onclick="closeModal()">Cancel</button>
+            <button class="adm-btn-primary" type="button" id="app-stage-save">Update Stage</button>
+        `;
+        openModal("Move Application Stage", bodyHtml, footerHtml);
+
+        document.getElementById("app-stage-save").onclick = async () => {
+            const form = document.getElementById("app-stage-form");
+            const payload = Object.fromEntries(new FormData(form).entries());
+            const messageEl = document.getElementById("app-stage-message");
+            messageEl.className = "form-message";
+            messageEl.textContent = "";
+            try {
+                const response = await fetch(`/portal/applications/${app.id}/status`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || "Could not update stage.");
+                }
+                messageEl.classList.add("success");
+                messageEl.textContent = "Application stage updated.";
+                setTimeout(() => window.location.reload(), 350);
+            } catch (error) {
+                messageEl.classList.add("error");
+                messageEl.textContent = error.message;
+            }
+        };
+    }
+
+    document.querySelectorAll(".adm-action-menu").forEach((menu) => {
+        menu.addEventListener("toggle", () => {
+            if (!menu.open) {
+                menu.classList.remove("menu-up", "menu-left");
+                return;
+            }
+            closeAllActionMenus(menu);
+            positionActionMenu(menu);
+        });
+    });
+
+    document.addEventListener("click", (event) => {
+        if (!event.target.closest(".adm-action-menu")) {
+            closeAllActionMenus();
+        }
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            closeAllActionMenus();
+        }
+    });
+
+    window.addEventListener("resize", () => {
+        const openMenu = document.querySelector(".adm-action-menu[open]");
+        if (openMenu) {
+            positionActionMenu(openMenu);
+        }
+    });
+
+    document.addEventListener("click", (event) => {
+        const actionButton = event.target.closest("[data-action][data-app]");
+        if (!actionButton) {
+            return;
+        }
+        closeAllActionMenus();
+        const app = parseAppData(actionButton.getAttribute("data-app"));
+        if (!app) {
+            return;
+        }
+        const action = actionButton.getAttribute("data-action");
+        if (action === "view-profile") {
+            openViewProfile(app);
+        } else if (action === "edit-details") {
+            openEditDetails(app);
+        } else if (action === "move-stage") {
+            openMoveStage(app);
+        }
+    });
+    </script>
+</body>
+</html>

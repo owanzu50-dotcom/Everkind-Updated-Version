@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'notifications', isAdmin: false, currentStaffName: currentStaffName, currentStaffEmail: currentStaffEmail }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Notification Centre</h1>
+                    <p class="adm-page-subtitle">Announcements, reminders, and shift changes from management</p>
+                </div>
+            </div>
+
+            <div class="adm-card">
+                <% if (notifications.length) { %>
+                    <div class="adm-card-body" style="display:grid;gap:12px;">
+                        <% notifications.forEach((note) => { %>
+                            <article class="staff-notice-item <%= Number(note.is_read) ? 'read' : 'unread' %>">
+                                <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
+                                    <div>
+                                        <strong><%= note.title %></strong>
+                                        <p><%= note.body %></p>
+                                        <small><%= String(note.created_at || '').slice(0, 16).replace('T', ' ') %></small>
+                                    </div>
+                                    <div style="display:flex;gap:8px;">
+                                        <% if (!Number(note.is_read)) { %><button class="adm-btn-secondary" type="button" onclick="updateNote(<%= note.id %>, 'read')">Mark as Read</button><% } %>
+                                        <button class="adm-btn-secondary" type="button" onclick="updateNote(<%= note.id %>, 'delete')">Delete</button>
+                                    </div>
+                                </div>
+                            </article>
+                        <% }) %>
+                    </div>
+                <% } else { %>
+                    <div class="adm-card-empty"><p>No notifications right now.</p></div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    async function updateNote(id, action) {
+        const response = await fetch('/api/staff/notifications/' + id + '/' + action, { method: 'POST' });
+        if (response.ok) {
+            window.location.reload();
+        }
+    }
+    </script>
+</body>
+</html>

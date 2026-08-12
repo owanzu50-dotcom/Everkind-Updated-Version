@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+    <%- include('partials/portal-theme-head') %>
+</head>
+<body class="portal-page">
+    <div class="portal-shell">
+        <div class="portal-card">
+            <div class="portal-branding">
+                <img class="brand-logo" src="/images/logo.png" alt="Everkind logo" />
+                <div>
+                    <h1>Everkind</h1>
+                    <p>Secure facility portal</p>
+                </div>
+            </div>
+
+            <h2>Facility Portal Login</h2>
+            <p class="portal-subtext">For approved healthcare organisations, private families, and home care clients requesting Everkind services.</p>
+            <% if (error) { %><div class="form-message error"><%= error %></div><% } %>
+
+            <form id="client-portal-login-form" class="portal-form">
+                <label>
+                    Email address
+                    <input type="email" name="email" placeholder="client@organisation.ie" required>
+                </label>
+                <label>
+                    Password
+                    <input type="password" name="password" placeholder="Enter password" required>
+                </label>
+                <button type="submit" class="primary-button full-width">Continue to facility portal</button>
+            </form>
+
+            <div class="portal-links">
+                <a href="/facility-portal/forgot-password">Forgot password?</a>
+                <a href="/facility-portal/register">Register for access</a>
+                <a href="/">Return to website</a>
+            </div>
+            <%- include('partials/portal-theme-toggle') %>
+        </div>
+    </div>
+
+    <script>
+        const clientPortalLoginForm = document.getElementById("client-portal-login-form");
+        if (clientPortalLoginForm) {
+            clientPortalLoginForm.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const payload = Object.fromEntries(new FormData(clientPortalLoginForm).entries());
+                try {
+                    const response = await fetch("/api/client/login", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.message || "Unable to sign in.");
+                    }
+                    window.location.href = data.redirect || "/facility-portal/dashboard";
+                } catch (error) {
+                    const existing = document.querySelector(".form-message.error.dynamic");
+                    if (existing) {
+                        existing.remove();
+                    }
+                    const alertBox = document.createElement("div");
+                    alertBox.className = "form-message error dynamic";
+                    alertBox.textContent = error.message;
+                    clientPortalLoginForm.insertAdjacentElement("afterend", alertBox);
+                }
+            });
+        }
+    </script>
+</body>
+</html>

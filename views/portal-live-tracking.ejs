@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'live-tracking', isAdmin: true, currentStaffName: currentStaffName, currentStaffEmail: typeof currentStaffEmail !== 'undefined' ? currentStaffEmail : '' }) %>
+
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title" style="display:flex;align-items:center;gap:8px;">
+                        📍 Live Tracking
+                        <span class="tracking-live-pill"><span class="tracking-live-dot"></span>Live</span>
+                    </h1>
+                    <p class="adm-page-subtitle" id="live-subtitle">Operations dashboard</p>
+                </div>
+                <button class="adm-btn-secondary" id="refresh-btn" type="button">🔄 Refresh</button>
+            </div>
+
+            <div id="late-alert" class="tracking-alert" style="display:none;"></div>
+
+            <div class="tracking-card-grid" id="status-cards"></div>
+
+            <div class="adm-card">
+                <div class="adm-card-header">
+                    <div class="adm-card-title">Search & Filters</div>
+                </div>
+                <div class="tracking-filters">
+                    <input id="filter-staff" type="text" placeholder="Staff name">
+                    <input id="filter-staff-id" type="text" placeholder="Staff ID">
+                    <select id="filter-division">
+                        <option value="all">All divisions</option>
+                        <option value="home-care">Home Care</option>
+                        <option value="agency-staffing">Agency</option>
+                    </select>
+                    <input id="filter-facility" type="text" placeholder="Facility / Client">
+                    <input id="filter-county" type="text" placeholder="County">
+                    <select id="filter-status">
+                        <option value="all">All statuses</option>
+                        <option value="on_duty">On Duty</option>
+                        <option value="clocked_in">Clocked In</option>
+                        <option value="running_late">Running Late</option>
+                        <option value="not_clocked_in">Not Clocked In</option>
+                        <option value="finished">Finished</option>
+                        <option value="break">Break</option>
+                        <option value="emergency_alert">Emergency</option>
+                    </select>
+                    <select id="filter-gps">
+                        <option value="all">GPS all</option>
+                        <option value="enabled">GPS enabled</option>
+                        <option value="issues">GPS issues</option>
+                    </select>
+                    <input id="filter-date" type="date">
+                    <input id="filter-shift-type" type="text" placeholder="Shift type">
+                    <label><input id="filter-late-only" type="checkbox"> Late only</label>
+                    <label><input id="filter-clocked-in-only" type="checkbox"> Clocked in</label>
+                </div>
+            </div>
+
+            <div class="tracking-layout-grid" id="tracking-results">
+                <div class="adm-card">
+                    <div class="adm-card-header">
+                        <div class="adm-card-title">Live Map</div>
+                        <small style="color:#64748b;">Click marker to focus row</small>
+                    </div>
+                    <div id="live-map-canvas" class="tracking-map-canvas"></div>
+                    <div id="map-empty" class="adm-card-empty" style="display:none;padding:20px;">
+                        <p>No live GPS points available for the selected filters.</p>
+                    </div>
+                </div>
+
+                <div class="adm-card">
+                    <div class="adm-card-header">
+                        <div class="adm-card-title" id="detail-title">Filtered Staff</div>
+                        <span id="updated-label" style="font-size:0.8rem;color:#64748b;">Updated just now</span>
+                    </div>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table" id="tracking-table">
+                            <thead>
+                                <tr>
+                                    <th>Staff</th>
+                                    <th>Shift</th>
+                                    <th>Client / Facility</th>
+                                    <th>Timing</th>
+                                    <th>Status</th>
+                                    <th>GPS</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tracking-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <style>
+    .tracking-live-pill { display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:500; background:#dcfce7; color:#166534; padding:3px 10px; border-radius:9999px; }
+    .tracking-live-dot { width:7px; height:7px; background:#16a34a; border-radius:50%; display:inline-block; animation:pulse-dot 2s infinite; }
+    @keyframes pulse-dot { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.5; transform:scale(1.35); } }
+    .tracking-alert { background:#fee2e2; color:#991b1b; border:1px solid #fecaca; padding:10px 12px; border-radius:10px; margin-bottom:12px; font-weight:600; }
+    .tracking-card-grid { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:10px; margin-bottom:12px; }
+    .tracking-status-card { border:1px solid #e2e8f0; border-radius:12px; background:#fff; text-align:left; padding:12px; cursor:pointer; transition:all 0.15s ease; }
+    .tracking-status-card:hover { border-color:#cbd5e1; transform:translateY(-1px); }
+    .tracking-status-card.active { border-color:#2563eb; box-shadow:0 0 0 2px rgba(37,99,235,0.12); }
+    .tracking-status-label { font-size:0.8rem; color:#475569; margin-bottom:3px; display:block; }
+    .tracking-status-value { font-size:1.45rem; font-weight:700; color:#0f172a; }
+    .tracking-filters { padding:14px 18px 18px; display:grid; gap:8px; grid-template-columns:repeat(4,minmax(0,1fr)); }
+    .tracking-filters input, .tracking-filters select { width:100%; border:1px solid #dbe3ee; border-radius:8px; padding:8px 10px; font-size:0.82rem; }
+    .tracking-filters label { font-size:0.8rem; color:#334155; display:flex; align-items:center; gap:6px; }
+    .tracking-layout-grid { display:grid; grid-template-columns: 1.1fr 1.9fr; gap:12px; }
+    .tracking-map-canvas { min-height:340px; border-radius:10px; border:1px solid #e2e8f0; background:linear-gradient(135deg,#f8fafc,#eef2ff); position:relative; overflow:hidden; }
+    .tracking-marker { position:absolute; transform:translate(-50%,-50%); border:none; border-radius:9999px; width:24px; height:24px; color:#fff; font-size:0.72rem; font-weight:700; cursor:pointer; box-shadow:0 3px 8px rgba(15,23,42,0.24); }
+    .tracking-marker.late { background:#dc2626; }
+    .tracking-marker.home { background:#16a34a; }
+    .tracking-marker.nursing { background:#2563eb; }
+    .tracking-marker.hospital { background:#7c3aed; }
+    .tracking-marker.community { background:#ea580c; }
+    .tracking-mini { display:block; font-size:0.73rem; color:#64748b; margin-top:2px; }
+    .tracking-emergency-row { background:#fff1f2; }
+    .tracking-late-row { background:#fef2f2; }
+    .tracking-highlight-row {
+        animation: tracking-row-pulse 1.7s ease;
+        background: linear-gradient(90deg, rgba(37,99,235,0.22), rgba(59,130,246,0.12)) !important;
+        box-shadow: inset 0 0 0 1px rgba(37,99,235,0.28), 0 0 0 4px rgba(37,99,235,0.14);
+    }
+    @keyframes tracking-row-pulse {
+        0% {
+            background: linear-gradient(90deg, rgba(191,219,254,0.95), rgba(219,234,254,0.9)) !important;
+            box-shadow: inset 0 0 0 1px rgba(37,99,235,0.35), 0 0 0 0 rgba(37,99,235,0.18);
+            transform: translateY(0);
+        }
+        35% {
+            background: linear-gradient(90deg, rgba(37,99,235,0.22), rgba(59,130,246,0.12)) !important;
+            box-shadow: inset 0 0 0 1px rgba(37,99,235,0.35), 0 0 0 6px rgba(37,99,235,0.16);
+            transform: translateY(-1px);
+        }
+        100% {
+            background: transparent !important;
+            box-shadow: inset 0 0 0 1px rgba(37,99,235,0.05), 0 0 0 0 rgba(37,99,235,0);
+            transform: translateY(0);
+        }
+    }
+    .tracking-actions { display:grid; gap:4px; }
+    .tracking-action-row { display:flex; flex-wrap:wrap; gap:4px; }
+    .tracking-action-btn { border:1px solid #dbe3ee; background:#fff; color:#0f172a; border-radius:6px; padding:4px 7px; font-size:0.72rem; text-decoration:none; cursor:pointer; display:inline-flex; align-items:center; gap:3px; }
+    .tracking-action-btn.danger { border-color:#fecaca; color:#b91c1c; background:#fff5f5; }
+    .tracking-action-btn.warn { border-color:#fed7aa; color:#9a3412; background:#fff7ed; }
+    @media (max-width: 1200px) {
+        .tracking-card-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .tracking-filters { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .tracking-layout-grid { grid-template-columns:1fr; }
+    }
+    </style>
+
+    <script>
+    const initialData = <%- JSON.stringify(liveTracking || { records: [], counts: {}, todayDate: '', todayLabel: '', generatedAt: new Date().toISOString(), gracePeriodMinutes: 15, escalationMinutes: 30 }) %>;
+    const cardOrder = [
+        { key: "on_duty", icon: "🟢", label: "On Duty" },
+        { key: "clocked_in", icon: "🔵", label: "Clocked In" },
+        { key: "running_late", icon: "🟠", label: "Running Late" },
+        { key: "not_clocked_in", icon: "🔴", label: "Not Clocked In" },
+        { key: "finished", icon: "⚫", label: "Finished" },
+        { key: "break", icon: "🟣", label: "Break" },
+        { key: "emergency_alert", icon: "🚨", label: "Emergency Alert" },
+        { key: "gps_issues", icon: "📍", label: "GPS Issues" },
+    ];
+
+    const state = {
+        activeCard: "on_duty",
+        selectedShiftId: null,
+        highlightedRowIndex: 0,
+        data: initialData,
+    };
+
+    const el = {
+        subtitle: document.getElementById("live-subtitle"),
+        cards: document.getElementById("status-cards"),
+        detailTitle: document.getElementById("detail-title"),
+        tableBody: document.getElementById("tracking-table-body"),
+        mapCanvas: document.getElementById("live-map-canvas"),
+        mapEmpty: document.getElementById("map-empty"),
+        lateAlert: document.getElementById("late-alert"),
+        updatedLabel: document.getElementById("updated-label"),
+        refreshBtn: document.getElementById("refresh-btn"),
+    };
+
+    const parseDateSafe = (value) => {
+        const raw = String(value || "").trim();
+        if (!raw) {
+            return null;
+        }
+        const parsed = new Date(raw.includes("T") ? raw : raw.replace(" ", "T"));
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    const formatTime = (value) => {
+        const parsed = parseDateSafe(value);
+        if (!parsed) {
+            return "—";
+        }
+        return parsed.toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit", hour12: false });
+    };
+
+    const formatDateTime = (value) => {
+        const parsed = parseDateSafe(value);
+        if (!parsed) {
+            return "—";
+        }
+        return parsed.toLocaleString("en-IE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+    };
+
+    const clearRowHighlights = () => {
+        document.querySelectorAll(".tracking-highlight-row").forEach((row) => row.classList.remove("tracking-highlight-row"));
+    };
+
+    const getPortalScrollContainer = () => document.querySelector(".portal-content");
+
+    const scrollElementIntoView = (element) => {
+        const container = getPortalScrollContainer();
+        if (!container || !element) {
+            return;
+        }
+
+        const containerRect = container.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+        const targetTop = Math.max(0, elementRect.top - containerRect.top + container.scrollTop - 24);
+        container.scrollTo({ top: targetTop, behavior: "smooth" });
+    };
+
+    const highlightRow = (rowElement) => {
+        if (!rowElement) {
+            return;
+        }
+
+        clearRowHighlights();
+        rowElement.classList.add("tracking-highlight-row");
+        scrollElementIntoView(rowElement);
+        setTimeout(() => {
+            rowElement.classList.remove("tracking-highlight-row");
+        }, 1800);
+    };
+
+    const scrollResultsIntoView = () => {
+        const target = document.getElementById("tracking-results");
+        if (!target) {
+            return;
+        }
+
+        const visibleRows = Array.from(target.querySelectorAll("tr[id^='shift-row-']"));
+        if (visibleRows.length) {
+            const index = state.highlightedRowIndex % visibleRows.length;
+            const row = visibleRows[index];
+            state.highlightedRowIndex = (state.highlightedRowIndex + 1) % visibleRows.length;
+            highlightRow(row);
+            return;
+        }
+
+        scrollElementIntoView(target);
+    };
+
+    const toMinutes = (startValue, endValue) => {
+        const start = parseDateSafe(startValue);
+        const end = parseDateSafe(endValue);
+        if (!start || !end) {
+            return 0;
+        }
+        return Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000));
+    };
+
+    const computeCategory = (record, now = new Date()) => {
+        const status = String(record.status || "").toLowerCase();
+        const start = parseDateSafe(record.scheduledStartIso || record.scheduledStart || record.scheduled_start || record.shift_date);
+        const hasClockIn = Boolean(record.actual_clock_in || record.actualClockIn);
+        const hasClockOut = Boolean(record.actual_clock_out || record.actualClockOut);
+        const emergencyByText = status.includes("emergency") || status.includes("sos") || String(record.notes || "").toLowerCase().includes("sos");
+        if (emergencyByText) return "emergency_alert";
+        if (status === "on_break" || status === "break") return "break";
+        if (["completed","clocked_out","shift_completed","checked_out"].includes(status) || hasClockOut) return "finished";
+        if (["clocked_in","checked_in"].includes(status)) return "clocked_in";
+        if (status === "travelling") return "on_duty";
+        if (["cancelled","no_show"].includes(status)) return "cancelled";
+        if (!start) return hasClockIn ? "clocked_in" : "not_clocked_in";
+        const graceCutoffMs = start.getTime() + (Number(state.data.gracePeriodMinutes || 15) * 60000);
+        return (!hasClockIn && now.getTime() > graceCutoffMs) ? "running_late" : "not_clocked_in";
+    };
+
+    const enrichRecords = (rows) => {
+        const now = new Date();
+        const graceMinutes = Number(state.data.gracePeriodMinutes || 15);
+        const escalationMinutes = Number(state.data.escalationMinutes || 30);
+        return (rows || []).map((row) => {
+            const category = computeCategory(row, now);
+            const start = parseDateSafe(row.scheduledStartIso || row.scheduledStart || row.scheduled_start || row.shift_date);
+            const lateAfter = start ? start.getTime() + graceMinutes * 60000 : null;
+            const minutesLate = (category === "running_late" && lateAfter)
+                ? Math.max(0, Math.floor((now.getTime() - lateAfter) / 60000))
+                : 0;
+            const countdownMinutes = (!row.actual_clock_in && start && category === "not_clocked_in")
+                ? Math.max(0, Math.floor((start.getTime() - now.getTime()) / 60000))
+                : null;
+            const hasGps = Boolean(row.hasGps) || (Number.isFinite(Number(row.latitude)) && Number.isFinite(Number(row.longitude)));
+            return {
+                ...row,
+                category,
+                hasGps,
+                gpsIssue: !hasGps,
+                minutesLate,
+                countdownMinutes,
+                isEscalated: category === "running_late" && minutesLate >= escalationMinutes,
+            };
+        });
+    };
+
+    const matchesFilters = (row) => {
+        const staff = document.getElementById("filter-staff").value.trim().toLowerCase();
+        const staffId = document.getElementById("filter-staff-id").value.trim().toLowerCase();
+        const division = document.getElementById("filter-division").value;
+        const facility = document.getElementById("filter-facility").value.trim().toLowerCase();
+        const county = document.getElementById("filter-county").value.trim().toLowerCase();
+        const status = document.getElementById("filter-status").value;
+        const gps = document.getElementById("filter-gps").value;
+        const date = document.getElementById("filter-date").value;
+        const shiftType = document.getElementById("filter-shift-type").value.trim().toLowerCase();
+        const lateOnly = document.getElementById("filter-late-only").checked;
+        const clockedInOnly = document.getElementById("filter-clocked-in-only").checked;
+
+        if (staff && !String(row.staffName || row.staff_name || "").toLowerCase().includes(staff)) return false;
+        if (staffId && !String(row.staffIdentifier || row.staffId || "").toLowerCase().includes(staffId)) return false;
+        if (division !== "all" && String(row.serviceDivision || row.service_division || "") !== division) return false;
+        if (facility) {
+            const entity = String(row.entityName || row.displayEntityName || row.patient_name || "").toLowerCase();
+            if (!entity.includes(facility)) return false;
+        }
+        if (county && !String(row.locationCounty || row.county || "").toLowerCase().includes(county)) return false;
+        if (status !== "all" && row.category !== status) return false;
+        if (gps === "enabled" && !row.hasGps) return false;
+        if (gps === "issues" && row.hasGps) return false;
+        if (lateOnly && row.category !== "running_late") return false;
+        if (clockedInOnly && !["clocked_in","on_duty","break"].includes(row.category)) return false;
+        if (date) {
+            const shiftDate = String(row.scheduledStartIso || row.scheduledStart || row.scheduled_start || row.shift_date || "").slice(0, 10);
+            if (shiftDate !== date) return false;
+        }
+        if (shiftType && !String(row.serviceType || "").toLowerCase().includes(shiftType)) return false;
+        return true;
+    };
+
+    const matchesCard = (row, cardKey) => {
+        if (cardKey === "on_duty") return ["on_duty", "clocked_in", "break"].includes(row.category);
+        if (cardKey === "gps_issues") return Boolean(row.gpsIssue);
+        return row.category === cardKey;
+    };
+
+    const getMarkerClass = (row) => {
+        if (row.category === "running_late") return "late";
+        const typeText = String(row.facilityCategory || row.facility_type || "").toLowerCase();
+        if (row.serviceDivision === "home-care") return "home";
+        if (typeText.includes("hospital")) return "hospital";
+        if (typeText.includes("nursing")) return "nursing";
+        return "community";
+    };
+
+    const renderCards = (baseRecords) => {
+        const counts = {};
+        for (const card of cardOrder) {
+            counts[card.key] = baseRecords.filter((row) => matchesCard(row, card.key)).length;
+        }
+        el.cards.innerHTML = cardOrder.map((card) => `
+            <button type="button" class="tracking-status-card ${state.activeCard === card.key ? "active" : ""}" data-card="${card.key}">
+                <span class="tracking-status-label">${card.icon} ${card.label}</span>
+                <span class="tracking-status-value">${counts[card.key] || 0}</span>
+            </button>
+        `).join("");
+        Array.from(el.cards.querySelectorAll("[data-card]")).forEach((button) => {
+            button.addEventListener("click", () => {
+                const nextCard = button.getAttribute("data-card");
+                const cardChanged = state.activeCard !== nextCard;
+                state.activeCard = nextCard;
+                if (cardChanged) {
+                    state.highlightedRowIndex = 0;
+                }
+                render();
+                scrollResultsIntoView();
+            });
+        });
+        return counts;
+    };
+
+    const renderMap = (rows) => {
+        const gpsRows = rows.filter((row) => row.hasGps);
+        if (!gpsRows.length) {
+            el.mapCanvas.innerHTML = "";
+            el.mapEmpty.style.display = "block";
+            return;
+        }
+        el.mapEmpty.style.display = "none";
+        const latitudes = gpsRows.map((row) => Number(row.latitude));
+        const longitudes = gpsRows.map((row) => Number(row.longitude));
+        const minLat = Math.min(...latitudes);
+        const maxLat = Math.max(...latitudes);
+        const minLng = Math.min(...longitudes);
+        const maxLng = Math.max(...longitudes);
+        const latRange = Math.max(0.01, maxLat - minLat);
+        const lngRange = Math.max(0.01, maxLng - minLng);
+
+        el.mapCanvas.innerHTML = gpsRows.map((row) => {
+            const lat = Number(row.latitude);
+            const lng = Number(row.longitude);
+            const top = 8 + ((maxLat - lat) / latRange) * 84;
+            const left = 8 + ((lng - minLng) / lngRange) * 84;
+            return `<button type="button" class="tracking-marker ${getMarkerClass(row)}" data-map-shift="${row.id || row.shiftId}" style="top:${top}%;left:${left}%;" title="${String(row.staffName || "").replace(/"/g, "&quot;")}">${String(row.staffName || "?").charAt(0).toUpperCase()}</button>`;
+        }).join("");
+
+        Array.from(el.mapCanvas.querySelectorAll("[data-map-shift]")).forEach((marker) => {
+            marker.addEventListener("click", () => {
+                state.selectedShiftId = Number(marker.getAttribute("data-map-shift"));
+                const target = document.getElementById(`shift-row-${state.selectedShiftId}`);
+                if (target) {
+                    highlightRow(target);
+                }
+            });
+        });
+    };
+
+    const renderTable = (rows) => {
+        const cardLabel = cardOrder.find((card) => card.key === state.activeCard)?.label || "Filtered Staff";
+        el.detailTitle.textContent = `${cardLabel} (${rows.length})`;
+        if (!rows.length) {
+            el.tableBody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#64748b;padding:18px;">No staff matched the selected status/filter.</td></tr>`;
+            return;
+        }
+        el.tableBody.innerHTML = rows.map((row) => {
+            const rowClass = row.category === "emergency_alert" ? "tracking-emergency-row" : (row.category === "running_late" ? "tracking-late-row" : "");
+            const scheduledStart = formatDateTime(row.scheduledStartIso || row.scheduledStart || row.scheduled_start);
+            const scheduledEnd = formatTime(row.scheduledEndIso || row.scheduledEnd || row.scheduled_end);
+            const clockIn = formatTime(row.actual_clock_in || row.actualClockIn);
+            const clockOut = formatTime(row.actual_clock_out || row.actualClockOut);
+            const workedMinutes = toMinutes(row.actual_clock_in || row.actualClockIn, row.actual_clock_out || row.actualClockOut);
+            const workedHours = workedMinutes ? (workedMinutes / 60).toFixed(2) : "—";
+            const lateLabel = row.category === "running_late"
+                ? `${row.minutesLate} min late${row.isEscalated ? " · Escalated" : ""}`
+                : (row.category === "not_clocked_in" && row.countdownMinutes !== null ? `Starts in ${row.countdownMinutes} min` : "—");
+            const gpsNavUrl = row.hasGps ? `https://maps.google.com/?q=${encodeURIComponent(String(row.latitude) + "," + String(row.longitude))}` : "#";
+            const profileUrl = row.staffProfileId ? `/staff/${row.staffProfileId}` : "/staff";
+            return `
+                <tr id="shift-row-${row.id || row.shiftId}" class="${rowClass}">
+                    <td>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div class="sidebar-user-avatar" style="width:30px;height:30px;font-size:0.78rem;overflow:hidden;">
+                                ${row.staffPhoto ? `<img src="${row.staffPhoto}" alt="Staff photo" style="width:100%;height:100%;object-fit:cover;">` : String(row.staffName || "?").charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <strong>${row.staffName || "Unassigned"}</strong>
+                                <span class="tracking-mini">ID ${row.staffIdentifier || "—"} · ${row.staff_role || row.staffRole || "Role not set"}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="adm-badge ${String(row.serviceDivision || "").toLowerCase() === "agency-staffing" ? "adm-badge-agency" : "adm-badge-home-care"}">${String(row.serviceDivision || "").toLowerCase() === "agency-staffing" ? "🏥 AGENCY" : "🏠 HOME CARE"}</span>
+                        <span class="tracking-mini">${row.shiftCode || row.shift_code || "Shift"} · ${row.serviceType || "General"}</span>
+                    </td>
+                    <td>
+                        <strong>${row.entityName || row.displayEntityName || "Assignment"}</strong>
+                        <span class="tracking-mini">${row.locationAddress || "Address not set"}, ${row.locationCounty || "County not set"}</span>
+                    </td>
+                    <td>
+                        <strong>${scheduledStart}</strong>
+                        <span class="tracking-mini">Finish ${scheduledEnd} · Clock in ${clockIn} · Clock out ${clockOut}</span>
+                        <span class="tracking-mini">Worked ${workedHours}h</span>
+                    </td>
+                    <td>
+                        <span class="adm-badge ${row.category === "running_late" ? "adm-badge-new" : (row.category === "finished" ? "adm-badge-scheduled" : "adm-badge-active")}">${row.displayStatus || row.category}</span>
+                        <span class="tracking-mini">${lateLabel}</span>
+                        <span class="tracking-mini">Client confirm: ${row.clientConfirmation || "Pending"} · Manager: ${row.managerApprovalStatus || "Pending"}</span>
+                    </td>
+                    <td>
+                        <strong>${row.hasGps ? "Live GPS" : "GPS Issue"}</strong>
+                        <span class="tracking-mini">${row.hasGps ? `${Number(row.latitude).toFixed(5)}, ${Number(row.longitude).toFixed(5)}` : "No location signal"}</span>
+                    </td>
+                    <td>
+                        <div class="tracking-actions">
+                            <div class="tracking-action-row">
+                                <a class="tracking-action-btn" href="${profileUrl}">👤 View profile</a>
+                                ${row.phoneAvailable ? `<a class="tracking-action-btn" href="tel:${row.staffPhone}">📞 Call</a>` : `<button type="button" class="tracking-action-btn" disabled>📞 No phone</button>`}
+                                <button type="button" class="tracking-action-btn" data-reminder-shift="${row.id || row.shiftId}">🔔 Send reminder</button>
+                            </div>
+                            <div class="tracking-action-row">
+                                <a class="tracking-action-btn warn" href="/admin/shift-requests?reassign_shift_id=${row.id || row.shiftId}">🔁 Reassign shift</a>
+                                ${row.hasGps ? `<a class="tracking-action-btn" href="${gpsNavUrl}" target="_blank" rel="noopener noreferrer">🧭 GPS navigation</a>` : `<button type="button" class="tracking-action-btn danger" disabled>📍 GPS unavailable</button>`}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join("");
+
+        Array.from(el.tableBody.querySelectorAll("[data-reminder-shift]")).forEach((button) => {
+            button.addEventListener("click", async () => {
+                const shiftId = Number(button.getAttribute("data-reminder-shift"));
+                button.disabled = true;
+                button.textContent = "Sending…";
+                try {
+                    const response = await fetch(`/api/admin/live-tracking/${shiftId}/reminder`, { method: "POST", headers: { "Content-Type": "application/json" } });
+                    const payload = await response.json();
+                    if (!response.ok || !payload.success) {
+                        throw new Error(payload.message || "Reminder failed");
+                    }
+                    button.textContent = "Sent ✓";
+                } catch (error) {
+                    button.textContent = "Retry";
+                    alert(error.message || "Could not send reminder.");
+                } finally {
+                    button.disabled = false;
+                }
+            });
+        });
+    };
+
+    const renderAlert = (counts) => {
+        const late = Number(counts.running_late || 0);
+        if (late <= 0) {
+            el.lateAlert.style.display = "none";
+            el.lateAlert.textContent = "";
+            return;
+        }
+        el.lateAlert.style.display = "block";
+        el.lateAlert.textContent = `⚠ ${late} staff member${late === 1 ? "" : "s"} running late. Scheduler alert is active.`;
+    };
+
+    const render = () => {
+        const records = enrichRecords(state.data.records || []);
+        const baseRecords = records.filter(matchesFilters);
+        const counts = renderCards(baseRecords);
+        renderAlert(counts);
+        const activeRows = baseRecords.filter((row) => matchesCard(row, state.activeCard));
+        renderTable(activeRows);
+        renderMap(activeRows);
+        el.subtitle.textContent = `${state.data.todayLabel || "Today"} · ${records.length} tracked shift${records.length === 1 ? "" : "s"}`;
+        el.updatedLabel.textContent = `Updated ${new Date().toLocaleTimeString("en-IE", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}`;
+    };
+
+    const refreshFromApi = async () => {
+        try {
+            const response = await fetch("/api/admin/live-tracking", { headers: { "Accept": "application/json" } });
+            const payload = await response.json();
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.message || "Could not refresh tracking.");
+            }
+            state.data = payload;
+            render();
+        } catch (error) {
+            console.error("Live tracking refresh failed:", error.message);
+        }
+    };
+
+    document.getElementById("filter-date").value = String(initialData.todayDate || "").slice(0, 10);
+    Array.from(document.querySelectorAll(".tracking-filters input, .tracking-filters select")).forEach((input) => {
+        input.addEventListener("input", render);
+        input.addEventListener("change", render);
+    });
+
+    el.refreshBtn.addEventListener("click", async () => {
+        el.refreshBtn.disabled = true;
+        el.refreshBtn.textContent = "⏳ Refreshing…";
+        await refreshFromApi();
+        el.refreshBtn.disabled = false;
+        el.refreshBtn.textContent = "🔄 Refresh";
+    });
+
+    render();
+    setInterval(render, 60000);
+    setInterval(refreshFromApi, 30000);
+    </script>
+</body>
+</html>

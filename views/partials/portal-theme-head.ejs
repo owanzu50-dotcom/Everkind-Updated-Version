@@ -1,0 +1,8 @@
+<script>
+try {
+    document.documentElement.dataset.theme = localStorage.getItem('everkind-portal-theme') === 'dark' ? 'dark' : 'light';
+} catch (error) {
+    document.documentElement.dataset.theme = 'light';
+}
+</script>
+<script src="/js/theme.js" defer></script>

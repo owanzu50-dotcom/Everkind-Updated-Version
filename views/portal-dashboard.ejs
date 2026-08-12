@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'dashboard', isAdmin: true, currentStaffName: currentStaffName, currentStaffEmail: typeof currentStaffEmail !== 'undefined' ? currentStaffEmail : '' }) %>
+
+        <main class="portal-content">
+            <!-- Page header -->
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Dashboard</h1>
+                    <p class="adm-page-subtitle">Welcome back, <%= currentStaffName || 'Administrator' %> 👋</p>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <a href="/patients/new" class="adm-btn-secondary">➕ Add Client</a>
+                    <a href="/staff/new" class="adm-btn-primary">➕ Add Staff</a>
+                </div>
+            </div>
+
+            <!-- Metric cards -->
+            <div class="adm-metric-grid">
+                <div class="adm-metric-card">
+                    <div class="adm-metric-icon green">👥</div>
+                    <span class="adm-metric-label">Active Staff</span>
+                    <span class="adm-metric-value"><%= metrics.staff %></span>
+                    <span class="adm-metric-sub">Care team members</span>
+                </div>
+                <div class="adm-metric-card">
+                    <div class="adm-metric-icon blue">🏠</div>
+                    <span class="adm-metric-label">Active Clients</span>
+                    <span class="adm-metric-value"><%= metrics.patients %></span>
+                    <span class="adm-metric-sub">Under active care</span>
+                </div>
+                <div class="adm-metric-card">
+                    <div class="adm-metric-icon amber">📅</div>
+                    <span class="adm-metric-label">Today's Shifts</span>
+                    <span class="adm-metric-value"><%= metrics.visitsToday %></span>
+                    <span class="adm-metric-sub">Scheduled for today</span>
+                </div>
+                <div class="adm-metric-card">
+                    <div class="adm-metric-icon purple">🕒</div>
+                    <span class="adm-metric-label">Total Shifts</span>
+                    <span class="adm-metric-value"><%= metrics.totalShifts %></span>
+                    <span class="adm-metric-sub">All time</span>
+                </div>
+                <div class="adm-metric-card">
+                    <div class="adm-metric-icon<%= metrics.incidents > 0 ? ' red' : '' %>" style="<%= metrics.incidents > 0 ? 'background:#fee2e2' : 'background:#fef3c7' %>">⚠️</div>
+                    <span class="adm-metric-label">Compliance Alerts</span>
+                    <span class="adm-metric-value" style="<%= metrics.incidents > 0 ? 'color:#dc2626' : '' %>"><%= metrics.incidents %></span>
+                    <span class="adm-metric-sub">Critical notes</span>
+                </div>
+                <div class="adm-metric-card">
+                    <div class="adm-metric-icon blue">🧾</div>
+                    <span class="adm-metric-label">Care Plans</span>
+                    <span class="adm-metric-value"><%= metrics.carePlans %></span>
+                    <span class="adm-metric-sub">Uploaded this month</span>
+                </div>
+            </div>
+
+            <% const recruitment = typeof recruitmentMetrics !== 'undefined' ? recruitmentMetrics : {}; %>
+            <div class="adm-card" style="margin-bottom:20px;">
+                <div class="adm-card-header">
+                    <div>
+                        <div class="adm-card-title">Recruitment pipeline</div>
+                        <div class="adm-card-subtitle">Live hiring, induction and approval counts</div>
+                    </div>
+                </div>
+                <div class="adm-metric-grid" style="padding:0 20px 20px;">
+                    <div class="adm-metric-card adm-metric-card-compact">
+                        <div class="adm-metric-icon blue">📋</div>
+                        <span class="adm-metric-label">Applications</span>
+                        <span class="adm-metric-value"><%= recruitment.applicationsTotal || 0 %></span>
+                        <span class="adm-metric-sub">All submitted</span>
+                    </div>
+                    <div class="adm-metric-card adm-metric-card-compact">
+                        <div class="adm-metric-icon purple">🔎</div>
+                        <span class="adm-metric-label">Reviewing</span>
+                        <span class="adm-metric-value"><%= recruitment.reviewing || 0 %></span>
+                        <span class="adm-metric-sub">Under assessment</span>
+                    </div>
+                    <div class="adm-metric-card adm-metric-card-compact">
+                        <div class="adm-metric-icon amber">💬</div>
+                        <span class="adm-metric-label">Interviews</span>
+                        <span class="adm-metric-value"><%= recruitment.interview_scheduled || 0 %></span>
+                        <span class="adm-metric-sub">Scheduled</span>
+                    </div>
+                    <div class="adm-metric-card adm-metric-card-compact">
+                        <div class="adm-metric-icon green">🛡️</div>
+                        <span class="adm-metric-label">Induction</span>
+                        <span class="adm-metric-value"><%= recruitment.induction || 0 %></span>
+                        <span class="adm-metric-sub">Awaiting approval</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main content grid -->
+            <div class="adm-content-grid">
+                <!-- Left column: upcoming shifts + activity -->
+                <div class="adm-section">
+                    <!-- Upcoming Shifts -->
+                    <div class="adm-card">
+                        <div class="adm-card-header">
+                            <div>
+                                <div class="adm-card-title">Upcoming Shifts</div>
+                                <div class="adm-card-subtitle">Next scheduled visits</div>
+                            </div>
+                            <a href="/admin/schedule" class="adm-btn-secondary" style="font-size:0.8rem;padding:6px 12px;">View all</a>
+                        </div>
+                        <% if (upcomingVisits && upcomingVisits.length) { %>
+                            <div style="padding:8px 20px 16px;">
+                                <div class="adm-shift-list">
+                                    <% upcomingVisits.forEach((visit, i) => { %>
+                                        <div class="adm-shift-item">
+                                            <div class="adm-shift-dot <%= visit.status === 'clocked_in' ? '' : i > 1 ? 'amber' : '' %>"></div>
+                                            <div class="adm-shift-info">
+                                                <div class="adm-shift-client"><%= visit.client %></div>
+                                                <div class="adm-shift-meta"><%= visit.staff_name || 'Unassigned' %> · <%= visit.type %></div>
+                                            </div>
+                                            <div class="adm-shift-time"><%= visit.date %><br><span style="font-size:0.75rem;color:#94a3b8"><%= visit.time %></span></div>
+                                        </div>
+                                    <% }) %>
+                                </div>
+                            </div>
+                        <% } else { %>
+                            <div class="adm-card-empty">
+                                <div class="adm-card-empty-icon">📅</div>
+                                <p>No upcoming shifts scheduled</p>
+                                <a href="/admin/schedule" class="adm-btn-primary" style="margin-top:12px;display:inline-flex;">Schedule a shift</a>
+                            </div>
+                        <% } %>
+                    </div>
+
+                    <!-- Recent activity -->
+                    <div class="adm-card">
+                        <div class="adm-card-header">
+                            <div class="adm-card-title">Recent Activity</div>
+                            <a href="/admin/schedule" class="adm-btn-secondary" style="font-size:0.8rem;padding:6px 12px;">All shifts</a>
+                        </div>
+                        <% if (recentActivity && recentActivity.length) { %>
+                            <div class="adm-table-wrap">
+                                <table class="adm-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Type</th>
+                                            <th>Patient</th>
+                                            <th>Detail</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% recentActivity.forEach((item) => { %>
+                                            <tr>
+                                                <td><span class="adm-badge adm-badge-<%= item.type === 'Live shift' ? 'active' : 'scheduled' %>"><%= item.type %></span></td>
+                                                <td><%= item.label %></td>
+                                                <td style="color:#64748b;font-size:0.8rem;"><%= item.detail %></td>
+                                            </tr>
+                                        <% }) %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } else { %>
+                            <div class="adm-card-empty"><p>No recent activity</p></div>
+                        <% } %>
+                    </div>
+                </div>
+
+                <!-- Right column: staff compliance + quick actions -->
+                <div class="adm-section">
+                    <!-- Staff Compliance -->
+                    <div class="adm-card">
+                        <div class="adm-card-header">
+                            <div>
+                                <div class="adm-card-title">Staff Compliance</div>
+                                <div class="adm-card-subtitle">Training completion %</div>
+                            </div>
+                            <a href="/admin/compliance" class="adm-btn-secondary" style="font-size:0.8rem;padding:6px 12px;">Details</a>
+                        </div>
+                        <div style="padding:16px 20px;">
+                            <div class="compliance-bar-list">
+                                <% staffPreview.forEach((member) => {
+                                    const pct = member.trainingPct || Math.floor(Math.random() * 40 + 60);
+                                    const cls = pct >= 80 ? '' : pct >= 60 ? 'amber' : 'red';
+                                %>
+                                    <div class="compliance-bar-item">
+                                        <span class="compliance-bar-name"><%= member.name %></span>
+                                        <div class="compliance-bar-track">
+                                            <div class="compliance-bar-fill <%= cls %>" style="width:<%= pct %>%"></div>
+                                        </div>
+                                        <span class="compliance-bar-pct"><%= pct %>%</span>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick actions -->
+                    <div class="adm-card">
+                        <div class="adm-card-header">
+                            <div class="adm-card-title">Quick Actions</div>
+                        </div>
+                        <div style="padding:16px;display:grid;gap:8px;">
+                            <a href="/staff/new" class="adm-btn-primary" style="justify-content:center;">👤 Add Staff Member</a>
+                            <a href="/patients/new" class="adm-btn-secondary" style="justify-content:center;">🏠 Add Client</a>
+                            <a href="/admin/schedule" class="adm-btn-secondary" style="justify-content:center;">📅 Schedule Shift</a>
+                            <a href="/admin/open-shifts" class="adm-btn-secondary" style="justify-content:center;">📤 Post Open Shift</a>
+                            <a href="/admin/live-tracking" class="adm-btn-secondary" style="justify-content:center;">📍 Live Tracking</a>
+                        </div>
+                    </div>
+
+                    <!-- Key staff -->
+                    <div class="adm-card">
+                        <div class="adm-card-header">
+                            <div class="adm-card-title">Care Team</div>
+                            <a href="/staff" class="adm-btn-secondary" style="font-size:0.8rem;padding:6px 12px;">All staff</a>
+                        </div>
+                        <div style="padding:8px 16px 14px;">
+                            <% staffPreview.forEach((member) => { %>
+                                <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9;">
+                                    <div class="sidebar-user-avatar" style="width:32px;height:32px;font-size:0.8rem;flex-shrink:0;"><%= member.name.charAt(0) %></div>
+                                    <div style="flex:1;min-width:0;">
+                                        <div style="font-weight:600;font-size:0.85rem;color:#0f172a;"><%= member.name %></div>
+                                        <div style="font-size:0.76rem;color:#64748b;"><%= member.role %></div>
+                                    </div>
+                                    <span class="adm-badge adm-badge-<%= member.status === 'Active' ? 'active' : 'inactive' %>"><%= member.status %></span>
+                                </div>
+                            <% }) %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

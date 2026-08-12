@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/client-portal-sidebar', { active: 'new-request', currentClientName: currentClientName, currentClientEmail: currentClientEmail, clientPortalCounts: clientPortalCounts }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Request Staff</h1>
+                    <p class="adm-page-subtitle">Submit a secure staffing or home-care request directly to Everkind operations.</p>
+                </div>
+            </div>
+
+            <div class="adm-card">
+                <% if (error) { %><div class="form-alert"><%= error %></div><% } %>
+                <% if (message) { %><div class="form-message success"><%= message %></div><% } %>
+                <form class="portal-form" method="POST" action="/facility-portal/requests">
+                    <div class="staff-form-section">
+                        <div class="staff-form-section-header"><div><h2>Facility Information</h2></div></div>
+                        <div class="staff-form-grid">
+                            <label><span>Facility Name *</span><input type="text" name="facility_name" value="<%= formData ? formData.facilityName : (account.organization_name || '') %>" required></label>
+                            <label><span>Facility Type *</span>
+                                <select name="facility_type" required>
+                                    <% clientPortalFacilityTypeOptions.forEach((option) => { %>
+                                        <option value="<%= option %>" <%= formData && formData.facilityType === option ? 'selected' : (!formData && (account.organization_type || '') === option ? 'selected' : '') %>><%= option %></option>
+                                    <% }) %>
+                                </select>
+                            </label>
+                            <label><span>Facility Address *</span><input type="text" name="facility_address" value="<%= formData ? formData.facilityAddress : (account.address_line_1 || '') %>" required></label>
+                            <label><span>County *</span><input type="text" name="facility_county" value="<%= formData ? formData.facilityCounty : (account.county || '') %>" required></label>
+                            <label><span>Eircode</span><input type="text" name="facility_eircode" value="<%= formData ? formData.facilityEircode : (account.eircode || '') %>"></label>
+                            <label><span>GPS Latitude</span><input type="text" name="facility_gps_latitude" value="<%= formData ? (formData.facilityGpsLatitude ?? '') : (account.gps_latitude || '') %>"></label>
+                            <label><span>GPS Longitude</span><input type="text" name="facility_gps_longitude" value="<%= formData ? (formData.facilityGpsLongitude ?? '') : (account.gps_longitude || '') %>"></label>
+                            <label><span>Contact Person *</span><input type="text" name="contact_person" value="<%= formData ? formData.contactPerson : (account.contact_first_name || '') + ' ' + (account.contact_last_name || '') %>" required></label>
+                            <label><span>Position</span><input type="text" name="contact_position" value="<%= formData ? formData.contactPosition : (account.contact_job_title || '') %>"></label>
+                            <label><span>Phone Number *</span><input type="text" name="contact_phone" value="<%= formData ? formData.contactPhone : (account.mobile_number || '') %>" required></label>
+                            <label><span>Email *</span><input type="email" name="contact_email" value="<%= formData ? formData.contactEmail : (account.email || '') %>" required></label>
+                            <label><span>Emergency Contact</span><input type="text" name="emergency_contact" value="<%= formData ? formData.emergencyContact : '' %>"></label>
+                        </div>
+                    </div>
+
+                    <div class="staff-form-section">
+                        <div class="staff-form-section-header"><div><h2>Shift Details</h2></div></div>
+                        <div class="staff-form-grid">
+                            <label><span>Shift Date *</span><input type="date" name="shift_date" value="<%= formData ? formData.shiftDate : '' %>" required></label>
+                            <label><span>Start Time *</span><input type="time" name="start_time" value="<%= formData ? formData.startTime : '' %>" required></label>
+                            <label><span>Finish Time *</span><input type="time" name="end_time" value="<%= formData ? formData.endTime : '' %>" required></label>
+                            <label><span>Break Duration (minutes)</span><input type="number" min="0" name="break_duration_minutes" value="<%= formData ? formData.breakDurationMinutes : 0 %>"></label>
+                            <label><span>Total Paid Hours</span><input type="number" step="0.25" min="0" name="total_paid_hours" value="<%= formData && formData.totalPaidHours !== null ? formData.totalPaidHours : '' %>"></label>
+                            <label><span>Shift Type *</span>
+                                <select name="shift_type" required>
+                                    <% clientPortalShiftTypeOptions.forEach((option) => { %>
+                                        <option value="<%= option %>" <%= formData && formData.shiftType === option ? 'selected' : '' %>><%= option %></option>
+                                    <% }) %>
+                                </select>
+                            </label>
+                            <label><span>Recurring Shift</span>
+                                <select name="recurring_pattern">
+                                    <% clientPortalRecurringPatternOptions.forEach((option) => { %>
+                                        <option value="<%= option %>" <%= formData && formData.recurringPattern === option ? 'selected' : (!formData && option === 'One-time Shift' ? 'selected' : '') %>><%= option %></option>
+                                    <% }) %>
+                                </select>
+                            </label>
+                            <label><span>Weekly Repeat Day</span><input type="text" name="weekly_repeat_day" value="<%= formData ? formData.weeklyRepeatDay : '' %>" placeholder="e.g. Monday"></label>
+                            <label><span>Monthly Repeat Date</span><input type="number" min="1" max="31" name="monthly_repeat_date" value="<%= formData && formData.monthlyRepeatDate ? formData.monthlyRepeatDate : '' %>"></label>
+                            <label><span>Number of Staff Required *</span><input type="number" min="1" name="quantity_required" value="<%= formData ? formData.quantityRequired : 1 %>" required></label>
+                            <label><span>Hourly Rate (€)</span><input type="number" min="0" step="0.5" name="hourly_rate" value="<%= formData && formData.hourlyRate !== null ? formData.hourlyRate : '' %>"></label>
+                            <label><span>Priority *</span>
+                                <select name="priority" required>
+                                    <% clientPortalPriorityOptions.forEach((option) => { %>
+                                        <option value="<%= option %>" <%= formData && formData.priority === option ? 'selected' : '' %>><%= option %></option>
+                                    <% }) %>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="staff-form-grid">
+                        <label><span>Staff Required *</span>
+                            <select name="staff_required" required>
+                                <% clientPortalRequestRoleOptions.forEach((option) => { %>
+                                    <option value="<%= option %>" <%= formData && formData.staffRequired === option ? 'selected' : '' %>><%= option %></option>
+                                <% }) %>
+                            </select>
+                        </label>
+                        <label><span>Ward / Unit</span><input type="text" name="ward_unit" value="<%= formData ? formData.wardUnit : '' %>"></label>
+                        <label><span>Resident Name / Identifier</span><input type="text" name="resident_identifier" value="<%= formData ? formData.residentIdentifier : '' %>"></label>
+                        <label><span>Room Number</span><input type="text" name="room_number" value="<%= formData ? formData.roomNumber : '' %>"></label>
+                        <label><span>Unit</span><input type="text" name="resident_unit" value="<%= formData ? formData.residentUnit : '' %>"></label>
+                        <label><span>Minimum Experience (Years)</span><input type="number" min="0" step="0.5" name="minimum_experience_years" value="<%= formData && formData.minimumExperienceYears !== null ? formData.minimumExperienceYears : '' %>"></label>
+                        <label><span>Healthcare Setting Required</span><input type="text" name="healthcare_setting_required" value="<%= formData ? formData.healthcareSettingRequired : '' %>"></label>
+                        <label><span>Language Requirement</span><input type="text" name="language_requirement" value="<%= formData ? formData.languageRequirement : '' %>" placeholder="e.g. English"></label>
+                        <label><span>English Language Level</span>
+                            <select name="english_language_level">
+                                <option value="">Not specified</option>
+                                <% clientPortalEnglishLevelOptions.forEach((option) => { %>
+                                    <option value="<%= option %>" <%= formData && formData.englishLanguageLevel === option ? 'selected' : '' %>><%= option %></option>
+                                <% }) %>
+                            </select>
+                        </label>
+                        <label><span>Any Additional Certifications</span><input type="text" name="additional_certifications" value="<%= formData ? formData.additionalCertifications : '' %>" placeholder="Comma separated"></label>
+                        <label><span>Travel Radius (km)</span><input type="number" min="0" step="1" name="travel_radius_km" value="<%= formData && formData.travelRadiusKm !== null ? formData.travelRadiusKm : '' %>"></label>
+                    </div>
+
+                    <div class="multi-select-block">
+                        <h3>Care Needs</h3>
+                        <div class="multi-select-grid">
+                            <% clientPortalSkillOptions.forEach((option) => { %>
+                                <label class="checkbox-field">
+                                    <input type="checkbox" name="required_skills" value="<%= option %>" <%= formData && formData.requiredSkills && formData.requiredSkills.includes(option) ? 'checked' : '' %>>
+                                    <span><%= option %></span>
+                                </label>
+                            <% }) %>
+                        </div>
+                    </div>
+
+                    <div class="multi-select-block">
+                        <h3>Required Training</h3>
+                        <div class="multi-select-grid">
+                            <% clientPortalTrainingOptions.forEach((option) => { %>
+                                <label class="checkbox-field">
+                                    <input type="checkbox" name="required_training" value="<%= option %>" <%= formData && formData.requiredTraining && formData.requiredTraining.includes(option) ? 'checked' : '' %>>
+                                    <span><%= option %></span>
+                                </label>
+                            <% }) %>
+                        </div>
+                    </div>
+
+                    <div class="staff-form-section">
+                        <div class="staff-form-section-header"><div><h2>Experience & Environment</h2></div></div>
+                        <div class="multi-select-grid">
+                            <label class="checkbox-field"><input type="checkbox" name="driving_licence_required" value="1" <%= formData && formData.drivingLicenceRequired ? 'checked' : '' %>><span>Driving licence required</span></label>
+                            <label class="checkbox-field"><input type="checkbox" name="own_vehicle_required" value="1" <%= formData && formData.ownVehicleRequired ? 'checked' : '' %>><span>Own vehicle required</span></label>
+                            <label class="checkbox-field"><input type="checkbox" name="uniform_required" value="1" <%= formData && formData.uniformRequired ? 'checked' : '' %>><span>Uniform required</span></label>
+                            <label class="checkbox-field"><input type="checkbox" name="parking_available" value="1" <%= formData && formData.parkingAvailable ? 'checked' : '' %>><span>Parking available</span></label>
+                            <label class="checkbox-field"><input type="checkbox" name="smoking_household" value="1" <%= formData && formData.smokingHousehold ? 'checked' : '' %>><span>Smoking household</span></label>
+                            <label class="checkbox-field"><input type="checkbox" name="pets_on_premises" value="1" <%= formData && formData.petsOnPremises ? 'checked' : '' %>><span>Pets on premises</span></label>
+                        </div>
+                    </div>
+
+                    <label>
+                        Notes
+                        <textarea name="notes" rows="5" placeholder="Add clinical, unit, behavioural, or operational notes relevant to this request."><%= formData ? formData.notes : '' %></textarea>
+                    </label>
+                    <label>
+                        Special Instructions
+                        <textarea name="special_instructions" rows="4" placeholder="Uniform, parking, household, escalation, or shift-specific instructions."><%= formData ? formData.specialInstructions : '' %></textarea>
+                    </label>
+
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                        <button type="submit" class="primary-button">Submit Request</button>
+                        <a href="/facility-portal/dashboard" class="secondary-button">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

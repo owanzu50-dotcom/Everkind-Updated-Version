@@ -1,0 +1,245 @@
+<%
+    const adminCounts = (typeof adminPortalCounts !== 'undefined' && adminPortalCounts) ? adminPortalCounts : { homeVisits: 0, shiftRequests: 0, openShifts: 0, schedule: 0, facilityPortal: 0, runningLate: 0 };
+    const staffCounts = (typeof staffPortalCounts !== 'undefined' && staffPortalCounts) ? staffPortalCounts : { openShifts: 0, notifications: 0, messages: 0 };
+    const activePage = typeof active !== 'undefined' ? active : '';
+    const access = (typeof adminAccess !== 'undefined' && adminAccess) ? adminAccess : null;
+    const portalCan = typeof can === 'function' ? can : (() => Boolean(isAdmin));
+    const dashboardLabel = access
+        ? (access.effectiveRole === 'hr' ? 'HR Dashboard'
+            : access.effectiveRole === 'payroll' ? 'Payroll Dashboard'
+            : access.effectiveRole === 'manager' ? 'Manager Dashboard'
+            : 'Dashboard')
+        : 'Dashboard';
+    const navIcons = {
+        dashboard: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h7V4H4v9Zm9 7h7V4h-7v16ZM4 20h7v-5H4v5Zm9-9h7v-3h-7v3Z" fill="currentColor"/></svg>',
+        staff: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-8 1a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm8 2c-3.33 0-6 1.79-6 4v2h12v-2c0-2.21-2.67-4-6-4Zm-8 .5c-.32 0-.64.02-.95.06C5.24 15.2 4 16.4 4 18v2h4.5v-2c0-.97.3-1.87.82-2.63A8.94 8.94 0 0 0 8 14.5Z" fill="currentColor"/></svg>',
+        applications: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l5 5v13H6V3Zm8 1.5V9h4.5L14 4.5ZM8 12h8v2H8v-2Zm0 4h8v2H8v-2ZM8 8h4v2H8V8Z" fill="currentColor"/></svg>',
+        home: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 11h2v9h6v-6h2v6h6v-9h2L12 3Z" fill="currentColor"/></svg>',
+        calendar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h2v2h6V2h2v2h3a2 2 0 0 1 2 2v15H2V6a2 2 0 0 1 2-2h3V2Zm15 7H2v10h20V9ZM7 12h4v4H7v-4Z" fill="currentColor"/></svg>',
+        reviews: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.56 5.18 5.72.83-4.14 4.03.98 5.7L12 16.05 7.88 18.74l.98-5.7-4.14-4.03 5.72-.83L12 3Z" fill="currentColor"/></svg>',
+        facility: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V5l8-3 8 3v16h-6v-5h-4v5H4Zm4-2h2v-3H8v3Zm0-5h2v-3H8v3Zm0-5h2V6H8v3Zm6 10h2v-3h-2v3Zm0-5h2v-3h-2v3Zm0-5h2V6h-2v3Z" fill="currentColor"/></svg>',
+        lock: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V8a5 5 0 0 1 10 0v2h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h1Zm2 0h6V8a3 3 0 0 0-6 0v2Z" fill="currentColor"/></svg>',
+        requests: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v4H4V4Zm0 6h10v4H4v-4Zm0 6h16v4H4v-4Zm14-5 3 3 3-3h-6Z" fill="currentColor"/></svg>',
+        openShifts: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 2 7l10 5 8.7-4.35V16h1.3V7L12 2Zm-8 9v6l8 4 8-4v-6l-8 4-8-4Z" fill="currentColor"/></svg>',
+        schedule: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h2v2h6V2h2v2h3a2 2 0 0 1 2 2v15H2V6a2 2 0 0 1 2-2h3V2Zm15 7H2v10h20V9Zm-9 2h2v4h-2v-4Z" fill="currentColor"/></svg>',
+        live: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10.01 10.01 0 0 0 12 2Zm0 3a7 7 0 0 1 6.16 3.67L16 10a4 4 0 0 0-8 0l-2.16-1.33A7 7 0 0 1 12 5Zm0 14a7 7 0 0 1-6.16-3.67L8 14a4 4 0 0 0 8 0l2.16 1.33A7 7 0 0 1 12 19Z" fill="currentColor"/></svg>',
+        attendance: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 2h6v2H9V2ZM6 6h12v16H6V6Zm3 4v2h6v-2H9Zm0 4v2h6v-2H9Z" fill="currentColor"/></svg>',
+        shield: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5.25 3.44 9.9 8 11 4.56-1.1 8-5.75 8-11V5l-8-3Zm0 4.1 5 1.88V11c0 3.78-2.32 7.18-5 8.37-2.68-1.19-5-4.59-5-8.37V7.98L12 6.1Z" fill="currentColor"/></svg>',
+        payroll: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h10a2 2 0 0 1 2 2v18l-5-3-4 3-5-3V4a2 2 0 0 1 2-2Zm2 6h6v2H9V8Zm0 4h6v2H9v-2Z" fill="currentColor"/></svg>',
+        payslips: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM8 11h8v2H8v-2Zm0 4h8v2H8v-2Zm0-8h4v2H8V7Z" fill="currentColor"/></svg>',
+        reports: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16v2H2V3h2v16Zm3-2h2V9H7v8Zm4 0h2V5h-2v12Zm4 0h2v-6h-2v6Z" fill="currentColor"/></svg>',
+        settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m19.14 12.94.04-.94-.04-.94 2.02-1.57-1.9-3.29-2.39.96a7.97 7.97 0 0 0-1.63-.94l-.36-2.53H10.1l-.36 2.53c-.57.22-1.1.53-1.63.94l-2.39-.96-1.9 3.29 2.02 1.57-.04.94.04.94-2.02 1.57 1.9 3.29 2.39-.96c.52.41 1.06.72 1.63.94l.36 2.53h5.72l.36-2.53c.57-.22 1.1-.53 1.63-.94l2.39.96 1.9-3.29-2.02-1.57ZM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z" fill="currentColor"/></svg>',
+        messages: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v12H7l-3 3V4Zm3 4h10v2H7V8Zm0 4h7v2H7v-2Z" fill="currentColor"/></svg>',
+        notifications: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a5 5 0 0 0-5 5v3.3c0 .7-.2 1.4-.6 2L4 14v1h16v-1l-2.4-1.7c-.4-.6-.6-1.3-.6-2V7a5 5 0 0 0-5-5Zm0 20a3 3 0 0 0 2.83-2H9.17A3 3 0 0 0 12 22Z" fill="currentColor"/></svg>',
+        profile: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.69-8 6v2h16v-2c0-3.31-3.58-6-8-6Z" fill="currentColor"/></svg>',
+        documents: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6V2Zm8 1.5V8h4.5L14 3.5ZM8 12h8v2H8v-2Zm0 4h8v2H8v-2Zm0-8h4v2H8V8Z" fill="currentColor"/></svg>',
+        training: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 10 5-10 5L2 8l10-5Zm-7 8.2 7 3.5 7-3.5V17l-7 3.5-7-3.5v-5.8Z" fill="currentColor"/></svg>',
+        logout: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17v-2h4v-2h-4v-2l-4 3 4 3Zm-6 4h8v-2H4V5h8V3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2Zm12-4h2v-2h-2v2Zm0-10h2V5h-2v2Zm0 5h6v2h-6v-2Z" fill="currentColor"/></svg>',
+        default: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 2 7l10 5 8.5-4.25V15h1.5V7L12 2Zm-8 9v6l8 4 8-4v-6l-8 4-8-4Z" fill="currentColor"/></svg>'
+    };
+    const renderIcon = (name) => navIcons[name] || navIcons.default;
+    const adminControlIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5.25 3.44 9.9 8 11 4.56-1.1 8-5.75 8-11V5l-8-3Zm0 4.2a3.1 3.1 0 1 1 0 6.2 3.1 3.1 0 0 1 0-6.2Zm0 12.97a8.35 8.35 0 0 1-4.75-4.02c.82-1.2 2.56-1.95 4.75-1.95s3.93.75 4.75 1.95A8.35 8.35 0 0 1 12 19.17Z" fill="currentColor"/></svg>';
+    const navLink = (href, label, iconName, opts = {}) => {
+        const count = opts.count ? `<span class="sidebar-count-badge">${opts.count}</span>` : '';
+        const extraClass = opts.className || '';
+        return `<a href="${href}" class="${activePage === opts.active ? 'active' : ''} ${extraClass}" data-portal-nav-link><span class="sidebar-nav-icon" aria-hidden="true">${renderIcon(iconName)}</span><span class="sidebar-nav-label">${label}</span>${count}</a>`;
+    };
+%>
+<script>
+(function () {
+    try {
+        const savedTheme = localStorage.getItem('everkind-portal-theme');
+        document.documentElement.dataset.theme = savedTheme === 'dark' ? 'dark' : 'light';
+    } catch (error) {
+        document.documentElement.dataset.theme = 'light';
+    }
+}());
+</script>
+<script src="/js/theme.js" defer></script>
+<div class="portal-mobile-header">
+    <button type="button" class="portal-mobile-menu-button" data-portal-menu-toggle aria-label="Open navigation" aria-expanded="false" aria-controls="portal-drawer">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    <a href="<%= isAdmin ? '/admin/dashboard' : '/portal/home' %>" class="portal-mobile-brand">
+        <img class="brand-logo" src="/images/logo.png" alt="Everkind logo" />
+        <div>
+            <strong>Everkind</strong>
+            <small><%= isAdmin ? 'Admin Portal' : 'Staff Portal' %></small>
+        </div>
+    </a>
+    <a href="<%= isAdmin ? '/admin/settings?tab=users' : '/portal/profile' %>" class="portal-mobile-user<%= isAdmin ? ' portal-mobile-admin' : '' %>" aria-label="Open profile">
+        <% if (isAdmin) { %>
+            <span class="portal-mobile-admin-icon"><%- adminControlIcon %></span>
+        <% } else { %>
+            <span><%= (typeof currentStaffName !== 'undefined' && currentStaffName) ? currentStaffName.charAt(0).toUpperCase() : 'S' %></span>
+        <% } %>
+    </a>
+</div>
+
+<div class="portal-drawer-backdrop" data-portal-drawer-backdrop></div>
+
+<aside class="sidebar<%= access && access.actualRole === 'super_admin' ? ' sidebar-super-admin' : '' %>" id="portal-drawer" data-portal="<%= isAdmin ? 'admin' : 'staff' %>" aria-label="Primary navigation">
+    <a href="<%= isAdmin ? '/admin/dashboard' : '/portal/home' %>" class="sidebar-brand" data-portal-nav-link>
+        <img class="brand-logo" src="/images/logo.png" alt="Everkind logo" />
+        <div>
+            <strong>Everkind</strong>
+            <small><%= isAdmin ? 'Admin Portal' : 'Staff Portal' %></small>
+        </div>
+    </a>
+
+    <nav class="sidebar-nav">
+        <% if (isAdmin) { %>
+            <% const adminLinkCount = (value) => value > 0 ? value : 0; %>
+            <% if (portalCan('dashboard.view')) { %>
+                <%- navLink('/admin/dashboard', dashboardLabel, 'dashboard', { active: 'dashboard' }) %>
+            <% } %>
+            <% if (portalCan('staff.view')) { %>
+                <%- navLink('/staff', 'Staff', 'staff', { active: 'staff' }) %>
+            <% } %>
+            <% if (portalCan('recruitment.view')) { %>
+                <%- navLink('/portal/applications', 'Applications', 'applications', { active: 'applications' }) %>
+            <% } %>
+            <% if (portalCan('clients.view') || portalCan('care_reviews.view')) { %>
+                <div class="sidebar-section-label">Home Care</div>
+                <% if (portalCan('clients.view')) { %>
+                    <%- navLink('/admin/home-care-clients', 'Home Care Clients', 'home', { active: 'clients' }) %>
+                    <%- navLink('/admin/home-visits', 'Home Visits', 'calendar', { active: 'care-visits', count: adminLinkCount(adminCounts.homeVisits) }) %>
+                <% } %>
+                <% if (portalCan('care_reviews.view')) { %>
+                    <%- navLink('/admin/care-reviews', 'Care Reviews', 'reviews', { active: 'care-reviews' }) %>
+                <% } %>
+            <% } %>
+            <% if (portalCan('facilities.view') || portalCan('scheduling.view')) { %>
+                <div class="sidebar-section-label">Healthcare Staffing</div>
+                <% if (portalCan('facilities.view')) { %>
+                    <%- navLink('/admin/facilities', 'Healthcare Facilities', 'facility', { active: 'facilities' }) %>
+                    <%- navLink('/admin/facility-portal', 'Facility Portal', 'lock', { active: 'facility-portal', count: adminLinkCount(adminCounts.facilityPortal) }) %>
+                <% } %>
+                <% if (portalCan('scheduling.view')) { %>
+                    <%- navLink('/admin/shift-requests', 'Shift Requests', 'requests', { active: 'shift-requests', count: adminLinkCount(adminCounts.shiftRequests) }) %>
+                    <%- navLink('/admin/open-shifts', 'Open Shifts', 'openShifts', { active: 'open-shifts', count: adminLinkCount(adminCounts.openShifts) }) %>
+                    <%- navLink('/admin/schedule', 'Schedule', 'schedule', { active: 'shifts', count: adminLinkCount(adminCounts.schedule) }) %>
+                <% } %>
+            <% } %>
+            <div class="sidebar-section-label">Operations</div>
+            <% if (portalCan('live_tracking.view')) { %>
+                <%- navLink('/admin/live-tracking', 'Live Tracking', 'live', { active: 'live-tracking', count: adminLinkCount(adminCounts.runningLate) }) %>
+            <% } %>
+            <% if (portalCan('attendance.view')) { %>
+                <%- navLink('/admin/attendance', 'Attendance', 'attendance', { active: 'attendance' }) %>
+            <% } %>
+            <% if (portalCan('compliance.view')) { %>
+                <%- navLink('/admin/compliance', 'Compliance', 'shield', { active: 'compliance' }) %>
+                <% if (access && access.effectiveRole === 'hr') { %>
+                    <%- navLink('/admin/training', 'Training', 'training', { active: 'admin-training' }) %>
+                <% } %>
+            <% } %>
+            <% if (portalCan('payroll.view')) { %>
+                <%- navLink('/admin/payroll', 'Payroll', 'payroll', { active: 'payroll' }) %>
+            <% } %>
+            <% if (portalCan('payslips.view')) { %>
+                <%- navLink('/admin/payroll/payslips', 'Payslips', 'payslips', { active: 'payslips' }) %>
+            <% } %>
+            <% if (portalCan('reports.view')) { %>
+                <%- navLink('/admin/reports', access && access.effectiveRole === 'hr' ? 'HR Reports' : access && access.effectiveRole === 'payroll' ? 'Payroll Reports' : 'Reports', 'reports', { active: 'reports' }) %>
+            <% } %>
+            <% if (portalCan('settings.view')) { %>
+                <%- navLink('/admin/settings', 'Settings', 'settings', { active: 'settings' }) %>
+            <% } %>
+        <% } else { %>
+            <%- navLink('/portal/home', 'Home', 'home', { active: 'home' }) %>
+            <%- navLink('/portal/my-schedule', 'My Schedule', 'calendar', { active: 'schedule' }) %>
+            <%- navLink('/portal/weekly-roster', 'Weekly Roster', 'calendar', { active: 'roster' }) %>
+            <%- navLink('/portal/staff-open-shifts', 'Open Shifts', 'openShifts', { active: 'open-shifts', count: staffCounts.openShifts }) %>
+            <%- navLink('/portal/notifications', 'Notifications', 'notifications', { active: 'notifications', count: staffCounts.notifications }) %>
+            <%- navLink('/portal/messages', 'Messages', 'messages', { active: 'messages', count: staffCounts.messages }) %>
+            <%- navLink('/portal/profile', 'My Profile', 'profile', { active: 'profile' }) %>
+            <%- navLink('/portal/documents', 'Documents', 'documents', { active: 'documents' }) %>
+            <%- navLink('/portal/training', 'Training', 'training', { active: 'training' }) %>
+            <%- navLink('/portal/payslips', 'My Payslips', 'payslips', { active: 'payslips' }) %>
+        <% } %>
+        <% if (!isAdmin || portalCan('security.view')) { %>
+            <%- navLink('/portal/security/mfa', 'Sign-in Security', 'shield', { active: 'security' }) %>
+        <% } %>
+    </nav>
+
+    <% if (access && access.actualRole === 'super_admin') { %>
+        <div class="sidebar-admin-control" data-admin-control>
+            <div class="sidebar-admin-panel" id="super-admin-panel" data-admin-panel>
+                <div class="sidebar-admin-panel-header">
+                    <span class="sidebar-admin-panel-icon"><%- adminControlIcon %></span>
+                    <div>
+                        <strong>Super Admin</strong>
+                        <span><%= (typeof currentStaffEmail !== 'undefined' && currentStaffEmail) ? currentStaffEmail : 'admin@everkind.com' %></span>
+                    </div>
+                </div>
+                <% if (access.isPreview) { %>
+                    <div class="sidebar-admin-preview-status">
+                        Viewing as <strong><%= access.effectiveRoleLabel %></strong>
+                    </div>
+                <% } %>
+                <% if (access.isPreview) { %>
+                    <form method="POST" action="/admin/view-as/exit" class="sidebar-preview-form">
+                        <button type="submit">Exit <%= access.effectiveRoleLabel %> preview</button>
+                    </form>
+                <% } else { %>
+                    <form method="POST" action="/admin/view-as" class="sidebar-preview-form">
+                        <label for="portal-view-as">Choose Role</label>
+                        <div>
+                            <select id="portal-view-as" name="role" required>
+                                <option value="">Choose role</option>
+                                <option value="hr">HR</option>
+                                <option value="payroll">Payroll</option>
+                                <option value="manager">Manager</option>
+                                <option value="staff">Staff</option>
+                            </select>
+                            <button type="submit">Preview</button>
+                        </div>
+                    </form>
+                <% } %>
+                <div class="sidebar-admin-panel-actions">
+                    <a href="/admin/settings?tab=users" data-portal-nav-link><span><%- renderIcon('profile') %></span>Profile</a>
+                    <a href="/admin/settings" data-portal-nav-link><span><%- renderIcon('settings') %></span>Settings</a>
+                    <a href="/portal/security/mfa" data-portal-nav-link><span><%- renderIcon('shield') %></span>Security</a>
+                    <a href="/portal/logout" data-portal-nav-link><span><%- renderIcon('logout') %></span>Sign Out</a>
+                </div>
+                <button type="button" class="portal-theme-toggle sidebar-admin-theme-toggle" data-theme-toggle aria-label="Switch to dark mode">
+                    <span data-theme-icon aria-hidden="true">☾</span>
+                    <span data-theme-label>Dark mode</span>
+                </button>
+            </div>
+            <button type="button" class="sidebar-admin-trigger" data-admin-control-toggle aria-expanded="false" aria-controls="super-admin-panel">
+                <span class="sidebar-admin-trigger-icon"><%- adminControlIcon %></span>
+                <span class="sidebar-admin-trigger-label">
+                    <strong>Super Admin</strong>
+                    <% if (access.isPreview) { %><small>Viewing as <%= access.effectiveRoleLabel %></small><% } %>
+                </span>
+                <span class="sidebar-admin-trigger-chevron" aria-hidden="true">⌃</span>
+            </button>
+        </div>
+    <% } else { %>
+        <div class="sidebar-footer">
+            <div class="sidebar-user-avatar">
+                <%= (typeof currentStaffName !== 'undefined' && currentStaffName) ? currentStaffName.charAt(0).toUpperCase() : 'S' %>
+            </div>
+            <div class="sidebar-user-info">
+                <span class="sidebar-user-name"><%= (typeof currentStaffName !== 'undefined' && currentStaffName) ? currentStaffName : 'Staff member' %></span>
+                <span class="sidebar-user-email"><%= (typeof currentStaffEmail !== 'undefined' && currentStaffEmail) ? currentStaffEmail : 'staff@everkind.com' %></span>
+                <% if (access) { %>
+                    <span class="sidebar-user-role"><%= access.effectiveRoleLabel %><%= access.isPreview ? ' preview' : '' %></span>
+                <% } %>
+                <button type="button" class="portal-theme-toggle" data-theme-toggle aria-label="Switch to dark mode">
+                    <span data-theme-icon aria-hidden="true">☾</span>
+                    <span data-theme-label>Dark mode</span>
+                </button>
+                <div class="sidebar-footer-actions">
+                    <a href="/portal/security/mfa" data-portal-nav-link>Security</a>
+                    <a href="/portal/logout" data-portal-nav-link>Sign out</a>
+                </div>
+            </div>
+        </div>
+    <% } %>
+</aside>
+<script src="/js/portal-navigation.js" defer></script>

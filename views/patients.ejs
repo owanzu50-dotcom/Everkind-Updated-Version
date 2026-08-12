@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'clients', isAdmin: true, currentStaffName: typeof currentStaffName !== 'undefined' ? currentStaffName : '', currentStaffEmail: typeof currentStaffEmail !== 'undefined' ? currentStaffEmail : '' }) %>
+
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Clients</h1>
+                    <p class="adm-page-subtitle"><%= patients ? patients.length : 0 %> client<%= (!patients || patients.length !== 1) ? 's' : '' %> available across care, tracking, schedule, and reports.</p>
+                </div>
+                <a href="/patients/new" class="adm-btn-primary">Add Client</a>
+            </div>
+
+            <% if (message) { %><p class="form-message success"><%= message %></p><% } %>
+
+            <div class="adm-card">
+                <div class="adm-card-header">
+                    <div class="adm-card-title">Client Directory</div>
+                    <div class="adm-search">
+                        <span>🔍</span>
+                        <input type="text" placeholder="Search clients, statuses, staff, or service types..." oninput="filterTable(this.value,'client-table')" />
+                    </div>
+                </div>
+
+                <% if (patients && patients.length) { %>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table" id="client-table">
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th>Status</th>
+                                    <th>Care Team</th>
+                                    <th>Primary Contact</th>
+                                    <th>Needs</th>
+                                    <th>GPS</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% patients.forEach((patient) => { const serviceList = (patient.serviceTypes || []).slice(0, 2).join(', '); %>
+                                    <tr>
+                                        <td>
+                                            <div class="client-table-identity">
+                                                <div class="sidebar-user-avatar client-table-avatar">
+                                                    <% if (patient.photoUrl) { %>
+                                                        <img src="<%= patient.photoUrl %>" alt="Client photo">
+                                                    <% } else { %>
+                                                        <span><%= patient.name.charAt(0) %></span>
+                                                    <% } %>
+                                                </div>
+                                                <div class="adm-cell-name">
+                                                    <strong><%= patient.name %></strong>
+                                                    <span><%= patient.clientId %> · <%= patient.age || '—' %> yrs · <%= patient.county || 'County not set' %></span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td><span class="adm-badge client-status-badge client-status-<%= patient.statusClass %>"><%= patient.status %></span></td>
+                                        <td>
+                                            <% if (patient.assignments && patient.assignments.length) { %>
+                                                <div class="client-inline-list">
+                                                    <% patient.assignments.forEach((assignment) => { %>
+                                                        <span><strong><%= assignment.staffName %></strong> · <%= assignment.assignmentRole %></span>
+                                                    <% }) %>
+                                                </div>
+                                            <% } else { %>
+                                                <span class="client-muted">Unassigned</span>
+                                            <% } %>
+                                        </td>
+                                        <td>
+                                            <div class="client-inline-list">
+                                                <span><%= patient.phone || 'No phone' %></span>
+                                                <span><%= patient.emergencyContactName || 'No emergency contact' %></span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="client-inline-list">
+                                                <span><%= serviceList || 'No service type set' %></span>
+                                                <span><%= (patient.riskFlags || []).slice(0, 2).join(', ') || 'No risk flags' %></span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="client-inline-list">
+                                                <span><%= Number.isFinite(Number(patient.latitude)) && Number.isFinite(Number(patient.longitude)) ? 'Configured' : 'Missing' %></span>
+                                                <span><%= patient.geofenceRadiusMeters %>m radius</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="adm-actions">
+                                                <a href="/patients/<%= patient.id %>" class="adm-icon-btn" title="View client">👁️</a>
+                                                <a href="/patients/<%= patient.id %>/edit" class="adm-icon-btn" title="Edit client">✏️</a>
+                                                <form method="POST" action="/patients/<%= patient.id %>/delete" style="display:inline;" onsubmit="return confirm('Archive <%= patient.name %>? The record will be removed from active lists but kept for history.')">
+                                                    <button type="submit" class="adm-icon-btn adm-icon-btn-danger" title="Archive client">🗑️</button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="adm-card-empty">
+                        <div class="adm-card-empty-icon">🏠</div>
+                        <p>No clients found.</p>
+                        <a href="/patients/new" class="adm-btn-primary" style="margin-top:12px;display:inline-flex;">Add first client</a>
+                    </div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    function filterTable(query, tableId) {
+        const rows = document.querySelectorAll('#' + tableId + ' tbody tr');
+        const normalized = query.toLowerCase();
+        rows.forEach((row) => {
+            row.style.display = row.textContent.toLowerCase().includes(normalized) ? '' : 'none';
+        });
+    }
+    </script>
+</body>
+</html>

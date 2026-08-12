@@ -1,0 +1,611 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: mobile
+    description: Staff mobile app operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /mobile-config:
+    get:
+      operationId: getMobileConfig
+      tags: [mobile]
+      summary: Public mobile app configuration
+      description: >-
+        Non-secret configuration the staff mobile app needs before it can boot,
+        such as the Clerk publishable key.
+      responses:
+        "200":
+          description: Config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MobileConfig"
+  /me/staff:
+    get:
+      operationId: getMyStaffProfile
+      tags: [mobile]
+      summary: The signed-in user's staff profile
+      description: >-
+        Resolves the caller's Clerk verified emails to a staff record.
+        Returns 404 when no staff profile is linked to the account.
+      responses:
+        "200":
+          description: Staff profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyStaffProfile"
+        "401":
+          description: Not authenticated
+        "404":
+          description: No linked staff profile
+  /me/shifts:
+    get:
+      operationId: getMyShifts
+      tags: [mobile]
+      summary: The signed-in staff member's shifts
+      description: Shifts assigned to the caller, ordered soonest-first.
+      responses:
+        "200":
+          description: Shifts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MyShift"
+        "401":
+          description: Not authenticated
+  /me/shifts/{id}:
+    patch:
+      operationId: updateMyShift
+      tags: [mobile]
+      summary: Respond to one of the caller's shifts
+      description: >-
+        Accept, decline, cancel, or request a swap for one of the caller's own
+        shifts. Carers can only change their response, never other shift fields.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShiftActionRequest"
+      responses:
+        "200":
+          description: Updated shift
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyShift"
+        "400":
+          description: Invalid request
+        "401":
+          description: Not authenticated
+        "404":
+          description: Shift not found
+  /me/shifts/{id}/visit-notes:
+    patch:
+      operationId: updateMyShiftVisitNotes
+      tags: [mobile]
+      summary: Save visit notes for one of the caller's shifts
+      description: >-
+        Saves staff-entered visit notes against one of the caller's assigned shifts
+        so they become visible in the admin portal straight away.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VisitNotesRequest"
+      responses:
+        "200":
+          description: Updated shift
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyShift"
+        "400":
+          description: Invalid request
+        "401":
+          description: Not authenticated
+        "404":
+          description: Shift not found
+        "409":
+          description: Shift cannot accept notes
+  /me/open-shifts:
+    get:
+      operationId: getMyOpenShifts
+      tags: [mobile]
+      summary: Unassigned shifts available for pickup
+      description: >-
+        Open shifts posted by coordinators that any linked staff member can
+        claim, ordered soonest-first. Client contact details are withheld until
+        a shift is claimed. Returns an empty list when the caller has no linked
+        staff profile.
+      responses:
+        "200":
+          description: Open shifts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OpenShift"
+        "401":
+          description: Not authenticated
+  /me/open-shifts/{id}/claim:
+    post:
+      operationId: claimOpenShift
+      tags: [mobile]
+      summary: Claim an open shift
+      description: >-
+        Atomically assign an open shift to the caller. Once claimed the shift
+        leaves the open pool and appears in the caller's own shifts as accepted.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The claimed shift, now assigned to the caller
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyShift"
+        "401":
+          description: Not authenticated
+        "403":
+          description: No linked staff profile
+        "404":
+          description: Open shift not found
+        "409":
+          description: Shift was already claimed by someone else
+  /me/shifts/{id}/clock-events:
+    post:
+      operationId: createClockEvent
+      tags: [mobile]
+      summary: GPS clock in/out for one of the caller's shifts
+      description: >-
+        Record a single online clock in or out. The server validates the geofence,
+        shift time window and clock state; on success it returns the updated shift,
+        otherwise a 422 with a machine-readable reasonCode.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClockEventRequest"
+      responses:
+        "200":
+          description: The updated shift after the clock event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyShift"
+        "400":
+          description: Invalid request
+        "401":
+          description: Not authenticated
+        "404":
+          description: Shift not assigned to the caller
+        "422":
+          description: Clock event rejected by a server-side rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClockEventError"
+  /me/clock-events/sync:
+    post:
+      operationId: syncClockEvents
+      tags: [mobile]
+      summary: Flush queued offline clock events
+      description: >-
+        Process a batch of clock events captured while offline. Each event is
+        handled independently and idempotently; the response reports a per-event
+        outcome plus the current state of every affected shift.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClockEventSyncRequest"
+      responses:
+        "200":
+          description: Per-event outcomes and refreshed shifts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClockEventSyncResult"
+        "400":
+          description: Invalid request
+        "401":
+          description: Not authenticated
+        "404":
+          description: No linked staff profile
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    MobileConfig:
+      type: object
+      properties:
+        clerkPublishableKey:
+          type: string
+      required:
+        - clerkPublishableKey
+    MyStaffProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        role:
+          type: string
+          enum: [care_assistant, senior_carer, care_coordinator, nurse, manager]
+        employmentStatus:
+          type: string
+          enum: [active, inactive, on_leave]
+        gardaVetted:
+          type: boolean
+        gardaVettingExpiry:
+          type: string
+          nullable: true
+        manualHandlingExpiry:
+          type: string
+          nullable: true
+        infectionControlExpiry:
+          type: string
+          nullable: true
+        blsExpiry:
+          type: string
+          nullable: true
+        nmbiNumber:
+          type: string
+          nullable: true
+        nmbiExpiryDate:
+          type: string
+          nullable: true
+        qqiLevel:
+          type: string
+          nullable: true
+      required:
+        - id
+        - firstName
+        - lastName
+        - email
+        - phone
+        - role
+        - employmentStatus
+        - gardaVetted
+    MyShift:
+      type: object
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        serviceType:
+          type: string
+        status:
+          type: string
+          enum: [scheduled, completed, cancelled, no_show]
+        notes:
+          type: string
+          nullable: true
+        careInstructions:
+          type: string
+          nullable: true
+        visitNotes:
+          type: string
+          nullable: true
+        visitNotesUpdatedAt:
+          type: string
+          nullable: true
+        visitNotesUpdatedBy:
+          type: string
+          nullable: true
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShiftAttachment"
+        staffResponse:
+          type: string
+          enum: [pending, accepted, declined, cancelled]
+        staffResponseReason:
+          type: string
+          nullable: true
+        swapRequested:
+          type: boolean
+        swapReason:
+          type: string
+          nullable: true
+        clockInAt:
+          type: string
+          nullable: true
+        clockOutAt:
+          type: string
+          nullable: true
+        clientName:
+          type: string
+        clientAddress:
+          type: string
+        clientEircode:
+          type: string
+          nullable: true
+        clientPhotoUrl:
+          type: string
+          nullable: true
+        clientPhone:
+          type: string
+        clientLatitude:
+          type: number
+          nullable: true
+        clientLongitude:
+          type: number
+          nullable: true
+        geofenceRadiusM:
+          type: integer
+        clientEmergencyContactName:
+          type: string
+          nullable: true
+        clientEmergencyContactRelationship:
+          type: string
+          nullable: true
+        clientEmergencyContactPhone:
+          type: string
+          nullable: true
+      required:
+        - id
+        - date
+        - startTime
+        - endTime
+        - serviceType
+        - status
+        - staffResponse
+        - swapRequested
+        - clientName
+        - clientAddress
+        - clientPhone
+        - geofenceRadiusM
+    OpenShift:
+      type: object
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+        startTime:
+          type: string
+        endTime:
+          type: string
+        serviceType:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        clientName:
+          type: string
+        clientAddress:
+          type: string
+      required:
+        - id
+        - date
+        - startTime
+        - endTime
+        - serviceType
+        - clientName
+        - clientAddress
+    ShiftActionRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [accept, decline, cancel, request_swap]
+        reason:
+          type: string
+      required:
+        - action
+    VisitNotesRequest:
+      type: object
+      properties:
+        notes:
+          type: string
+      required:
+        - notes
+    ShiftAttachment:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        url:
+          type: string
+        category:
+          type: string
+          enum: [care_plan, risk_assessment, medication_chart, visit_document]
+      required:
+        - id
+        - name
+        - url
+    ClockEventRequest:
+      type: object
+      description: >-
+        A single GPS clock in/out. All geofence, time-window and state checks are
+        enforced server-side; the device only reports its observation.
+      properties:
+        eventType:
+          type: string
+          enum: [clock_in, clock_out]
+        idempotencyKey:
+          type: string
+          description: Client-generated key so retries and offline replays never double-insert.
+        capturedAt:
+          type: string
+          description: Device clock at the moment the button was tapped (ISO 8601).
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+        accuracyM:
+          type: number
+          nullable: true
+        deviceId:
+          type: string
+          nullable: true
+        batteryLevel:
+          type: number
+          nullable: true
+          description: 0..1 fraction, or null where unavailable (e.g. web).
+        networkStatus:
+          type: string
+          enum: [online, offline]
+        isMockLocation:
+          type: boolean
+      required:
+        - eventType
+        - idempotencyKey
+        - capturedAt
+    ClockEventSyncItem:
+      type: object
+      description: A queued clock event carrying its own shift id for batch sync.
+      properties:
+        shiftId:
+          type: integer
+        eventType:
+          type: string
+          enum: [clock_in, clock_out]
+        idempotencyKey:
+          type: string
+        capturedAt:
+          type: string
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+        accuracyM:
+          type: number
+          nullable: true
+        deviceId:
+          type: string
+          nullable: true
+        batteryLevel:
+          type: number
+          nullable: true
+        networkStatus:
+          type: string
+          enum: [online, offline]
+        isMockLocation:
+          type: boolean
+      required:
+        - shiftId
+        - eventType
+        - idempotencyKey
+        - capturedAt
+    ClockEventSyncRequest:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClockEventSyncItem"
+      required:
+        - events
+    ClockEventSyncOutcome:
+      type: object
+      properties:
+        idempotencyKey:
+          type: string
+        status:
+          type: string
+          enum: [accepted, duplicate, rejected]
+        reasonCode:
+          type: string
+      required:
+        - idempotencyKey
+        - status
+    ClockEventSyncResult:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClockEventSyncOutcome"
+        shifts:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyShift"
+      required:
+        - results
+        - shifts
+    ClockEventError:
+      type: object
+      properties:
+        error:
+          type: string
+        reasonCode:
+          type: string
+      required:
+        - error
+        - reasonCode

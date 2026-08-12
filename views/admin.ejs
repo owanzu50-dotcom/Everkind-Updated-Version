@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'admin', isAdmin: true }) %>
+
+        <main class="portal-content">
+            <header class="portal-header">
+                <div>
+                    <span class="eyebrow">Administration</span>
+                    <h1>Administrator workspace</h1>
+                </div>
+                <div class="header-actions">
+                    <strong class="portal-user-name">Secure operations</strong>
+                </div>
+            </header>
+
+            <% if (isLoggedIn) { %>
+                <section class="content-grid">
+                    <section class="portal-panel">
+                        <div class="panel-header">
+                            <h2>Admin controls</h2>
+                            <span class="badge badge-live">Signed in</span>
+                        </div>
+                        <p>Use the portal navigation to manage patient records, staff capacity, compliance workflows, and appointment scheduling.</p>
+                        <div class="quick-actions">
+                            <a href="/patients">Patient records</a>
+                            <a href="/staff">Staff roster</a>
+                            <a href="/calendar">Scheduling</a>
+                            <a href="/portal/compliance">Compliance centre</a>
+                        </div>
+                        <button id="logout-button" class="secondary-button" type="button">Log out</button>
+                    </section>
+
+                    <section class="portal-panel">
+                        <div class="panel-header">
+                            <h2>Operations snapshot</h2>
+                            <span class="tag">Live</span>
+                        </div>
+                        <ul class="activity-list">
+                            <li><span class="tag">Care</span><div><strong>Patient records ready</strong><small>Review roster, visits and care conditions.</small></div></li>
+                            <li><span class="tag">Staff</span><div><strong>Shift coverage managed</strong><small>Handle staffing changes and visitor flow.</small></div></li>
+                            <li><span class="tag">Compliance</span><div><strong>Governance workflow active</strong><small>Review consent and data retention tasks.</small></div></li>
+                        </ul>
+                    </section>
+                </section>
+            <% } else { %>
+                <section class="portal-panel">
+                    <div class="panel-header">
+                        <h2>Secure administrator sign in</h2>
+                        <span class="tag">Restricted</span>
+                    </div>
+                    <form id="admin-login-form" class="admin-form">
+                        <label>
+                            Email
+                            <input type="email" name="email" value="admin@everkind.com" required>
+                        </label>
+                        <label>
+                            Password
+                            <input type="password" name="password" value="everkind2026" required>
+                        </label>
+                        <button type="submit" class="primary-button">Log in</button>
+                    </form>
+                    <p id="admin-message" class="form-message" aria-live="polite"><%= message %></p>
+                </section>
+            <% } %>
+        </main>
+    </div>
+
+    <script>
+        const loginForm = document.getElementById('admin-login-form');
+        const messageEl = document.getElementById('admin-message');
+
+        if (loginForm) {
+            loginForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const formData = new FormData(loginForm);
+                const payload = Object.fromEntries(formData.entries());
+
+                try {
+                    const response = await fetch('/api/admin/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Login failed.');
+                    }
+
+                    window.location.href = '/admin';
+                } catch (error) {
+                    if (messageEl) {
+                        messageEl.textContent = error.message;
+                        messageEl.classList.add('error');
+                    }
+                }
+            });
+        }
+
+        const logoutButton = document.getElementById('logout-button');
+        if (logoutButton) {
+            logoutButton.addEventListener('click', async () => {
+                await fetch('/api/admin/logout', { method: 'POST' });
+                window.location.href = '/admin';
+            });
+        }
+    </script>
+</body>
+</html>

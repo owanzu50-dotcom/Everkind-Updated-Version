@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %> — Everkind</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <style>
+        :root { color-scheme: light; }
+        body.psd-print-mode { background:#f8fafc; }
+        .psd-shell { padding:1.25rem 1.5rem 2rem; }
+        .psd-toolbar { display:flex; gap:0.6rem; flex-wrap:wrap; margin-bottom:1rem; }
+        .psd-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:0.65rem 0.95rem; border-radius:999px; border:none; text-decoration:none; font-weight:700; font-size:0.82rem; cursor:pointer; }
+        .psd-btn.primary { background:#16a34a; color:#fff; }
+        .psd-btn.secondary { background:#f8fafc; color:#334155; border:1px solid #dbe3ee; }
+        .psd-btn.print { background:#7c3aed; color:#fff; }
+        .psd-page { max-width:860px; margin:0 auto; background:#fff; border:1px solid #e2e8f0; border-radius:18px; box-shadow:0 14px 40px rgba(15,23,42,0.08); overflow:hidden; }
+        .psd-empty { padding:2rem; text-align:center; color:#64748b; }
+        .psd-head { background:linear-gradient(135deg,#15803d 0%, #166534 100%); color:#fff; padding:1.2rem 1.4rem 1rem; display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; }
+        .psd-brand { font-size:1.45rem; font-weight:800; margin:0; }
+        .psd-subtitle { margin:0.3rem 0 0; font-size:0.86rem; color:rgba(255,255,255,0.88); }
+        .psd-head-meta { text-align:right; font-size:0.82rem; line-height:1.5; color:rgba(255,255,255,0.94); }
+        .psd-head-meta strong { display:block; font-size:1rem; color:#fff; margin-bottom:0.15rem; }
+        .psd-body { padding:1.1rem 1.3rem 1.2rem; display:grid; gap:1rem; }
+        .psd-grid { display:grid; gap:0.8rem; grid-template-columns:repeat(2, minmax(0, 1fr)); }
+        .psd-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:14px; padding:0.9rem 1rem; }
+        .psd-card-title { margin:0 0 0.75rem; font-size:0.82rem; letter-spacing:0.04em; text-transform:uppercase; color:#475569; }
+        .psd-info-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.7rem 1rem; }
+        .psd-label { font-size:0.7rem; text-transform:uppercase; letter-spacing:0.04em; color:#64748b; font-weight:700; }
+        .psd-value { margin-top:0.16rem; color:#0f172a; font-size:0.95rem; font-weight:700; }
+        .psd-summary { display:grid; gap:0.75rem; grid-template-columns:repeat(3, minmax(0, 1fr)); }
+        .psd-summary-card { border-radius:14px; padding:0.9rem 1rem; color:#fff; }
+        .psd-summary-card.gross { background:#0f766e; }
+        .psd-summary-card.deductions { background:#b91c1c; }
+        .psd-summary-card.net { background:#166534; }
+        .psd-summary-label { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; opacity:0.84; }
+        .psd-summary-value { margin-top:0.22rem; font-size:1.32rem; font-weight:800; }
+        .psd-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+        .psd-table thead th { text-align:left; background:#17324b; color:#fff; padding:0.58rem 0.7rem; font-size:0.72rem; letter-spacing:0.04em; text-transform:uppercase; }
+        .psd-table tbody td { padding:0.52rem 0.7rem; border-bottom:1px solid #e2e8f0; color:#1e293b; vertical-align:top; }
+        .psd-table tbody tr:last-child td { border-bottom:none; }
+        .psd-table tfoot td { padding:0.58rem 0.7rem; font-weight:800; }
+        .psd-table .amount { text-align:right; white-space:nowrap; font-weight:700; }
+        .psd-table .center { text-align:center; white-space:nowrap; }
+        .psd-table .muted { color:#64748b; }
+        .psd-breakdown { display:grid; gap:0.9rem; grid-template-columns:minmax(0, 1.45fr) minmax(0, 1fr); }
+        .psd-footnote { font-size:0.77rem; color:#64748b; line-height:1.5; }
+        .psd-footer { display:flex; justify-content:space-between; gap:1rem; align-items:center; border-top:1px solid #e2e8f0; padding-top:0.85rem; font-size:0.74rem; color:#64748b; }
+        .psd-chip-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:0.55rem; }
+        .psd-chip { border:1px solid #dbe3ee; border-radius:12px; padding:0.65rem 0.7rem; background:#fff; }
+        .psd-chip .psd-label { font-size:0.67rem; }
+        .psd-chip .psd-value { font-size:0.88rem; }
+        .psd-alert { max-width:860px; margin:0 auto 0.85rem; padding:0.85rem 1rem; border-radius:14px; font-size:0.9rem; font-weight:700; }
+        .psd-alert.success { background:#dcfce7; color:#166534; border:1px solid #86efac; }
+        .psd-alert.error { background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; }
+        .psd-editor-grid { display:grid; gap:0.85rem; grid-template-columns:repeat(3, minmax(0, 1fr)); }
+        .psd-field { display:flex; flex-direction:column; gap:0.35rem; }
+        .psd-field label { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.04em; color:#64748b; font-weight:700; }
+        .psd-field input, .psd-field textarea { width:100%; border:1px solid #cbd5e1; border-radius:10px; padding:0.65rem 0.78rem; font:inherit; background:#fff; color:#0f172a; }
+        .psd-field textarea { min-height:88px; resize:vertical; }
+        .psd-editor-actions { display:flex; justify-content:flex-end; margin-top:1rem; }
+        .psd-save-btn { border:none; border-radius:999px; background:#166534; color:#fff; padding:0.75rem 1.2rem; font-weight:700; cursor:pointer; }
+
+        @page { size:A4 portrait; margin:10mm; }
+        @media print {
+            body, .portal-shell-page, .portal-layout, .portal-content { background:#fff !important; }
+            .portal-layout { display:block !important; }
+            .portal-sidebar, .psd-toolbar { display:none !important; }
+            .portal-content { padding:0 !important; overflow:visible !important; }
+            .psd-shell { padding:0 !important; }
+            .psd-page { max-width:none; border:none; border-radius:0; box-shadow:none; margin:0; }
+            .psd-head { padding:0.8rem 1rem; }
+            .psd-body { padding:0.8rem 1rem 0.5rem; gap:0.7rem; }
+            .psd-card { break-inside:avoid; page-break-inside:avoid; padding:0.75rem 0.85rem; }
+            .psd-grid, .psd-breakdown { gap:0.7rem; }
+            .psd-head-meta { font-size:0.76rem; }
+            .psd-summary-value { font-size:1.12rem; }
+            .psd-table { font-size:0.76rem; }
+            .psd-table thead th, .psd-table tbody td, .psd-table tfoot td { padding:0.42rem 0.55rem; }
+            .psd-footnote, .psd-footer { font-size:0.68rem; }
+        }
+
+        @media (max-width: 900px) {
+            .psd-grid, .psd-breakdown, .psd-summary, .psd-chip-grid, .psd-info-grid { grid-template-columns:1fr; }
+            .psd-head { flex-direction:column; }
+            .psd-head-meta { text-align:left; }
+        }
+    </style>
+</head>
+<body class="<%= printMode ? 'psd-print-mode' : '' %>">
+<% if (!printMode) { %>
+<div class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'payslips', isAdmin, currentStaffName, currentStaffEmail }) %>
+        <main class="portal-content">
+<% } %>
+        <div class="psd-shell">
+            <% if (!printMode) { %>
+            <div class="psd-toolbar">
+                <a href="<%= isAdmin ? '/admin/payroll/payslips' : '/portal/payslips' %>" class="psd-btn secondary">← Back to payslips</a>
+                <% if (payslip) { %>
+                <a href="<%= isAdmin ? '/admin/payroll/payslip/' + payslip.id + '/download' : '/portal/payslip/' + payslip.id + '/download' %>" class="psd-btn primary">⬇ Download PDF</a>
+                <a href="<%= isAdmin ? '/admin/payroll/payslip/' + payslip.id + '?print=1' : '/portal/payslip/' + payslip.id + '?print=1' %>" class="psd-btn print" <%= printMode ? '' : 'target="_blank" rel="noopener noreferrer"' %>>🖨 Print payslip</a>
+                <% } %>
+            </div>
+            <% } %>
+            <% if (typeof message !== 'undefined' && message) { %>
+            <div class="psd-alert success"><%= message %></div>
+            <% } %>
+            <% if (typeof error !== 'undefined' && error) { %>
+            <div class="psd-alert error"><%= error %></div>
+            <% } %>
+            <% if (!payslip) { %>
+            <div class="psd-page">
+                <div class="psd-empty">
+                    <h1 style="margin:0 0 0.5rem;color:#0f172a;">No payslip found</h1>
+                    <p style="margin:0;">The requested payslip could not be located. Return to the payslips list and choose another record.</p>
+                </div>
+            </div>
+            <% } else { 
+                const detail = payslipDetail || {};
+                const fmtMoney = (value) => '€' + Number(value || 0).toFixed(2);
+                const fmtShortDate = (value) => value ? new Date(value).toLocaleDateString('en-IE', { day: '2-digit', month: 'short', year: 'numeric' }) : 'TBC';
+                const displayName = detail.staffName || payslip.staff_name || 'Staff Member';
+                const displayRole = detail.staffRole || payslip.staff_role || '—';
+            %>
+            <div class="psd-page">
+                <section class="psd-head">
+                    <div>
+                        <h1 class="psd-brand">Everkind Payslip</h1>
+                        <p class="psd-subtitle">Payroll statement for <%= displayName %></p>
+                    </div>
+                    <div class="psd-head-meta">
+                        <strong><%= payslip.payslip_ref || 'Payslip' %></strong>
+                        <div>Period: <%= fmtShortDate(payslip.period_start) %> – <%= fmtShortDate(payslip.period_end) %></div>
+                        <div>Payment date: <%= fmtShortDate(payslip.payment_date) %></div>
+                        <div>Generated: <%= fmtShortDate(payslip.generated_at) %></div>
+                    </div>
+                </section>
+
+                <section class="psd-body">
+                    <div class="psd-summary">
+                        <div class="psd-summary-card gross">
+                            <div class="psd-summary-label">Gross Pay</div>
+                            <div class="psd-summary-value"><%= fmtMoney(detail.grossPay || payslip.gross_pay) %></div>
+                        </div>
+                        <div class="psd-summary-card deductions">
+                            <div class="psd-summary-label">Total Deductions</div>
+                            <div class="psd-summary-value"><%= fmtMoney(detail.totalDeductions) %></div>
+                        </div>
+                        <div class="psd-summary-card net">
+                            <div class="psd-summary-label">Net Pay</div>
+                            <div class="psd-summary-value"><%= fmtMoney(detail.netPay || payslip.net_pay) %></div>
+                        </div>
+                    </div>
+
+                    <div class="psd-grid">
+                        <section class="psd-card">
+                            <h2 class="psd-card-title">Employee details</h2>
+                            <div class="psd-info-grid">
+                                <div>
+                                    <div class="psd-label">Staff member</div>
+                                    <div class="psd-value"><%= displayName %></div>
+                                </div>
+                                <div>
+                                    <div class="psd-label">Role</div>
+                                    <div class="psd-value"><%= displayRole %></div>
+                                </div>
+                                <div>
+                                    <div class="psd-label">Employee no.</div>
+                                    <div class="psd-value"><%= detail.staffEmployeeNumber || '—' %></div>
+                                </div>
+                                <div>
+                                    <div class="psd-label">Reference</div>
+                                    <div class="psd-value"><%= payslip.payslip_ref || '—' %></div>
+                                </div>
+                                <div>
+                                    <div class="psd-label">Email status</div>
+                                    <div class="psd-value"><%= payslip.email_status || 'scheduled' %></div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="psd-card">
+                            <h2 class="psd-card-title">Worked summary</h2>
+                            <div class="psd-chip-grid">
+                                <div class="psd-chip">
+                                    <div class="psd-label">Total hours</div>
+                                    <div class="psd-value"><%= Number(detail.totalHours || 0).toFixed(1) %>h</div>
+                                </div>
+                                <div class="psd-chip">
+                                    <div class="psd-label">Regular hours</div>
+                                    <div class="psd-value"><%= Number(detail.regularHours || 0).toFixed(1) %>h</div>
+                                </div>
+                                <div class="psd-chip">
+                                    <div class="psd-label">Overtime</div>
+                                    <div class="psd-value"><%= Number(detail.overtimeHours || 0).toFixed(1) %>h</div>
+                                </div>
+                                <div class="psd-chip">
+                                    <div class="psd-label">Mileage</div>
+                                    <div class="psd-value"><%= Number(detail.mileageKm || 0).toFixed(1) %> km</div>
+                                </div>
+                                <div class="psd-chip">
+                                    <div class="psd-label">Home care</div>
+                                    <div class="psd-value"><%= Number(detail.homeCareHours || 0).toFixed(1) %>h</div>
+                                </div>
+                                <div class="psd-chip">
+                                    <div class="psd-label">Agency</div>
+                                    <div class="psd-value"><%= Number(detail.agencyHours || 0).toFixed(1) %>h</div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div class="psd-breakdown">
+                        <section class="psd-card">
+                            <h2 class="psd-card-title">Earnings</h2>
+                            <table class="psd-table">
+                                <thead>
+                                    <tr>
+                                        <th>Description</th>
+                                        <th class="center">Hours</th>
+                                        <th class="center">Rate</th>
+                                        <th class="amount">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% (detail.earningsRows || []).forEach((row) => { %>
+                                    <tr>
+                                        <td><%= row.quantity ? row.label + ' (' + Number(row.quantity).toFixed(1) + ' km)' : row.label %></td>
+                                        <td class="center"><%= row.hours === null || row.hours === undefined ? '—' : Number(row.hours).toFixed(1) + 'h' %></td>
+                                        <td class="center"><%= row.rate === null || row.rate === undefined ? '—' : fmtMoney(row.rate) + (row.quantity ? '/km' : '/hr') %></td>
+                                        <td class="amount"><%= fmtMoney(row.amount) %></td>
+                                    </tr>
+                                    <% }) %>
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="3">Total gross pay</td>
+                                        <td class="amount"><%= fmtMoney(detail.grossPay || payslip.gross_pay) %></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </section>
+
+                        <section class="psd-card">
+                            <h2 class="psd-card-title">Deductions</h2>
+                            <table class="psd-table">
+                                <thead>
+                                    <tr>
+                                        <th>Description</th>
+                                        <th class="amount">Current period</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% (detail.deductionRows || []).forEach((row) => { %>
+                                    <tr>
+                                        <td><%= row.label %></td>
+                                        <td class="amount"><%= fmtMoney(row.current) %></td>
+                                    </tr>
+                                    <% }) %>
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td>Total deductions</td>
+                                        <td class="amount"><%= fmtMoney(detail.totalDeductions) %></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                            <p class="psd-footnote" style="margin:0.85rem 0 0;">This printable payslip is formatted to fit on one page. Detailed shift-by-shift activity remains available in the payroll portal when needed.</p>
+                        </section>
+                    </div>
+
+                    <% if (isAdmin && !printMode) { %>
+                    <section class="psd-card">
+                        <h2 class="psd-card-title">Admin payslip editor</h2>
+                        <p class="psd-footnote" style="margin:0 0 0.9rem;">Pay values stay automated from shift hours and the admin-set rates below. Update hours or rates here only when an override is needed.</p>
+                        <form method="POST" action="/admin/payroll/payslip/<%= payslip.id %>/update">
+                            <div class="psd-editor-grid">
+                                <div class="psd-field">
+                                    <label for="staffName">Staff member</label>
+                                    <input id="staffName" name="staffName" type="text" value="<%= displayName %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="staffRole">Role</label>
+                                    <input id="staffRole" name="staffRole" type="text" value="<%= detail.staffRole || '' %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="staffEmployeeNumber">Employee no.</label>
+                                    <input id="staffEmployeeNumber" name="staffEmployeeNumber" type="text" value="<%= detail.staffEmployeeNumber || '' %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="paymentDate">Payment date</label>
+                                    <input id="paymentDate" name="paymentDate" type="date" value="<%= detail.paymentDate || payslip.payment_date || '' %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="homeCareHours">Home care hours</label>
+                                    <input id="homeCareHours" name="homeCareHours" type="number" min="0" step="0.01" value="<%= Number(detail.homeCareHours || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="agencyHours">Agency hours</label>
+                                    <input id="agencyHours" name="agencyHours" type="number" min="0" step="0.01" value="<%= Number(detail.agencyHours || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="basicHours">Basic hours</label>
+                                    <input id="basicHours" name="basicHours" type="number" min="0" step="0.01" value="<%= Number(detail.basicHours || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="nightHours">Night hours</label>
+                                    <input id="nightHours" name="nightHours" type="number" min="0" step="0.01" value="<%= Number(detail.nightHours || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="weekendHours">Weekend hours</label>
+                                    <input id="weekendHours" name="weekendHours" type="number" min="0" step="0.01" value="<%= Number(detail.weekendHours || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="bankHolidayHours">Bank holiday hours</label>
+                                    <input id="bankHolidayHours" name="bankHolidayHours" type="number" min="0" step="0.01" value="<%= Number(detail.bankHolidayHours || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="overtimeHours">Overtime hours</label>
+                                    <input id="overtimeHours" name="overtimeHours" type="number" min="0" step="0.01" value="<%= Number(detail.overtimeHours || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="mileageKm">Mileage km</label>
+                                    <input id="mileageKm" name="mileageKm" type="number" min="0" step="0.01" value="<%= Number(detail.mileageKm || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="basicRate">Basic rate</label>
+                                    <input id="basicRate" name="basicRate" type="number" min="0" step="0.01" value="<%= Number(detail.basicRate || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="nightRate">Night rate</label>
+                                    <input id="nightRate" name="nightRate" type="number" min="0" step="0.01" value="<%= Number(detail.nightRate || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="weekendRate">Weekend rate</label>
+                                    <input id="weekendRate" name="weekendRate" type="number" min="0" step="0.01" value="<%= Number(detail.weekendRate || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="bankHolidayRate">Bank holiday rate</label>
+                                    <input id="bankHolidayRate" name="bankHolidayRate" type="number" min="0" step="0.01" value="<%= Number(detail.bankHolidayRate || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="overtimeRate">Overtime premium rate</label>
+                                    <input id="overtimeRate" name="overtimeRate" type="number" min="0" step="0.01" value="<%= Number(detail.overtimeRate || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="mileageRate">Mileage rate per km</label>
+                                    <input id="mileageRate" name="mileageRate" type="number" min="0" step="0.01" value="<%= Number(detail.mileageRate || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="payeTax">PAYE tax</label>
+                                    <input id="payeTax" name="payeTax" type="number" min="0" step="0.01" value="<%= Number(detail.payeTax || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="prsiAmount">PRSI</label>
+                                    <input id="prsiAmount" name="prsiAmount" type="number" min="0" step="0.01" value="<%= Number(detail.prsiAmount || 0).toFixed(2) %>" />
+                                </div>
+                                <div class="psd-field">
+                                    <label for="uscAmount">USC</label>
+                                    <input id="uscAmount" name="uscAmount" type="number" min="0" step="0.01" value="<%= Number(detail.uscAmount || 0).toFixed(2) %>" />
+                                </div>
+                            </div>
+                            <div class="psd-field" style="margin-top:0.9rem;">
+                                <label for="notes">Payroll notes</label>
+                                <textarea id="notes" name="notes"><%= detail.notes || '' %></textarea>
+                            </div>
+                            <div class="psd-editor-actions">
+                                <button type="submit" class="psd-save-btn">Save payslip updates</button>
+                            </div>
+                        </form>
+                    </section>
+                    <% } %>
+
+                    <div class="psd-footer">
+                        <div>Confidential payroll document for <%= displayName %>.</div>
+                        <div><%= detail.shiftCount ? detail.shiftCount + ' shift' + (detail.shiftCount === 1 ? '' : 's') + ' included in payroll.' : 'Approved payroll record.' %></div>
+                    </div>
+                </section>
+            </div>
+            <% } %>
+        </div>
+<% if (!printMode) { %>
+        </main>
+    </div>
+</div>
+<% } %>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
+    const content = document.querySelector('.portal-content');
+    if (content) {
+        content.scrollTop = 0;
+    }
+    if (document.body.classList.contains('psd-print-mode')) {
+        setTimeout(function () {
+            window.print();
+        }, 150);
+    }
+});
+</script>
+</body>
+</html>

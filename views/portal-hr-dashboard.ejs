@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page hr-dashboard-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'dashboard', isAdmin: true, currentStaffName, currentStaffEmail }) %>
+
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <span class="hr-dashboard-eyebrow">People and compliance</span>
+                    <h1 class="adm-page-title">HR Dashboard</h1>
+                    <p class="adm-page-subtitle">Workforce, recruitment, onboarding and compliance at a glance.</p>
+                </div>
+                <div class="hr-dashboard-actions">
+                    <a href="/portal/applications" class="adm-btn-secondary">Review applications</a>
+                    <a href="/staff/new" class="adm-btn-primary">Add staff member</a>
+                </div>
+            </div>
+
+            <section class="hr-metric-grid" aria-label="HR overview">
+                <% [
+                    ['Active staff', metrics.activeStaff, 'Current workforce', 'green', '/staff'],
+                    ['New applications', metrics.newApplications, metrics.awaitingReview + ' awaiting review', 'blue', '/portal/applications'],
+                    ['Onboarding', metrics.onboarding, 'Induction in progress', 'purple', '/staff'],
+                    ['Staff requiring action', metrics.requiringAction, metrics.complianceIssues + ' open issues', metrics.requiringAction ? 'amber' : 'green', '/admin/compliance'],
+                    ['Expired documents', metrics.expiredDocuments, metrics.expiringDocuments + ' expiring soon', metrics.expiredDocuments ? 'red' : 'amber', '/admin/compliance'],
+                    ['Overdue training', metrics.overdueTraining, metrics.pendingTraining + ' pending', metrics.overdueTraining ? 'red' : 'blue', '/admin/training'],
+                    ['On probation', metrics.probation, metrics.upcomingProbationReviews + ' reviews due soon', 'blue', '/staff'],
+                    ['Incomplete records', metrics.incompleteCompliance, metrics.missingDocuments + ' missing documents', metrics.incompleteCompliance ? 'amber' : 'green', '/admin/compliance']
+                ].forEach(([label, value, detail, tone, href]) => { %>
+                    <a class="adm-metric-card hr-metric-card" href="<%= href %>">
+                        <span class="hr-metric-indicator hr-tone-<%= tone %>"></span>
+                        <span class="adm-metric-label"><%= label %></span>
+                        <span class="adm-metric-value"><%= value %></span>
+                        <span class="adm-metric-sub"><%= detail %></span>
+                    </a>
+                <% }); %>
+            </section>
+
+            <div class="hr-dashboard-grid">
+                <section class="adm-card hr-dashboard-wide">
+                    <div class="adm-card-header">
+                        <div>
+                            <div class="adm-card-title">Staff compliance requiring attention</div>
+                            <div class="adm-card-subtitle">Prioritised from staff records, training and document status</div>
+                        </div>
+                        <a href="/admin/compliance" class="adm-btn-secondary hr-view-all">View all</a>
+                    </div>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead><tr><th>Staff member</th><th>Role</th><th>Compliance</th><th>Action required</th></tr></thead>
+                            <tbody>
+                                <% if (complianceRows.length) { complianceRows.forEach((member) => { %>
+                                    <tr>
+                                        <td><a class="hr-table-link" href="/staff/<%= member.id %>"><%= member.name %></a></td>
+                                        <td><%= member.role %></td>
+                                        <td><span class="hr-status-badge hr-tone-<%= member.tone %>"><%= member.score %>%</span></td>
+                                        <td class="hr-table-detail"><%= member.issues.slice(0, 2).join(' / ') || 'Compliant and current' %></td>
+                                    </tr>
+                                <% }); } else { %>
+                                    <tr><td colspan="4" class="hr-empty-state">No staff compliance actions are currently outstanding.</td></tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="adm-card">
+                    <div class="adm-card-header">
+                        <div>
+                            <div class="adm-card-title">Recruitment pipeline</div>
+                            <div class="adm-card-subtitle">Current application stages</div>
+                        </div>
+                        <a href="/portal/applications" class="adm-btn-secondary hr-view-all">View all</a>
+                    </div>
+                    <div class="hr-pipeline-list">
+                        <% [
+                            ['New', applicationCounts.new || 0, 'blue'],
+                            ['Reviewing', applicationCounts.reviewing || 0, 'amber'],
+                            ['Interview', (applicationCounts.interview_scheduled || 0) + (applicationCounts.interview_completed || 0), 'purple'],
+                            ['Offer stage', (applicationCounts.offer_sent || 0) + (applicationCounts.offer_accepted || 0), 'green'],
+                            ['Induction', applicationCounts.induction || 0, 'green']
+                        ].forEach(([label, count, tone]) => { %>
+                            <div class="hr-pipeline-item">
+                                <span><i class="hr-pipeline-dot hr-tone-<%= tone %>"></i><%= label %></span>
+                                <strong><%= count %></strong>
+                            </div>
+                        <% }); %>
+                    </div>
+                </section>
+
+                <section class="adm-card">
+                    <div class="adm-card-header">
+                        <div>
+                            <div class="adm-card-title">Training alerts</div>
+                            <div class="adm-card-subtitle"><%= metrics.upcomingTraining %> upcoming renewals</div>
+                        </div>
+                        <a href="/admin/training" class="adm-btn-secondary hr-view-all">View all</a>
+                    </div>
+                    <div class="hr-alert-list">
+                        <% if (upcomingTraining.length) { upcomingTraining.forEach((record) => { %>
+                            <div class="hr-alert-item">
+                                <span class="hr-status-badge hr-tone-amber">Due soon</span>
+                                <div><strong><%= record.title %></strong><small><%= record.staff_name || 'Staff member' %><%= record.expires_at ? ' - ' + String(record.expires_at).slice(0, 10) : '' %></small></div>
+                            </div>
+                        <% }); } else { %>
+                            <p class="hr-empty-state">No upcoming training renewals.</p>
+                        <% } %>
+                    </div>
+                </section>
+
+                <section class="adm-card">
+                    <div class="adm-card-header">
+                        <div>
+                            <div class="adm-card-title">Recent applications</div>
+                            <div class="adm-card-subtitle">Latest recruitment activity</div>
+                        </div>
+                        <a href="/portal/applications" class="adm-btn-secondary hr-view-all">View all</a>
+                    </div>
+                    <div class="hr-alert-list">
+                        <% if (recentApplications.length) { recentApplications.forEach((application) => { %>
+                            <a href="/portal/applications" class="hr-alert-item hr-alert-link">
+                                <span class="hr-status-badge hr-tone-blue"><%= String(application.status).replace(/_/g, ' ') %></span>
+                                <div><strong><%= application.name %></strong><small><%= application.role || 'Role not specified' %></small></div>
+                            </a>
+                        <% }); } else { %>
+                            <p class="hr-empty-state">No applications have been received.</p>
+                        <% } %>
+                    </div>
+                </section>
+
+                <section class="adm-card">
+                    <div class="adm-card-header">
+                        <div>
+                            <div class="adm-card-title">Recent HR activity</div>
+                            <div class="adm-card-subtitle">Audited workforce actions</div>
+                        </div>
+                        <a href="/admin/reports" class="adm-btn-secondary hr-view-all">HR reports</a>
+                    </div>
+                    <div class="hr-alert-list">
+                        <% if (recentActivity.length) { recentActivity.forEach((event) => { %>
+                            <div class="hr-alert-item">
+                                <span class="hr-status-badge hr-tone-<%= event.outcome === 'success' ? 'green' : 'amber' %>"><%= event.outcome %></span>
+                                <div><strong><%= event.label %></strong><small><%= event.actor_identifier || event.actor_role || 'System' %> - <%= String(event.created_at || '').slice(0, 16) %></small></div>
+                            </div>
+                        <% }); } else { %>
+                            <p class="hr-empty-state">No recent HR activity.</p>
+                        <% } %>
+                    </div>
+                </section>
+
+                <section class="adm-card">
+                    <div class="adm-card-header">
+                        <div>
+                            <div class="adm-card-title">Quick actions</div>
+                            <div class="adm-card-subtitle">Common HR tasks</div>
+                        </div>
+                    </div>
+                    <div class="hr-quick-actions">
+                        <a href="/portal/applications" class="adm-btn-primary">Review applications</a>
+                        <a href="/staff/new" class="adm-btn-secondary">Add staff member</a>
+                        <a href="/staff" class="adm-btn-secondary">Open staff records</a>
+                        <a href="/admin/compliance" class="adm-btn-secondary">Review compliance</a>
+                        <a href="/admin/attendance" class="adm-btn-secondary">View attendance</a>
+                        <a href="/admin/reports" class="adm-btn-secondary">Open HR reports</a>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

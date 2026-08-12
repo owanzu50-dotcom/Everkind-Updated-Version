@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <%
+        const includesOption = (values, option) => {
+            if (!values) return false;
+            if (Array.isArray(values)) return values.includes(option);
+            return String(values).split(',').map((value) => value.trim()).filter(Boolean).includes(option);
+        };
+        const existingTrainingRecords = staffMember && Array.isArray(staffMember.trainingRecords) ? staffMember.trainingRecords : [];
+        const existingCertificationRecords = staffMember && Array.isArray(staffMember.certificationRecords) ? staffMember.certificationRecords : [];
+    %>
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'staff', isAdmin: true, currentStaffName: currentStaffName, currentStaffEmail: currentStaffEmail }) %>
+
+        <main class="portal-content">
+            <header class="portal-header">
+                <div>
+                    <span class="eyebrow">Workforce management</span>
+                    <h1><%= mode === 'new' ? 'Add staff member' : 'Edit staff member' %></h1>
+                    <p class="portal-subtext">Complete profile with compliance, availability, and staff portal access controls.</p>
+                </div>
+                <div class="header-actions">
+                    <a href="/staff" class="secondary-button">Back to roster</a>
+                </div>
+            </header>
+
+            <% if (typeof error !== 'undefined' && error) { %>
+                <section class="portal-panel form-alert"><strong>Validation issue:</strong> <%= error %></section>
+            <% } %>
+
+            <form action="<%= mode === 'new' ? '/staff' : '/staff/' + staffMember.id + '/update' %>" method="POST" class="staff-profile-form" id="staff-form">
+                <input type="hidden" name="name" id="full-name-field" value="<%= staffMember ? (staffMember.name || '') : '' %>">
+                <input type="hidden" name="training_records_json" id="training-records-json" value='<%- JSON.stringify(existingTrainingRecords) %>'>
+                <input type="hidden" name="certification_records_json" id="certification-records-json" value='<%- JSON.stringify(existingCertificationRecords) %>'>
+
+                <section class="portal-panel">
+                    <div class="panel-header">
+                        <h2>Personal information</h2>
+                        <span class="badge badge-scheduled">Required fields *</span>
+                    </div>
+                    <div class="staff-form-grid">
+                        <label>
+                            <span>First name *</span>
+                            <input type="text" name="first_name" id="first-name-field" value="<%= staffMember ? (staffMember.firstName || '') : '' %>" required>
+                        </label>
+                        <label>
+                            <span>Last name *</span>
+                            <input type="text" name="last_name" id="last-name-field" value="<%= staffMember ? (staffMember.lastName || '') : '' %>" required>
+                        </label>
+                        <label>
+                            <span>Employee number</span>
+                            <input type="text" name="employee_number" value="<%= staffMember ? (staffMember.employeeNumber || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Preferred name</span>
+                            <input type="text" name="preferred_name" value="<%= staffMember ? (staffMember.preferredName || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Profile photo URL</span>
+                            <input type="text" name="profile_photo" value="<%= staffMember ? (staffMember.profilePhoto || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Date of birth</span>
+                            <input type="date" name="date_of_birth" value="<%= staffMember && staffMember.dateOfBirth ? String(staffMember.dateOfBirth).slice(0, 10) : '' %>">
+                        </label>
+                        <label>
+                            <span>Gender</span>
+                            <input type="text" name="gender" value="<%= staffMember ? (staffMember.gender || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Nationality</span>
+                            <input type="text" name="nationality" value="<%= staffMember ? (staffMember.nationality || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>PPS number</span>
+                            <input type="text" name="pps_number" value="<%= staffMember ? (staffMember.ppsNumber || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Driving licence number</span>
+                            <input type="text" name="driving_licence_number" value="<%= staffMember ? (staffMember.drivingLicenceNumber || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Driving licence categories</span>
+                            <input type="text" name="driving_licence_categories" value="<%= staffMember && staffMember.drivingLicenceCategories ? staffMember.drivingLicenceCategories.join(', ') : '' %>" placeholder="e.g. B, C1">
+                        </label>
+                        <label>
+                            <span>Right to work in Ireland</span>
+                            <select name="right_to_work">
+                                <option value="">Select</option>
+                                <option value="Yes" <%= staffMember && staffMember.rightToWork === 'Yes' ? 'selected' : '' %>>Yes</option>
+                                <option value="No" <%= staffMember && staffMember.rightToWork === 'No' ? 'selected' : '' %>>No</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Visa type</span>
+                            <input type="text" name="visa_type" value="<%= staffMember ? (staffMember.visaType || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Visa expiry</span>
+                            <input type="date" name="visa_expiry_date" value="<%= staffMember && staffMember.visaExpiryDate ? String(staffMember.visaExpiryDate).slice(0, 10) : '' %>">
+                        </label>
+                        <label>
+                            <span>Passport number</span>
+                            <input type="text" name="passport_number" value="<%= staffMember ? (staffMember.passportNumber || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Passport expiry</span>
+                            <input type="date" name="passport_expiry_date" value="<%= staffMember && staffMember.passportExpiryDate ? String(staffMember.passportExpiryDate).slice(0, 10) : '' %>">
+                        </label>
+                    </div>
+                </section>
+
+                <section class="portal-panel">
+                    <div class="panel-header">
+                        <h2>Contact & employment</h2>
+                        <span class="badge badge-clocked-in">Portal account sync</span>
+                    </div>
+                    <div class="staff-form-grid">
+                        <label>
+                            <span>Email address *</span>
+                            <input type="email" name="email" value="<%= staffMember ? (staffMember.email || '') : '' %>" required>
+                        </label>
+                        <label>
+                            <span>Mobile number *</span>
+                            <input type="text" name="mobile_number" value="<%= staffMember ? (staffMember.mobileNumber || '') : '' %>" required>
+                        </label>
+                        <label>
+                            <span>Alternative phone</span>
+                            <input type="text" name="alternative_phone" value="<%= staffMember ? (staffMember.alternativePhone || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Home address</span>
+                            <input type="text" name="home_address" value="<%= staffMember ? (staffMember.homeAddress || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Eircode</span>
+                            <input type="text" name="eircode" value="<%= staffMember ? (staffMember.eircode || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>County</span>
+                            <input type="text" name="county" value="<%= staffMember ? (staffMember.county || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Emergency contact name</span>
+                            <input type="text" name="emergency_contact_name" value="<%= staffMember ? (staffMember.emergencyContactName || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Relationship</span>
+                            <input type="text" name="emergency_contact_relationship" value="<%= staffMember ? (staffMember.emergencyContactRelationship || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Emergency contact phone</span>
+                            <input type="text" name="emergency_contact_phone" value="<%= staffMember ? (staffMember.emergencyContactPhone || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Emergency contact email</span>
+                            <input type="email" name="emergency_contact_email" value="<%= staffMember ? (staffMember.emergencyContactEmail || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Role</span>
+                            <select name="role">
+                                <% staffRoleOptions.forEach((option) => { %>
+                                    <option value="<%= option %>" <%= staffMember && staffMember.role === option ? 'selected' : '' %>><%= option %></option>
+                                <% }) %>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Employment type</span>
+                            <select name="employment_type">
+                                <% staffEmploymentTypeOptions.forEach((option) => { %>
+                                    <option value="<%= option %>" <%= staffMember && staffMember.employmentType === option ? 'selected' : '' %>><%= option %></option>
+                                <% }) %>
+                            </select>
+                        </label>
+                        <div class="multi-select-block">
+                            <h3>Service type</h3>
+                            <% staffServiceTypeOptions.forEach((option) => { %>
+                                <label class="checkbox-field">
+                                    <input type="checkbox" name="service_types" value="<%= option %>" <%= includesOption(staffMember && staffMember.serviceTypes, option) ? 'checked' : (!staffMember && option === 'Both' ? 'checked' : '') %>>
+                                    <span><%= option %></span>
+                                </label>
+                            <% }) %>
+                        </div>
+                        <label>
+                            <span>Employment status</span>
+                            <select name="status">
+                                <% staffStatusOptions.forEach((option) => { %>
+                                    <option value="<%= option %>" <%= (!staffMember && option === 'Active') || (staffMember && staffMember.status === option) ? 'selected' : '' %>><%= option %></option>
+                                <% }) %>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Start date</span>
+                            <input type="date" name="start_date" value="<%= staffMember && (staffMember.startDate || staffMember.start_date) ? String(staffMember.startDate || staffMember.start_date).slice(0,10) : '' %>">
+                        </label>
+                        <label>
+                            <span>End date</span>
+                            <input type="date" name="end_date" value="<%= staffMember && staffMember.end_date ? String(staffMember.end_date).slice(0,10) : '' %>">
+                        </label>
+                        <label>
+                            <span>Hourly rate</span>
+                            <input type="text" name="hourly_rate" value="<%= staffMember ? (staffMember.hourlyRate || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Payroll number</span>
+                            <input type="text" name="payroll_number" value="<%= staffMember ? (staffMember.payrollNumber || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Manager</span>
+                            <input type="text" name="manager_name" value="<%= staffMember ? (staffMember.managerName || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Branch</span>
+                            <input type="text" name="branch" value="<%= staffMember ? (staffMember.branch || '') : '' %>">
+                        </label>
+                        <label class="checkbox-field">
+                            <input type="checkbox" name="own_vehicle" value="1" <%= staffMember && staffMember.ownVehicle ? 'checked' : '' %>>
+                            <span>Own vehicle</span>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="portal-panel">
+                    <div class="panel-header">
+                        <h2>Qualifications, skills & languages</h2>
+                    </div>
+                    <div class="staff-form-grid">
+                        <div class="multi-select-block">
+                            <h3>QQI qualifications</h3>
+                            <% staffQualificationOptions.forEach((option) => { %>
+                                <label class="checkbox-field">
+                                    <input type="checkbox" name="qqi_qualifications" value="<%= option %>" <%= includesOption(staffMember && staffMember.qqiQualifications, option) ? 'checked' : '' %>>
+                                    <span><%= option %></span>
+                                </label>
+                            <% }) %>
+                        </div>
+                        <div class="multi-select-block">
+                            <h3>Professional registration</h3>
+                            <% staffCertificationOptions.forEach((option) => { %>
+                                <label class="checkbox-field">
+                                    <input type="checkbox" name="professional_registration" value="<%= option %>" <%= includesOption(staffMember && staffMember.professionalRegistration, option) ? 'checked' : '' %>>
+                                    <span><%= option %></span>
+                                </label>
+                            <% }) %>
+                        </div>
+                        <label>
+                            <span>NMBI number</span>
+                            <input type="text" name="nmbi_number" value="<%= staffMember ? (staffMember.nmbiNumber || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>NMBI expiry date</span>
+                            <input type="date" name="nmbi_expiry_date" value="<%= staffMember && staffMember.nmbiExpiryDate ? String(staffMember.nmbiExpiryDate).slice(0,10) : '' %>">
+                        </label>
+                        <label>
+                            <span>Other qualifications</span>
+                            <textarea name="other_qualifications" rows="4"><%= staffMember ? (staffMember.otherQualifications ? staffMember.otherQualifications.join('\n') : '') : '' %></textarea>
+                        </label>
+                        <div class="multi-select-block">
+                            <h3>Skills & specialities</h3>
+                            <% staffSkillOptions.forEach((option) => { %>
+                                <label class="checkbox-field">
+                                    <input type="checkbox" name="skills_specialities" value="<%= option %>" <%= includesOption(staffMember && staffMember.skillsSpecialities, option) ? 'checked' : '' %>>
+                                    <span><%= option %></span>
+                                </label>
+                            <% }) %>
+                        </div>
+                        <div class="multi-select-block">
+                            <h3>Languages</h3>
+                            <% staffLanguageOptions.forEach((option) => { %>
+                                <label class="checkbox-field">
+                                    <input type="checkbox" name="languages" value="<%= option %>" <%= includesOption(staffMember && staffMember.languages, option) ? 'checked' : '' %>>
+                                    <span><%= option %></span>
+                                </label>
+                            <% }) %>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="portal-panel">
+                    <div class="panel-header">
+                        <h2>Mandatory training & additional certifications</h2>
+                        <span class="badge badge-scheduled">Traffic light tracking</span>
+                    </div>
+                    <div class="staff-form-grid">
+                        <div class="multi-select-block">
+                            <h3>Mandatory training checklist</h3>
+                            <% staffMandatoryTrainingOptions.forEach((option) => { %>
+                                <label class="checkbox-field">
+                                    <input type="checkbox" name="mandatory_training" value="<%= option %>" <%= includesOption(staffMember && staffMember.mandatoryTraining, option) ? 'checked' : '' %>>
+                                    <span><%= option %></span>
+                                </label>
+                            <% }) %>
+                        </div>
+                        <div class="multi-select-block">
+                            <h3>Training records</h3>
+                            <div id="training-records-list" class="record-list"></div>
+                        </div>
+                        <div class="multi-select-block">
+                            <h3>Additional certifications</h3>
+                            <% staffCertificationOptions.forEach((option) => { %>
+                                <label class="checkbox-field">
+                                    <input type="checkbox" name="additional_certifications" value="<%= option %>" <%= includesOption(staffMember && staffMember.additionalCertifications, option) ? 'checked' : '' %>>
+                                    <span><%= option %></span>
+                                </label>
+                            <% }) %>
+                        </div>
+                        <div class="multi-select-block">
+                            <h3>Certification records</h3>
+                            <div id="certification-records-list" class="record-list"></div>
+                        </div>
+                        <label>
+                            <span>Garda vetting status</span>
+                            <select name="garda_vetting_status">
+                                <% ['Pending', 'Valid', 'Expiring Soon', 'Expired'].forEach((statusOption) => { %>
+                                    <option value="<%= statusOption %>" <%= staffMember && staffMember.gardaVettingStatus === statusOption ? 'selected' : '' %>><%= statusOption %></option>
+                                <% }) %>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Garda vetting expiry date</span>
+                            <input type="date" name="garda_vetting_expiry_date" value="<%= staffMember && staffMember.gardaVettingExpiryDate ? String(staffMember.gardaVettingExpiryDate).slice(0,10) : '' %>">
+                        </label>
+                    </div>
+                </section>
+
+                <section class="portal-panel">
+                    <div class="panel-header">
+                        <h2>Availability, assigned clients & portal account</h2>
+                        <span class="badge badge-active">Live system integration</span>
+                    </div>
+                    <div class="staff-form-grid">
+                        <div class="multi-select-block">
+                            <h3>Preferred days</h3>
+                            <% staffAvailabilityDayOptions.forEach((option) => { %>
+                                <label class="checkbox-field">
+                                    <input type="checkbox" name="availability_days" value="<%= option %>" <%= includesOption(staffMember && staffMember.availabilityDays, option) ? 'checked' : '' %>>
+                                    <span><%= option %></span>
+                                </label>
+                            <% }) %>
+                        </div>
+                        <div class="multi-select-block">
+                            <h3>Shift preferences</h3>
+                            <% staffShiftPreferenceOptions.forEach((option) => { %>
+                                <label class="checkbox-field">
+                                    <input type="checkbox" name="shift_preferences" value="<%= option %>" <%= includesOption(staffMember && staffMember.shiftPreferences, option) ? 'checked' : '' %>>
+                                    <span><%= option %></span>
+                                </label>
+                            <% }) %>
+                        </div>
+                        <label class="checkbox-field">
+                            <input type="checkbox" name="weekend_availability" value="1" <%= staffMember && staffMember.weekendAvailability ? 'checked' : '' %>>
+                            <span>Weekend availability</span>
+                        </label>
+                        <label class="checkbox-field">
+                            <input type="checkbox" name="bank_holidays" value="1" <%= staffMember && staffMember.bankHolidays ? 'checked' : '' %>>
+                            <span>Bank holiday availability</span>
+                        </label>
+                        <label>
+                            <span>Maximum weekly hours</span>
+                            <input type="text" name="max_weekly_hours" value="<%= staffMember ? (staffMember.maxWeeklyHours || '') : '' %>">
+                        </label>
+                        <label>
+                            <span>Preferred working area</span>
+                            <input type="text" name="preferred_working_area" value="<%= staffMember ? (staffMember.preferredWorkingArea || '') : '' %>">
+                        </label>
+                        <div class="multi-select-block">
+                            <h3>Assigned clients</h3>
+                            <input type="text" id="client-filter" placeholder="Search clients...">
+                            <select name="assigned_client_ids" id="assigned-client-select" multiple size="8">
+                                <% patients.forEach((patient) => { %>
+                                    <option value="<%= patient.id %>" <%= assignedClientIds.includes(patient.id) ? 'selected' : '' %>><%= patient.name %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <div class="multi-select-block">
+                            <h3>Staff portal account controls</h3>
+                            <label class="checkbox-field">
+                                <input type="checkbox" name="portal_login_suspended" value="1" <%= staffMember && staffMember.portalLoginSuspended ? 'checked' : '' %>>
+                                <span>Suspend login</span>
+                            </label>
+                            <label class="checkbox-field">
+                                <input type="checkbox" name="portal_login_deactivated" value="1" <%= staffMember && staffMember.portalLoginDeactivated ? 'checked' : '' %>>
+                                <span>Deactivate login</span>
+                            </label>
+                            <label class="checkbox-field">
+                                <input type="checkbox" name="force_password_reset" value="1" <%= staffMember && staffMember.forcePasswordReset ? 'checked' : '' %>>
+                                <span>Force password reset on next login</span>
+                            </label>
+                            <label class="checkbox-field">
+                                <input type="checkbox" name="welcome_email_sent" value="1" <%= staffMember && staffMember.welcomeEmailSent ? 'checked' : '' %>>
+                                <span>Welcome email sent</span>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="portal-panel">
+                    <div class="panel-header">
+                        <h2>Documents & notes</h2>
+                        <span class="badge badge-active">Secure storage</span>
+                    </div>
+                    <div class="staff-form-grid">
+                        <div class="multi-select-block">
+                            <h3>Document uploads</h3>
+                            <% staffDocumentCategories.forEach((category) => { %>
+                                <% const key = category.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''); %>
+                                <label class="upload-field">
+                                    <span><%= category %></span>
+                                    <input type="file" class="staff-file-input" data-hidden="document-<%= key %>">
+                                    <input type="hidden" name="documents[<%= key %>]" id="document-<%= key %>">
+                                </label>
+                            <% }) %>
+                        </div>
+                        <label>
+                            <span>Internal notes (Admin only)</span>
+                            <textarea name="internal_notes" rows="5"><%= staffMember ? (staffMember.internalNotes || '') : '' %></textarea>
+                        </label>
+                        <label>
+                            <span>Staff notes (Visible in Staff App)</span>
+                            <textarea name="staff_notes" rows="5"><%= staffMember ? (staffMember.staffNotes || '') : '' %></textarea>
+                        </label>
+                    </div>
+                </section>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button">Save staff profile</button>
+                    <% if (mode === 'edit' && typeof adminAccess !== 'undefined' && adminAccess.actualRole === 'super_admin' && !adminAccess.isPreview) { %>
+                        <button type="submit" class="danger-button" formaction="/staff/<%= staffMember.id %>/reset-mfa" onclick="return confirm('Reset this staff member’s MFA methods, recovery codes, and sessions?')">Reset MFA</button>
+                    <% } %>
+                    <a href="/staff" class="secondary-button">Cancel</a>
+                </div>
+            </form>
+        </main>
+    </div>
+
+    <script>
+        const draftKey = 'everkind-staff-draft';
+        const form = document.getElementById('staff-form');
+        const storage = window.localStorage;
+
+        const readRecords = (hiddenId) => {
+            const hiddenField = document.getElementById(hiddenId);
+            if (!hiddenField) return [];
+            try {
+                const parsed = JSON.parse(hiddenField.value || '[]');
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (error) {
+                return [];
+            }
+        };
+
+        const saveRecords = (listElementId, hiddenId) => {
+            const list = document.getElementById(listElementId);
+            const hiddenField = document.getElementById(hiddenId);
+            if (!list || !hiddenField) return;
+            const records = Array.from(list.querySelectorAll('.record-item')).map((row) => ({
+                item: row.dataset.item || '',
+                completed: Boolean(row.querySelector('[data-field="completed"]') && row.querySelector('[data-field="completed"]').checked),
+                issueDate: row.querySelector('[data-field="issueDate"]') ? row.querySelector('[data-field="issueDate"]').value : '',
+                expiryDate: row.querySelector('[data-field="expiryDate"]') ? row.querySelector('[data-field="expiryDate"]').value : '',
+                reminderDays: Number(row.querySelector('[data-field="reminderDays"]') ? row.querySelector('[data-field="reminderDays"]').value : 30) || 30,
+                trafficLight: row.querySelector('[data-field="trafficLight"]') ? row.querySelector('[data-field="trafficLight"]').value : 'Amber',
+                certificateData: row.querySelector('[data-field="certificateData"]') ? row.querySelector('[data-field="certificateData"]').value : '',
+                certificateName: row.querySelector('[data-field="certificateName"]') ? row.querySelector('[data-field="certificateName"]').value : '',
+            }));
+            hiddenField.value = JSON.stringify(records);
+        };
+
+        const renderRecordList = (listElementId, options, existingRecords, hiddenId, includeIssueDate) => {
+            const list = document.getElementById(listElementId);
+            if (!list) return;
+            const existingMap = new Map((existingRecords || []).map((record) => [record.item, record]));
+            list.innerHTML = '';
+            options.forEach((item) => {
+                const existing = existingMap.get(item) || {};
+                const row = document.createElement('div');
+                row.className = 'record-item';
+                row.dataset.item = item;
+                row.innerHTML = `
+                    <div class="record-item-title">${item}</div>
+                    <label><span>Completed</span><input type="checkbox" data-field="completed" ${existing.completed ? 'checked' : ''}></label>
+                    ${includeIssueDate ? `<label><span>Issue date</span><input type="date" data-field="issueDate" value="${existing.issueDate || ''}"></label>` : ''}
+                    <label><span>Expiry date</span><input type="date" data-field="expiryDate" value="${existing.expiryDate || ''}"></label>
+                    <label><span>Reminder (days)</span><input type="number" data-field="reminderDays" min="1" max="365" value="${existing.reminderDays || 30}"></label>
+                    <label><span>Traffic light</span><select data-field="trafficLight">
+                        <option value="Green" ${(existing.trafficLight || 'Amber') === 'Green' ? 'selected' : ''}>Green</option>
+                        <option value="Amber" ${(existing.trafficLight || 'Amber') === 'Amber' ? 'selected' : ''}>Amber</option>
+                        <option value="Red" ${(existing.trafficLight || 'Amber') === 'Red' ? 'selected' : ''}>Red</option>
+                    </select></label>
+                    <label><span>Certificate upload</span><input type="file" data-field="certificateFile"></label>
+                    <input type="hidden" data-field="certificateData" value="${existing.certificateData || ''}">
+                    <input type="hidden" data-field="certificateName" value="${existing.certificateName || ''}">
+                `;
+                list.appendChild(row);
+            });
+
+            list.querySelectorAll('.record-item').forEach((row) => {
+                row.addEventListener('change', () => {
+                    saveRecords(listElementId, hiddenId);
+                    if (form) form.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+                const certFileInput = row.querySelector('[data-field="certificateFile"]');
+                if (certFileInput) {
+                    certFileInput.addEventListener('change', (event) => {
+                        const file = event.target.files && event.target.files[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            const hiddenData = row.querySelector('[data-field="certificateData"]');
+                            const hiddenName = row.querySelector('[data-field="certificateName"]');
+                            if (hiddenData) hiddenData.value = String(reader.result || '');
+                            if (hiddenName) hiddenName.value = file.name;
+                            saveRecords(listElementId, hiddenId);
+                            if (form) form.dispatchEvent(new Event('input', { bubbles: true }));
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                }
+            });
+
+            saveRecords(listElementId, hiddenId);
+        };
+
+        if (form) {
+            const restoreDraft = () => {
+                const raw = storage.getItem(draftKey);
+                if (!raw) return;
+                try {
+                    const payload = JSON.parse(raw);
+                    Object.entries(payload).forEach(([name, value]) => {
+                        const fields = form.querySelectorAll(`[name="${name}"]`);
+                        if (!fields.length) return;
+                        if (fields[0].type === 'checkbox') {
+                            fields.forEach((field) => {
+                                field.checked = Array.isArray(value) ? value.includes(field.value) : Boolean(value);
+                            });
+                            return;
+                        }
+                        const field = fields[0];
+                        if (field.type === 'select-multiple') {
+                            Array.from(field.options).forEach((option) => {
+                                option.selected = Array.isArray(value) ? value.includes(option.value) : option.value === value;
+                            });
+                        } else {
+                            field.value = value;
+                        }
+                    });
+                } catch (error) {
+                    console.warn('Unable to restore staff draft', error);
+                }
+            };
+
+            const saveDraft = () => {
+                const payload = {};
+                const fields = form.querySelectorAll('input, select, textarea');
+                fields.forEach((field) => {
+                    if (!field.name) return;
+                    if (field.type === 'checkbox') {
+                        if (!payload[field.name]) payload[field.name] = [];
+                        if (field.checked) payload[field.name].push(field.value);
+                    } else if (field.type === 'file') {
+                        return;
+                    } else if (field.type === 'select-multiple') {
+                        payload[field.name] = Array.from(field.selectedOptions).map((option) => option.value);
+                    } else {
+                        payload[field.name] = field.value;
+                    }
+                });
+                storage.setItem(draftKey, JSON.stringify(payload));
+            };
+
+            const syncFullNameField = () => {
+                const firstName = (document.getElementById('first-name-field') || {}).value || '';
+                const lastName = (document.getElementById('last-name-field') || {}).value || '';
+                const fullName = [firstName, lastName].map((value) => String(value).trim()).filter(Boolean).join(' ');
+                const fullNameField = document.getElementById('full-name-field');
+                if (fullNameField) fullNameField.value = fullName;
+            };
+
+            restoreDraft();
+            syncFullNameField();
+            form.addEventListener('input', () => {
+                syncFullNameField();
+                saveDraft();
+            });
+            form.addEventListener('change', saveDraft);
+
+            const selectedTraining = Array.from(form.querySelectorAll('input[name="mandatory_training"]:checked')).map((field) => field.value);
+            const selectedCerts = Array.from(form.querySelectorAll('input[name="additional_certifications"]:checked')).map((field) => field.value);
+            renderRecordList('training-records-list', selectedTraining.length ? selectedTraining : <%- JSON.stringify(staffMandatoryTrainingOptions) %>, readRecords('training-records-json'), 'training-records-json', false);
+            renderRecordList('certification-records-list', selectedCerts.length ? selectedCerts : <%- JSON.stringify(staffCertificationOptions) %>, readRecords('certification-records-json'), 'certification-records-json', true);
+
+            form.querySelectorAll('input[name="mandatory_training"]').forEach((field) => {
+                field.addEventListener('change', () => {
+                    const selected = Array.from(form.querySelectorAll('input[name="mandatory_training"]:checked')).map((item) => item.value);
+                    renderRecordList('training-records-list', selected.length ? selected : <%- JSON.stringify(staffMandatoryTrainingOptions) %>, readRecords('training-records-json'), 'training-records-json', false);
+                });
+            });
+            form.querySelectorAll('input[name="additional_certifications"]').forEach((field) => {
+                field.addEventListener('change', () => {
+                    const selected = Array.from(form.querySelectorAll('input[name="additional_certifications"]:checked')).map((item) => item.value);
+                    renderRecordList('certification-records-list', selected.length ? selected : <%- JSON.stringify(staffCertificationOptions) %>, readRecords('certification-records-json'), 'certification-records-json', true);
+                });
+            });
+
+            document.querySelectorAll('.staff-file-input').forEach((input) => {
+                input.addEventListener('change', (event) => {
+                    const file = event.target.files && event.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const hidden = document.getElementById(input.dataset.hidden);
+                        if (hidden) {
+                            hidden.value = reader.result;
+                            saveDraft();
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                });
+            });
+        }
+
+        const clientFilterInput = document.getElementById('client-filter');
+        const assignedClientSelect = document.getElementById('assigned-client-select');
+        if (clientFilterInput && assignedClientSelect) {
+            clientFilterInput.addEventListener('input', () => {
+                const query = clientFilterInput.value.trim().toLowerCase();
+                Array.from(assignedClientSelect.options).forEach((option) => {
+                    option.hidden = query ? !option.text.toLowerCase().includes(query) : false;
+                });
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'compliance', isAdmin: true, currentStaffName: currentStaffName, currentStaffEmail: typeof currentStaffEmail !== 'undefined' ? currentStaffEmail : '' }) %>
+
+        <main class="portal-content">
+            <header class="portal-header">
+                <div>
+                    <span class="eyebrow">Governance controls</span>
+                    <h1>Compliance control center</h1>
+                </div>
+                <div class="header-actions">
+                    <strong class="portal-user-name"><%= currentStaffName %></strong>
+                </div>
+            </header>
+
+            <section class="content-grid">
+                <article class="portal-panel">
+                    <div class="panel-header">
+                        <h2>Legal basis and consent</h2>
+                    </div>
+                    <form id="legal-form" class="compliance-form">
+                        <label>
+                            Patient
+                            <select name="patientId" required>
+                                <option value="">Select patient</option>
+                                <% patients.forEach((patient) => { %>
+                                    <option value="<%= patient.id %>"><%= patient.name %> (#<%= patient.id %>)</option>
+                                <% }) %>
+                            </select>
+                        </label>
+                        <label>
+                            Legal basis
+                            <select name="legalBasis" required>
+                                <option value="care_contract">Care contract</option>
+                                <option value="consent">Consent</option>
+                                <option value="legal_obligation">Legal obligation</option>
+                                <option value="vital_interest">Vital interest</option>
+                            </select>
+                        </label>
+                        <label>
+                            Consent status
+                            <select name="consentStatus" required>
+                                <option value="pending">Pending</option>
+                                <option value="granted">Granted</option>
+                                <option value="withdrawn">Withdrawn</option>
+                                <option value="not_required">Not required</option>
+                            </select>
+                        </label>
+                        <label>
+                            Recorded by
+                            <input type="text" name="consentRecordedBy" required placeholder="Name or user id" />
+                        </label>
+                        <label>
+                            Retention until (optional)
+                            <input type="date" name="dataRetentionUntil" />
+                        </label>
+                        <button type="submit" class="primary-button">Save compliance details</button>
+                    </form>
+                </article>
+
+                <article class="portal-panel">
+                    <div class="panel-header">
+                        <h2>Subject data actions</h2>
+                    </div>
+                    <form id="export-form" class="compliance-form">
+                        <label>
+                            Patient for export
+                            <select name="patientId" required>
+                                <option value="">Select patient</option>
+                                <% patients.forEach((patient) => { %>
+                                    <option value="<%= patient.id %>"><%= patient.name %> (#<%= patient.id %>)</option>
+                                <% }) %>
+                            </select>
+                        </label>
+                        <button type="submit" class="secondary-button">Generate subject export</button>
+                    </form>
+
+                    <form id="erase-form" class="compliance-form">
+                        <label>
+                            Patient for archive/erasure workflow
+                            <select name="patientId" required>
+                                <option value="">Select patient</option>
+                                <% patients.forEach((patient) => { %>
+                                    <option value="<%= patient.id %>"><%= patient.name %> (#<%= patient.id %>)</option>
+                                <% }) %>
+                            </select>
+                        </label>
+                        <label>
+                            Reason
+                            <textarea name="reason" rows="3" required placeholder="Reason for erasure/archive request"></textarea>
+                        </label>
+                        <button type="submit" class="danger-button">Archive and erase</button>
+                    </form>
+
+                    <form id="retention-form" class="compliance-form">
+                        <label>
+                            Retention cleanup days
+                            <input type="number" name="retentionDays" min="30" max="3650" value="2190" required />
+                        </label>
+                        <button type="submit" class="secondary-button">Run retention cleanup</button>
+                    </form>
+                </article>
+            </section>
+
+            <section class="portal-panel">
+                <div class="panel-header">
+                    <h2>Recent subject requests</h2>
+                </div>
+                <div class="compliance-table-wrap">
+                    <table class="compliance-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Type</th>
+                                <th>Patient</th>
+                                <th>Status</th>
+                                <th>Requested by</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if (subjectRequests.length) { %>
+                                <% subjectRequests.forEach((request) => { %>
+                                    <tr>
+                                        <td><%= request.id %></td>
+                                        <td><%= request.request_type %></td>
+                                        <td><%= request.patient_id || "N/A" %></td>
+                                        <td><%= request.status %></td>
+                                        <td><%= request.requested_by || "system" %></td>
+                                        <td><%= request.created_at %></td>
+                                    </tr>
+                                <% }) %>
+                            <% } else { %>
+                                <tr>
+                                    <td colspan="6">No subject requests recorded yet.</td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="portal-panel">
+                <div class="panel-header">
+                    <h2>Action output</h2>
+                </div>
+                <pre id="compliance-output" class="compliance-output">Awaiting action...</pre>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const complianceOutput = document.getElementById('compliance-output');
+
+        const showOutput = (payload) => {
+            complianceOutput.textContent = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+        };
+
+        const callApi = async (url, options = {}) => {
+            const response = await fetch(url, options);
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Request failed.');
+            }
+            return data;
+        };
+
+        document.getElementById('legal-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const formData = new FormData(event.currentTarget);
+            const patientId = formData.get('patientId');
+            const payload = {
+                legalBasis: formData.get('legalBasis'),
+                consentStatus: formData.get('consentStatus'),
+                consentRecordedBy: formData.get('consentRecordedBy'),
+                dataRetentionUntil: formData.get('dataRetentionUntil')
+            };
+
+            try {
+                const data = await callApi(`/api/compliance/patients/${encodeURIComponent(patientId)}/legal`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                showOutput(data);
+            } catch (error) {
+                showOutput(error.message);
+            }
+        });
+
+        document.getElementById('export-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const patientId = new FormData(event.currentTarget).get('patientId');
+            try {
+                const data = await callApi(`/api/compliance/patients/${encodeURIComponent(patientId)}/export`);
+                showOutput(data);
+            } catch (error) {
+                showOutput(error.message);
+            }
+        });
+
+        document.getElementById('erase-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const formData = new FormData(event.currentTarget);
+            const patientId = formData.get('patientId');
+            const reason = String(formData.get('reason') || '').trim();
+
+            if (!reason) {
+                showOutput('Reason is required.');
+                return;
+            }
+
+            try {
+                const data = await callApi(`/api/compliance/patients/${encodeURIComponent(patientId)}/erase`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason })
+                });
+                showOutput(data);
+            } catch (error) {
+                showOutput(error.message);
+            }
+        });
+
+        document.getElementById('retention-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const retentionDays = Number(new FormData(event.currentTarget).get('retentionDays'));
+            try {
+                const data = await callApi('/api/compliance/retention/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ retentionDays })
+                });
+                showOutput(data);
+            } catch (error) {
+                showOutput(error.message);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'security', isAdmin, currentStaffName, currentStaffEmail }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Sign-in Security</h1>
+                    <p class="adm-page-subtitle">Configure verified MFA methods and one-time recovery codes for your account.</p>
+                </div>
+            </div>
+
+            <% if (message) { %><p class="form-message success"><%= message %></p><% } %>
+            <% if (error) { %><p class="form-message error"><%= error %></p><% } %>
+
+            <div id="mfa-status-message" aria-live="polite"></div>
+
+            <section class="adm-card">
+                <div class="adm-card-header"><div class="adm-card-title">MFA policy</div></div>
+                <div class="adm-card-body">
+                    <p><strong>Global enforcement:</strong> <%= globalMfaEnabled ? 'On' : 'Off' %></p>
+                    <p><strong><%= account.role === 'staff' ? 'Staff' : account.role.replace('_', ' ') %> requirement:</strong> <%= roleMfaRequired ? 'Configured as mandatory' : 'Optional' %></p>
+                    <% if (!globalMfaEnabled) { %>
+                        <p class="portal-subtext">MFA enforcement is currently off for the trial environment. You can safely prepare your methods now.</p>
+                    <% } %>
+                </div>
+            </section>
+
+            <div class="adm-content-grid mfa-security-grid">
+                <section class="adm-card">
+                    <div class="adm-card-header"><div class="adm-card-title">Authenticator app</div></div>
+                    <div class="adm-card-body mfa-security-stack">
+                        <p>Use a 6-digit TOTP code from Microsoft Authenticator, Google Authenticator, or Authy.</p>
+                        <p><strong>Status:</strong> <%= methods.some((method) => method.key === 'authenticator') ? 'Configured' : 'Not configured' %></p>
+                        <% if (!providerStatus.authenticator) { %>
+                            <p class="form-message error">MFA_ENCRYPTION_KEY must be configured on the server.</p>
+                        <% } %>
+                        <button type="button" class="primary-button" id="start-authenticator" <%= providerStatus.authenticator ? '' : 'disabled' %>>Set up authenticator</button>
+                        <div id="authenticator-setup" class="mfa-setup-panel" hidden>
+                            <img id="authenticator-qr" alt="Authenticator setup QR code">
+                            <p>Manual setup key: <code id="authenticator-key"></code></p>
+                            <form id="authenticator-verify-form" class="portal-form">
+                                <label>6-digit authenticator code<input name="code" inputmode="numeric" autocomplete="one-time-code" required></label>
+                                <button class="primary-button" type="submit">Verify authenticator</button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="adm-card">
+                    <div class="adm-card-header"><div class="adm-card-title">Email verification</div></div>
+                    <div class="adm-card-body mfa-security-stack">
+                        <p>Send a code to <strong><%= account.maskedEmail %></strong>.</p>
+                        <p><strong>Status:</strong> <%= account.emailVerified ? 'Verified' : 'Not verified' %></p>
+                        <% if (!providerStatus.email) { %>
+                            <p class="form-message error">Configure SMTP_HOST, SMTP_USER, SMTP_PASS, and SMTP_FROM to enable email codes.</p>
+                        <% } %>
+                        <button type="button" class="primary-button contact-mfa-start" data-method="email" <%= providerStatus.email ? '' : 'disabled' %>>Verify email</button>
+                    </div>
+                </section>
+
+                <section class="adm-card">
+                    <div class="adm-card-header"><div class="adm-card-title">SMS verification</div></div>
+                    <div class="adm-card-body mfa-security-stack">
+                        <p><%= account.phone ? `Send a code to ${account.maskedPhone}.` : 'Add a personal mobile number before configuring SMS.' %></p>
+                        <p><strong>Status:</strong> <%= account.phoneVerified ? 'Verified' : 'Not verified' %></p>
+                        <% if (!providerStatus.sms) { %>
+                            <p class="form-message error">Configure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER to enable SMS codes.</p>
+                        <% } %>
+                        <button type="button" class="primary-button contact-mfa-start" data-method="sms" <%= providerStatus.sms && account.phone ? '' : 'disabled' %>>Verify mobile number</button>
+                    </div>
+                </section>
+
+                <section class="adm-card">
+                    <div class="adm-card-header"><div class="adm-card-title">Recovery codes</div></div>
+                    <div class="adm-card-body mfa-security-stack">
+                        <p><strong><%= recoveryCodeCount %></strong> unused one-time recovery codes remain.</p>
+                        <form id="recovery-code-form" class="portal-form">
+                            <label>Current password<input type="password" name="password" autocomplete="current-password" required></label>
+                            <button type="submit" class="secondary-button">Regenerate recovery codes</button>
+                        </form>
+                    </div>
+                </section>
+
+                <section class="adm-card">
+                    <div class="adm-card-header"><div class="adm-card-title">Change password</div></div>
+                    <div class="adm-card-body mfa-security-stack">
+                        <p>Your new password cannot match any of your previous five passwords.</p>
+                        <form id="password-change-form" class="portal-form">
+                            <label>Current password<input type="password" name="currentPassword" autocomplete="current-password" required></label>
+                            <label>New password<input type="password" name="newPassword" autocomplete="new-password" minlength="12" required></label>
+                            <label>Confirm new password<input type="password" name="confirmPassword" autocomplete="new-password" minlength="12" required></label>
+                            <button type="submit" class="primary-button">Change password</button>
+                        </form>
+                    </div>
+                </section>
+            </div>
+
+            <dialog id="contact-mfa-dialog" class="adm-modal">
+                <form id="contact-mfa-form" class="adm-modal-content portal-form">
+                    <h2>Verify your contact method</h2>
+                    <input type="hidden" name="method">
+                    <p id="contact-mfa-instructions"></p>
+                    <label>6-digit verification code<input name="code" inputmode="numeric" autocomplete="one-time-code" required></label>
+                    <button type="submit" class="primary-button">Verify</button>
+                    <button type="button" class="secondary-button" data-close-dialog>Cancel</button>
+                </form>
+            </dialog>
+
+            <dialog id="recovery-codes-dialog" class="adm-modal">
+                <div class="adm-modal-content">
+                    <h2>Save your recovery codes</h2>
+                    <p>These codes are shown only once. Store them in a secure password manager.</p>
+                    <pre id="recovery-codes-list" class="mfa-recovery-codes"></pre>
+                    <button type="button" class="primary-button" data-close-recovery>I have saved these codes</button>
+                </div>
+            </dialog>
+        </main>
+    </div>
+
+    <script>
+        const statusMessage = document.getElementById('mfa-status-message');
+        const contactDialog = document.getElementById('contact-mfa-dialog');
+        const contactForm = document.getElementById('contact-mfa-form');
+        const recoveryDialog = document.getElementById('recovery-codes-dialog');
+
+        const requestJson = async (url, payload) => {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload || {})
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'The request could not be completed.');
+            return data;
+        };
+
+        const showStatus = (message, isError = false) => {
+            statusMessage.className = `form-message ${isError ? 'error' : 'success'}`;
+            statusMessage.textContent = message;
+        };
+
+        const showRecoveryCodes = (codes) => {
+            document.getElementById('recovery-codes-list').textContent = codes.join('\n');
+            recoveryDialog.showModal();
+        };
+
+        document.getElementById('start-authenticator').addEventListener('click', async () => {
+            try {
+                const data = await requestJson('/portal/security/mfa/authenticator/start');
+                document.getElementById('authenticator-qr').src = data.qrCode;
+                document.getElementById('authenticator-key').textContent = data.manualKey;
+                document.getElementById('authenticator-setup').hidden = false;
+            } catch (error) {
+                showStatus(error.message, true);
+            }
+        });
+
+        document.getElementById('authenticator-verify-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            try {
+                const data = await requestJson('/portal/security/mfa/authenticator/verify', Object.fromEntries(new FormData(event.currentTarget)));
+                showRecoveryCodes(data.recoveryCodes);
+                showStatus(data.message);
+                document.getElementById('authenticator-setup').hidden = true;
+            } catch (error) {
+                showStatus(error.message, true);
+            }
+        });
+
+        document.querySelectorAll('.contact-mfa-start').forEach((button) => {
+            button.addEventListener('click', async () => {
+                try {
+                    const method = button.dataset.method;
+                    const data = await requestJson('/portal/security/mfa/contact-challenge', { method });
+                    contactForm.elements.method.value = method;
+                    contactForm.elements.code.value = '';
+                    document.getElementById('contact-mfa-instructions').textContent = data.message;
+                    contactDialog.showModal();
+                } catch (error) {
+                    showStatus(error.message, true);
+                }
+            });
+        });
+
+        contactForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            try {
+                const data = await requestJson('/portal/security/mfa/contact-verify', Object.fromEntries(new FormData(contactForm)));
+                contactDialog.close();
+                showRecoveryCodes(data.recoveryCodes);
+                showStatus(data.message);
+            } catch (error) {
+                showStatus(error.message, true);
+            }
+        });
+
+        document.getElementById('recovery-code-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            try {
+                const data = await requestJson('/portal/security/mfa/recovery-codes', Object.fromEntries(new FormData(event.currentTarget)));
+                event.currentTarget.reset();
+                showRecoveryCodes(data.recoveryCodes);
+                showStatus('Recovery codes regenerated. Previous codes are no longer valid.');
+            } catch (error) {
+                showStatus(error.message, true);
+            }
+        });
+
+        document.getElementById('password-change-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            try {
+                const data = await requestJson('/portal/security/password', Object.fromEntries(new FormData(event.currentTarget)));
+                event.currentTarget.reset();
+                showStatus(data.message);
+            } catch (error) {
+                showStatus(error.message, true);
+            }
+        });
+
+        document.querySelector('[data-close-dialog]').addEventListener('click', () => contactDialog.close());
+        document.querySelector('[data-close-recovery]').addEventListener('click', () => window.location.reload());
+    </script>
+</body>
+</html>

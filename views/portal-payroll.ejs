@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+    <style>
+        .pr-dashboard-grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); margin-bottom:16px; }
+        .pr-dashboard-card { background:linear-gradient(135deg,#ffffff 0%,#f8fafc 100%); border:1px solid #e2e8f0; border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; gap:6px; box-shadow:0 6px 18px rgba(15,23,42,0.04); }
+        .pr-dashboard-card.primary { border-color:#bfdbfe; background:linear-gradient(135deg,#eff6ff 0%,#f8fbff 100%); }
+        .pr-dashboard-card.success { border-color:#bbf7d0; background:linear-gradient(135deg,#f0fdf4 0%,#f8fffb 100%); }
+        .pr-dashboard-card.warning { border-color:#fde68a; background:linear-gradient(135deg,#fffbeb 0%,#fffef8 100%); }
+        .pr-dashboard-card .pr-card-icon { font-size:1.25rem; }
+        .pr-dashboard-card .pr-card-label { font-size:0.74rem; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; }
+        .pr-dashboard-card .pr-card-value { font-size:1.18rem; font-weight:700; color:#0f172a; }
+        .pr-dashboard-card .pr-card-sub { font-size:0.74rem; color:#94a3b8; }
+        .pr-toolbar { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:14px 16px; margin-bottom:12px; display:flex; flex-wrap:wrap; gap:12px; justify-content:space-between; align-items:center; box-shadow:0 8px 24px rgba(15,23,42,0.04); }
+        .pr-toolbar-title { font-weight:700; color:#0f172a; font-size:0.95rem; }
+        .pr-toolbar-subtitle { font-size:0.8rem; color:#64748b; margin-top:2px; }
+        .pr-toolbar-actions { display:flex; flex-wrap:wrap; gap:8px; }
+        .pr-toolbar-btn, .pr-toolbar-link { padding:7px 10px; border-radius:8px; border:1px solid #dbe3ee; background:#f8fafc; color:#334155; font-size:0.78rem; font-weight:600; text-decoration:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+        .pr-toolbar-btn.primary { background:#2563eb; color:#fff; border-color:#2563eb; }
+        .pr-toolbar-btn.success { background:#16a34a; color:#fff; border-color:#16a34a; }
+        .pr-toolbar-btn.ghost { background:#fff; color:#475569; }
+        .pr-filter-toolbar { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:12px 14px; margin-bottom:12px; display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); align-items:end; box-shadow:0 6px 18px rgba(15,23,42,0.03); }
+        .pr-filter-toolbar label { font-size:0.74rem; font-weight:600; color:#475569; display:flex; flex-direction:column; gap:4px; }
+        .pr-filter-toolbar input, .pr-filter-toolbar select { width:100%; border:1px solid #dbe3ee; border-radius:8px; padding:8px 10px; font-size:0.8rem; color:#0f172a; background:#fcfdff; }
+        .pr-period-tabs { display:flex; gap:4px; margin-bottom:12px; flex-wrap:wrap; }
+        .pr-period-tab { padding:6px 12px; border-radius:999px; border:1px solid #dbe3ee; background:#f8fafc; font-size:0.8rem; font-weight:600; cursor:pointer; color:#475569; text-decoration:none; }
+        .pr-period-tab.active { background:#2563eb; color:#fff; border-color:#2563eb; }
+        .pr-table-wrap { overflow-x:auto; }
+        .pr-table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+        .pr-table th { background:#f8fafc; border-bottom:2px solid #e2e8f0; padding:10px 12px; text-align:left; font-weight:700; color:#334155; white-space:nowrap; }
+        .pr-table td { padding:10px 12px; border-bottom:1px solid #eef2f7; vertical-align:middle; white-space:nowrap; }
+        .pr-table tr:hover td { background:#f8fafc; }
+        .pr-status-draft { background:#fef3c7; color:#92400e; padding:3px 8px; border-radius:999px; font-size:0.72rem; font-weight:700; }
+        .pr-status-approved { background:#dcfce7; color:#166534; padding:3px 8px; border-radius:999px; font-size:0.72rem; font-weight:700; }
+        .pr-status-paid { background:#dbeafe; color:#1d4ed8; padding:3px 8px; border-radius:999px; font-size:0.72rem; font-weight:700; }
+        .pr-action-btn { padding:5px 10px; border-radius:6px; border:none; cursor:pointer; font-size:0.74rem; font-weight:700; }
+        .pr-btn-approve { background:#16a34a; color:#fff; }
+        .pr-btn-paid { background:#2563eb; color:#fff; }
+        .pr-btn-revert { background:#f3f4f6; color:#374151; border:1px solid #d1d5db; }
+        .pr-btn-view { background:#f8fafc; color:#1d4ed8; border:1px solid #dbe3ee; }
+        .pr-row-select { width:16px; height:16px; accent-color:#2563eb; }
+        .pr-badge-pill { display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:999px; font-size:0.72rem; font-weight:700; }
+        .pr-badge-day { background:#ecfdf5; color:#166534; }
+        .pr-badge-night { background:#f5f3ff; color:#6d28d9; }
+        .pr-badge-weekend { background:#fff7ed; color:#9a2c00; }
+        .pr-badge-bank-holiday { background:#fef2f2; color:#b91c1c; }
+        .pr-badge-overtime { background:#fef3c7; color:#92400e; }
+        .pr-modal-overlay { display:none; position:fixed; inset:0; background:rgba(15,23,42,0.6); z-index:1000; align-items:center; justify-content:center; padding:16px; }
+        .pr-modal-overlay.open { display:flex; }
+        .pr-modal { background:#fff; border-radius:16px; max-width:min(1280px, 96vw); width:min(1280px, 96vw); max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 60px rgba(15,23,42,0.24); }
+        .pr-modal-header { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid #e2e8f0; flex-shrink:0; }
+        .pr-modal-body { overflow-y:auto; overflow-x:hidden; padding:14px 18px 18px; flex:1; display:flex; flex-direction:column; gap:10px; min-height:0; }
+        .pr-modal-body .pr-table-wrap { overflow-x:auto; }
+        .pr-modal-body .pr-table { width:100%; font-size:0.76rem; border-collapse:collapse; }
+        .pr-modal-body .pr-table th,
+        .pr-modal-body .pr-table td { padding:7px 8px; white-space:normal; word-break:break-word; }
+        .pr-modal-close { background:none; border:none; font-size:1.4rem; cursor:pointer; color:#64748b; line-height:1; }
+        .pr-summary-grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
+        .pr-summary-card { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:10px 12px; display:flex; flex-direction:column; gap:3px; }
+        .pr-summary-card .pr-card-label { font-size:0.72rem; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; }
+        .pr-summary-card .pr-card-value { font-size:1.05rem; font-weight:700; color:#0f172a; }
+        .pr-summary-card .pr-card-sub { font-size:0.74rem; color:#94a3b8; }
+        .pr-exception-panel, .pr-timeline-panel, .pr-calculation-panel { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:12px 14px; }
+        .pr-panel-title { font-size:0.8rem; font-weight:700; color:#0f172a; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.04em; }
+        .pr-exception-list { display:flex; flex-wrap:wrap; gap:8px; }
+        .pr-exception-chip { display:inline-flex; align-items:center; gap:6px; padding:6px 8px; border-radius:999px; font-size:0.74rem; font-weight:600; background:#fef2f2; color:#991b1b; }
+        .pr-exception-chip.good { background:#ecfdf5; color:#166534; }
+        .pr-timeline { display:grid; gap:8px; }
+        .pr-timeline-step { display:flex; gap:10px; align-items:flex-start; }
+        .pr-timeline-dot { width:10px; height:10px; border-radius:50%; background:#2563eb; margin-top:4px; flex-shrink:0; }
+        .pr-timeline-text { font-size:0.8rem; color:#334155; }
+        .pr-detail-toggle { padding:5px 8px; border-radius:6px; border:1px solid #dbe3ee; background:#fff; color:#2563eb; font-size:0.72rem; font-weight:700; cursor:pointer; }
+        .pr-shift-details-row td { background:#f8fafc; }
+        .pr-shift-details-grid { display:grid; gap:8px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); padding:6px 2px 2px; }
+        .pr-shift-detail-item { background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:7px 8px; font-size:0.72rem; color:#475569; }
+        .pr-shift-detail-item strong { display:block; color:#0f172a; margin-bottom:2px; }
+        .pr-calculation-list { display:grid; gap:8px; }
+        .pr-calculation-row { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:0.8rem; color:#475569; }
+        .pr-calculation-row.total { font-weight:700; color:#0f172a; border-bottom:none; }
+        .pr-divider { display:inline-block; width:1px; height:16px; background:#e5e7eb; margin:0 4px; vertical-align:middle; }
+
+        /* ── Print styles ── */
+        .pr-print-header { display:none; }
+        @media print {
+            /* Hide everything except the payroll table */
+            .sidebar, .adm-page-header, .pr-dashboard-grid, .pr-toolbar,
+            .pr-filter-toolbar, .pr-filters, .pr-period-tabs, #pr-modal,
+            [style*="display:flex;gap:4px;margin-bottom"] { display:none !important; }
+
+            /* Reset layout to full width */
+            .portal-layout { display:block !important; }
+            .portal-content { padding:0 !important; display:block !important; }
+            body, .portal-shell-page { background:#fff !important; }
+
+            /* Show print-only header */
+            .pr-print-header { display:block !important; margin-bottom:18px; }
+
+            /* Clean table for print */
+            .adm-card { border:none !important; box-shadow:none !important; padding:0 !important; }
+            .adm-card-header { padding:0 0 8px !important; border-bottom:2px solid #0f172a !important; margin-bottom:8px; }
+            .adm-card-title { font-size:1rem !important; }
+            .pr-table-wrap { overflow:visible !important; }
+            .pr-table th { background:#f1f5f9 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+            .pr-table tr:hover td { background:transparent !important; }
+            .pr-action-btn, .pr-row-select, td:last-child, th:last-child,
+            td:first-child, th:first-child { display:none !important; }
+            .pr-summary-row td { font-weight:700 !important; border-top:2px solid #0f172a !important; }
+
+            /* Premium rates note */
+            [style*="background:#f0f9ff"] { display:none !important; }
+
+            @page { margin:18mm 14mm; size:A4 landscape; }
+        }
+    </style>
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'payroll', isAdmin: true, currentStaffName, currentStaffEmail }) %>
+        <main class="portal-content">
+            <%
+                const f = typeof filters !== 'undefined' ? filters : {};
+                const activePeriod = f.period || 'weekly';
+                const fmt = (n) => '€' + (Number(n)||0).toFixed(2);
+                const fmtH = (n) => (Number(n)||0).toFixed(1) + 'h';
+                const buildUrl = (overrides) => {
+                    const base = { period: activePeriod, division: f.division||'all', staffId: f.staffId||'', role: f.role||'', dateFrom: f.dateFrom||'', dateTo: f.dateTo||'' };
+                    Object.assign(base, overrides);
+                    if (base.period !== 'custom') { base.dateFrom = ''; base.dateTo = ''; }
+                    const parts = [];
+                    Object.keys(base).forEach(function(k){ const v = base[k]; if(v && v !== 'all' && v !== '') parts.push(k+'='+encodeURIComponent(v)); });
+                    return '/admin/payroll?' + parts.join('&');
+                };
+                const exportParts = [];
+                Object.keys(f).forEach(function(k){ const v = f[k]; if(v && v !== 'all' && v !== '') exportParts.push(k+'='+encodeURIComponent(v)); });
+                const exportUrl = '/admin/payroll/export?' + exportParts.join('&');
+            %>
+
+            <!-- Page header -->
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">💶 Payroll</h1>
+                    <p class="adm-page-subtitle">
+                        <%= periodStart %> – <%= periodEnd %> &nbsp;·&nbsp;
+                        <%= staffRows.length %> staff member<%= staffRows.length === 1 ? '' : 's' %>
+                    </p>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <a href="<%= exportUrl %>" class="adm-btn-secondary">📥 Export CSV</a>
+                </div>
+            </div>
+
+            <!-- Period tabs -->
+            <div style="display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap;">
+                <a href="<%= buildUrl({period:'weekly'}) %>" class="pr-period-tab <%= activePeriod==='weekly'?'active':'' %>">This Week</a>
+                <a href="<%= buildUrl({period:'fortnightly'}) %>" class="pr-period-tab <%= activePeriod==='fortnightly'?'active':'' %>">Fortnightly</a>
+                <a href="<%= buildUrl({period:'monthly'}) %>" class="pr-period-tab <%= activePeriod==='monthly'?'active':'' %>">This Month</a>
+                <span class="pr-divider"></span>
+                <form id="pr-custom-range-form" method="GET" action="/admin/payroll" style="display:flex;gap:6px;align-items:center;">
+                    <input type="hidden" name="period" value="custom">
+                    <input type="hidden" name="division" value="<%= f.division||'all' %>">
+                    <input type="hidden" name="staffId" value="<%= f.staffId||'' %>">
+                    <input type="hidden" name="role" value="<%= f.role||'' %>">
+                    <input type="date" id="pr-date-from" name="dateFrom" class="adm-form-input" style="padding:5px 10px;" value="<%= f.dateFrom||'' %>" required>
+                    <span style="font-size:0.8rem;color:#64748b;">to</span>
+                    <input type="date" id="pr-date-to" name="dateTo" class="adm-form-input" style="padding:5px 10px;" value="<%= f.dateTo||'' %>" required>
+                    <button type="submit" id="pr-custom-btn" class="pr-period-tab <%= activePeriod==='custom'?'active':'' %>" style="opacity:<%= (f.dateFrom&&f.dateTo)?'1':'0.45' %>;">Custom Range</button>
+                </form>
+            </div>
+
+            <!-- Filters -->
+            <div class="pr-filters">
+                <form method="GET" action="/admin/payroll">
+                    <input type="hidden" name="period" value="<%= activePeriod %>">
+                    <% if (f.dateFrom) { %><input type="hidden" name="dateFrom" value="<%= f.dateFrom %>"><% } %>
+                    <% if (f.dateTo) { %><input type="hidden" name="dateTo" value="<%= f.dateTo %>"><% } %>
+                    <select name="division" class="adm-form-select" style="padding:7px 12px;">
+                        <option value="all" <%= (f.division||'all')==='all'?'selected':'' %>>All Divisions</option>
+                        <option value="home-care" <%= f.division==='home-care'?'selected':'' %>>🏠 Home Care</option>
+                        <option value="agency-staffing" <%= f.division==='agency-staffing'?'selected':'' %>>🏥 Agency</option>
+                    </select>
+                    <select name="staffId" class="adm-form-select" style="padding:7px 12px;">
+                        <option value="">All Staff</option>
+                        <% (allStaff||[]).forEach(s => { %>
+                            <option value="<%= s.id %>" <%= Number(f.staffId)===s.id?'selected':'' %>><%= s.name %></option>
+                        <% }) %>
+                    </select>
+                    <input type="text" name="role" class="adm-form-input" style="padding:7px 12px;width:160px;" value="<%= f.role||'' %>" placeholder="Filter by role…">
+                    <button type="submit" class="adm-btn-secondary">Filter</button>
+                    <a href="/admin/payroll" class="adm-btn-secondary">Reset</a>
+                </form>
+            </div>
+
+            <div class="pr-dashboard-grid">
+                <div class="pr-dashboard-card primary">
+                    <span class="pr-card-icon">💶</span>
+                    <span class="pr-card-label">Total Payroll Cost</span>
+                    <span class="pr-card-value"><%= fmt(summary.totalPayroll) %></span>
+                    <span class="pr-card-sub">This period</span>
+                </div>
+                <div class="pr-dashboard-card">
+                    <span class="pr-card-icon">👥</span>
+                    <span class="pr-card-label">Staff Included</span>
+                    <span class="pr-card-value"><%= summary.staffAwaitingPayroll %></span>
+                    <span class="pr-card-sub">Active payroll rows</span>
+                </div>
+                <div class="pr-dashboard-card success">
+                    <span class="pr-card-icon">✅</span>
+                    <span class="pr-card-label">Approved Payroll</span>
+                    <span class="pr-card-value"><%= summary.approvedCount %></span>
+                    <span class="pr-card-sub">Approved or paid</span>
+                </div>
+                <div class="pr-dashboard-card warning">
+                    <span class="pr-card-icon">⏳</span>
+                    <span class="pr-card-label">Draft Payroll</span>
+                    <span class="pr-card-value"><%= summary.pendingCount %></span>
+                    <span class="pr-card-sub">Pending review</span>
+                </div>
+                <div class="pr-dashboard-card">
+                    <span class="pr-card-icon">💰</span>
+                    <span class="pr-card-label">Estimated Employer Cost</span>
+                    <span class="pr-card-value"><%= fmt(summary.estimatedTotal) %></span>
+                    <span class="pr-card-sub">Before deductions</span>
+                </div>
+                <div class="pr-dashboard-card">
+                    <span class="pr-card-icon">⚠️</span>
+                    <span class="pr-card-label">Pending Approvals</span>
+                    <span class="pr-card-value"><%= summary.pendingCount %></span>
+                    <span class="pr-card-sub">Needs attention</span>
+                </div>
+            </div>
+
+            <div class="pr-toolbar">
+                <div>
+                    <div class="pr-toolbar-title">Monthly payroll review</div>
+                    <div class="pr-toolbar-subtitle">Review, approve and export payroll records quickly.</div>
+                </div>
+                <div class="pr-toolbar-actions">
+                    <label class="pr-toolbar-btn ghost" style="cursor:pointer;"><input id="pr-select-all" type="checkbox" style="margin-right:6px;"> Select all</label>
+                    <button type="button" id="pr-approve-selected" class="pr-toolbar-btn success">✓ Approve selected</button>
+                    <button type="button" id="pr-paid-selected" class="pr-toolbar-btn primary">💳 Mark as paid</button>
+                    <a href="<%= exportUrl %>" class="pr-toolbar-link">📥 Export CSV</a>
+                    <button type="button" id="pr-print-summary" class="pr-toolbar-btn ghost">🖨 Print</button>
+                </div>
+            </div>
+
+            <div class="pr-filter-toolbar">
+                <label>
+                    Staff member
+                    <select id="pr-staff-filter" data-filter="staff">
+                        <option value="all">All staff</option>
+                        <% (allStaff||[]).forEach(s => { %>
+                            <option value="<%= s.id %>"><%= s.name %></option>
+                        <% }) %>
+                    </select>
+                </label>
+                <label>
+                    Division
+                    <select id="pr-division-filter" data-filter="division">
+                        <option value="all">All divisions</option>
+                        <option value="home-care">Home Care</option>
+                        <option value="agency-staffing">Agency</option>
+                    </select>
+                </label>
+                <label>
+                    Status
+                    <select id="pr-status-filter" data-filter="status">
+                        <option value="all">All statuses</option>
+                        <option value="draft">Draft</option>
+                        <option value="approved">Approved</option>
+                        <option value="paid">Paid</option>
+                    </select>
+                </label>
+                <label>
+                    Search
+                    <input id="pr-search-input" type="text" placeholder="Search staff or role">
+                </label>
+            </div>
+
+            <!-- Payroll table -->
+            <div class="pr-print-header">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div>
+                        <div style="font-size:1.3rem;font-weight:800;color:#17324b;">Everkind Care System</div>
+                        <div style="font-size:0.9rem;color:#475569;margin-top:2px;">Payroll Summary Report</div>
+                    </div>
+                    <div style="text-align:right;font-size:0.82rem;color:#475569;">
+                        <div><strong>Period:</strong> <%= periodStart %> – <%= periodEnd %></div>
+                        <div><strong>Generated:</strong> <%= new Date().toLocaleDateString('en-IE') %></div>
+                        <div><strong>Staff Count:</strong> <%= staffRows.length %></div>
+                    </div>
+                </div>
+            </div>
+            <div class="adm-card" style="padding:0;">
+                <div class="adm-card-header" style="padding:14px 16px;">
+                    <div>
+                        <div class="adm-card-title">Staff Payroll — <%= periodStart %> to <%= periodEnd %></div>
+                        <div class="adm-card-subtitle"><%= staffRows.length %> staff member<%= staffRows.length===1?'':'s' %> · Click a row to view shift breakdown</div>
+                    </div>
+                </div>
+
+                <% if (staffRows && staffRows.length > 0) { %>
+                <div class="pr-table-wrap">
+                    <table class="pr-table">
+                        <thead>
+                            <tr>
+                                <th style="width:36px;"><input type="checkbox" id="pr-select-all-header" class="pr-row-select" style="display:none;" disabled></th>
+                                <th>Staff</th>
+                                <th>Role</th>
+                                <th>Hours Worked</th>
+                                <th>Hourly Rate</th>
+                                <th>Gross Pay</th>
+                                <th>Mileage</th>
+                                <th>Estimated Tax</th>
+                                <th>Net Pay</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% staffRows.forEach((row) => { %>
+                            <tr class="pr-staff-row" style="cursor:pointer;" data-staff-id="<%= row.staffId %>" data-status="<%= row.payrollStatus || 'draft' %>" data-division="<%= row.homeCareHours > 0 && row.agencyHours > 0 ? 'mixed' : (row.agencyHours > 0 ? 'agency-staffing' : 'home-care') %>" data-search="<%= ((row.staffName||'') + ' ' + (row.staffRole||'') + ' ' + (row.staffEmployeeNumber||'')).toLowerCase() %>" data-gross="<%= row.grossPay %>" data-net="<%= row.netPay %>" data-hours="<%= row.totalHours %>" data-mileage-payment="<%= row.mileagePayment %>">
+                                <td onclick="event.stopPropagation()"><input type="checkbox" class="pr-row-select" value="<%= row.staffId %>"></td>
+                                <td>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <div class="sidebar-user-avatar" style="width:30px;height:30px;font-size:0.75rem;flex-shrink:0;"><%= (row.staffName||'?').charAt(0) %></div>
+                                        <div>
+                                            <div style="font-weight:700;font-size:0.84rem;color:#0f172a;"><%= row.staffName %></div>
+                                            <div style="color:#94a3b8;font-size:0.72rem;"><%= row.staffEmployeeNumber || '' %></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td style="font-size:0.82rem;color:#475569;"><%= row.staffRole %></td>
+                                <td style="font-weight:600;color:#0f172a;"><%= row.totalHours.toFixed(1) %>h</td>
+                                <td>€<%= row.hourlyRate.toFixed(2) %></td>
+                                <td style="font-weight:700;color:#15803d;">€<%= row.grossPay.toFixed(2) %></td>
+                                <td>€<%= row.mileagePayment.toFixed(2) %></td>
+                                <td style="color:#64748b;">€<%= row.estimatedTax.toFixed(2) %></td>
+                                <td style="font-weight:700;color:#2563eb;">€<%= row.netPay.toFixed(2) %></td>
+                                <td>
+                                    <% if (row.payrollStatus === 'paid') { %>
+                                        <span class="pr-status-paid" style="cursor:pointer;" onclick="openBreakdown(<%= row.staffId %>)">💳 Paid</span>
+                                    <% } else if (row.payrollStatus === 'approved') { %>
+                                        <span class="pr-status-approved" style="cursor:pointer;" onclick="openBreakdown(<%= row.staffId %>)">✅ Approved</span>
+                                    <% } else { %>
+                                        <span class="pr-status-draft" style="cursor:pointer;" onclick="openBreakdown(<%= row.staffId %>)">⏳ Draft</span>
+                                    <% } %>
+                                </td>
+                                <td onclick="event.stopPropagation()" style="display:flex;gap:4px;flex-wrap:nowrap;">
+                                    <button type="button" class="pr-action-btn pr-btn-view" onclick="event.stopPropagation();openBreakdown(<%= row.staffId %>)">📋 View</button>
+                                    <% if (row.payrollStatus === 'draft') { %>
+                                        <button type="button" class="pr-action-btn pr-btn-approve"
+                                            onclick="approvePayroll(<%= row.staffId %>, '<%= periodStart %>', '<%= periodEnd %>', <%= row.grossPay.toFixed(2) %>, <%= row.netPay.toFixed(2) %>, <%= row.totalHours.toFixed(2) %>, <%= row.mileageKm.toFixed(2) %>, <%= row.mileagePayment.toFixed(2) %>)">
+                                            ✅ Approve
+                                        </button>
+                                    <% } else if (row.payrollStatus === 'approved') { %>
+                                        <button type="button" class="pr-action-btn pr-btn-paid"
+                                            onclick="markPaid(<%= row.staffId %>, '<%= periodStart %>', '<%= periodEnd %>')">
+                                            💳 Mark Paid
+                                        </button>
+                                        <button type="button" class="pr-action-btn pr-btn-revert"
+                                            onclick="revertPayroll(<%= row.staffId %>, '<%= periodStart %>', '<%= periodEnd %>')">
+                                            ↩ Revert
+                                        </button>
+                                    <% } else if (row.payrollStatus === 'paid') { %>
+                                        <span style="font-size:0.72rem;color:#64748b;">Paid ✓</span>
+                                    <% } %>
+                                </td>
+                            </tr>
+                            <% }) %>
+                        </tbody>
+                        <tfoot>
+                            <tr class="pr-summary-row">
+                                <td colspan="3" style="font-weight:700;">TOTALS</td>
+                                <td style="font-weight:700;"><%= staffRows.reduce((s,r)=>s+r.totalHours,0).toFixed(1) %>h</td>
+                                <td>—</td>
+                                <td style="font-weight:700;color:#15803d;">€<%= staffRows.reduce((s,r)=>s+r.grossPay,0).toFixed(2) %></td>
+                                <td style="font-weight:700;">€<%= staffRows.reduce((s,r)=>s+r.mileagePayment,0).toFixed(2) %></td>
+                                <td style="color:#64748b;">€<%= staffRows.reduce((s,r)=>s+r.estimatedTax,0).toFixed(2) %></td>
+                                <td style="font-weight:700;color:#2563eb;">€<%= staffRows.reduce((s,r)=>s+r.netPay,0).toFixed(2) %></td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <% } else { %>
+                    <div class="adm-card-empty" style="padding:40px;">
+                        <div class="adm-card-empty-icon">💶</div>
+                        <p>No payroll data for the selected period.</p>
+                        <p style="font-size:0.82rem;color:#9ca3af;">Ensure staff members are assigned to shifts with an hourly rate on their profile.</p>
+                    </div>
+                <% } %>
+            </div>
+
+            <!-- Premium rates note -->
+            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px 16px;margin-top:12px;font-size:0.78rem;color:#0369a1;">
+                <strong>Auto-calculated premiums:</strong>
+                🌙 Night (22:00–08:00) +25% &nbsp;·&nbsp;
+                📅 Weekend (Sat/Sun) +25% &nbsp;·&nbsp;
+                🏖 Bank Holiday +50% &nbsp;·&nbsp;
+                ⏱ Overtime (&gt;39h/wk) +50% &nbsp;·&nbsp;
+                🚗 Mileage €0.25/km &nbsp;·&nbsp;
+                Tax estimate is 20% flat — actual payroll may vary.
+            </div>
+        </main>
+    </div>
+
+    <!-- Shift breakdown modal -->
+    <div id="pr-modal" class="pr-modal-overlay" role="dialog" aria-modal="true">
+        <div class="pr-modal">
+            <div class="pr-modal-header">
+                <div>
+                    <h3 id="pr-modal-title" style="font-size:1rem;font-weight:700;margin:0;">Shift Breakdown</h3>
+                    <p id="pr-modal-sub" style="font-size:0.8rem;color:#6b7280;margin:2px 0 0;"></p>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <button id="pr-modal-download-btn" class="pr-btn pr-btn-approve" onclick="downloadPayslipFromModal()" title="Download Payslip PDF" style="display:none;font-size:0.78rem;padding:6px 12px;">⬇ Payslip</button>
+                    <button id="pr-modal-email-btn" class="pr-btn" onclick="emailPayslipFromModal()" title="Email Payslip" style="display:none;font-size:0.78rem;padding:6px 12px;background:#0ea5e9;color:#fff;border:none;border-radius:8px;cursor:pointer;">✉ Email</button>
+                    <button class="pr-modal-close" onclick="closeBreakdown()">×</button>
+                </div>
+            </div>
+            <div class="pr-modal-body">
+                <div id="pr-modal-loading" style="text-align:center;padding:40px;color:#6b7280;">Loading…</div>
+                <div id="pr-modal-content" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const PERIOD_START = '<%= periodStart %>';
+    const PERIOD_END = '<%= periodEnd %>';
+    const ACTIVE_PERIOD = '<%= activePeriod %>';
+
+    const STAFF_MAP = {};
+    <% staffRows.forEach(function(row){ %>
+    STAFF_MAP[<%= row.staffId %>] = <%- JSON.stringify(row.staffName || '') %>;
+    <% }); %>
+
+    const formatCurrency = (value) => '€' + Number(value || 0).toFixed(2);
+    const formatHours = (value) => Number(value || 0).toFixed(2) + 'h';
+
+    const getShiftTypeLabel = (shiftType) => {
+        if (shiftType === 'night') return '🌙 Night Shift';
+        if (shiftType === 'weekend') return '🏖 Weekend';
+        if (shiftType === 'bank_holiday') return '🎉 Bank Holiday';
+        if (shiftType === 'overtime') return '⏰ Overtime';
+        return '☀️ Day Shift';
+    };
+
+    const getShiftTypeBadge = (shiftType) => {
+        if (shiftType === 'night') return '<span class="pr-badge-pill pr-badge-night">🌙 Night</span>';
+        if (shiftType === 'weekend') return '<span class="pr-badge-pill pr-badge-weekend">🏖 Weekend</span>';
+        if (shiftType === 'bank_holiday') return '<span class="pr-badge-pill pr-badge-bank-holiday">🎉 Bank</span>';
+        if (shiftType === 'overtime') return '<span class="pr-badge-pill pr-badge-overtime">⏰ Overtime</span>';
+        return '<span class="pr-badge-pill pr-badge-day">☀️ Day</span>';
+    };
+
+    const getShiftExceptions = (shift) => {
+        const exceptions = [];
+        const hasClockIn = Boolean(shift.actualClockIn || shift.actual_clock_in || shift.clockIn || shift.clock_in);
+        const hasClockOut = Boolean(shift.actualClockOut || shift.actual_clock_out || shift.clockOut || shift.clock_out);
+        const hasMileage = Number(shift.mileageKm || shift.mileage_km || 0) > 0;
+        const isOvertime = Number(shift.hours || 0) > 39;
+        if (!hasClockIn) {
+            exceptions.push('Missing clock in');
+        }
+        if (!hasClockOut) {
+            exceptions.push('Missing clock out');
+        }
+        if (!hasMileage) {
+            exceptions.push('Missing mileage');
+        }
+        if (isOvertime) {
+            exceptions.push('Overtime exceeded');
+        }
+        if (!String(shift.timesheetStatus || shift.approvalStatus || '').trim()) {
+            exceptions.push('Awaiting approval');
+        }
+        return exceptions.length ? exceptions.slice(0, 3) : ['No issues detected'];
+    };
+
+    const applyPayrollFilters = () => {
+        const search = String(document.getElementById('pr-search-input')?.value || '').trim().toLowerCase();
+        const division = String(document.getElementById('pr-division-filter')?.value || 'all');
+        const status = String(document.getElementById('pr-status-filter')?.value || 'all');
+        document.querySelectorAll('.pr-staff-row').forEach((row) => {
+            const rowSearch = String(row.dataset.search || '').toLowerCase();
+            const matchesSearch = !search || rowSearch.includes(search);
+            const matchesDivision = division === 'all' || row.dataset.division === division;
+            const matchesStatus = status === 'all' || row.dataset.status === status;
+            row.style.display = matchesSearch && matchesDivision && matchesStatus ? '' : 'none';
+        });
+    };
+
+    const toggleSelectAll = () => {
+        const checked = document.getElementById('pr-select-all')?.checked;
+        document.querySelectorAll('.pr-row-select').forEach((checkbox) => {
+            checkbox.checked = Boolean(checked);
+        });
+    };
+
+    const bulkAction = async (action, label) => {
+        const selected = Array.from(document.querySelectorAll('.pr-row-select:checked'));
+        if (!selected.length) {
+            alert('Select at least one payroll row before continuing.');
+            return;
+        }
+        if (!confirm(`Update ${selected.length} selected payroll row${selected.length === 1 ? '' : 's'} to ${label}?`)) {
+            return;
+        }
+        for (const checkbox of selected) {
+            const staffId = Number(checkbox.value);
+            const row = document.querySelector('.pr-staff-row[data-staff-id="' + staffId + '"]');
+            const payload = {
+                periodStart: PERIOD_START,
+                periodEnd: PERIOD_END,
+                grossPay: Number(row?.dataset.gross || 0),
+                netPay: Number(row?.dataset.net || 0),
+                totalHours: Number(row?.dataset.hours || 0),
+                mileageKm: 0,
+                mileagePayment: Number(row?.dataset.mileagePayment || 0),
+            };
+            const response = await fetch('/api/admin/payroll/' + staffId + '/' + action, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                console.error('Bulk payroll action failed for staff', staffId, result);
+            }
+        }
+        location.reload();
+    };
+
+    document.querySelectorAll('.pr-staff-row').forEach(function(tr) {
+        tr.addEventListener('click', function() {
+            openBreakdown(Number(this.dataset.staffId));
+        });
+    });
+
+    document.getElementById('pr-select-all')?.addEventListener('change', toggleSelectAll);
+    document.getElementById('pr-approve-selected')?.addEventListener('click', function() {
+        bulkAction('approve', 'approved');
+    });
+    document.getElementById('pr-paid-selected')?.addEventListener('click', function() {
+        bulkAction('mark-paid', 'paid');
+    });
+    document.getElementById('pr-print-summary')?.addEventListener('click', function() {
+        window.print();
+    });
+    ['pr-search-input', 'pr-division-filter', 'pr-status-filter'].forEach((id) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.addEventListener('input', applyPayrollFilters);
+            element.addEventListener('change', applyPayrollFilters);
+        }
+    });
+    document.getElementById('pr-staff-filter')?.addEventListener('change', applyPayrollFilters);
+
+    let currentBreakdownStaffId = null;
+
+    function openBreakdown(staffId) {
+        currentBreakdownStaffId = staffId;
+        var staffName = STAFF_MAP[staffId] || 'Staff Member';
+        var modal = document.getElementById('pr-modal');
+        var loading = document.getElementById('pr-modal-loading');
+        var content = document.getElementById('pr-modal-content');
+        var title = document.getElementById('pr-modal-title');
+        var sub = document.getElementById('pr-modal-sub');
+        var dlBtn = document.getElementById('pr-modal-download-btn');
+        var emailBtn = document.getElementById('pr-modal-email-btn');
+
+        title.textContent = staffName + ' — Payroll Breakdown';
+        sub.textContent = PERIOD_START + ' to ' + PERIOD_END;
+        loading.style.display = 'block';
+        content.style.display = 'none';
+        if (dlBtn) dlBtn.style.display = 'none';
+        if (emailBtn) emailBtn.style.display = 'none';
+        modal.classList.add('open');
+
+        var params = 'period=' + encodeURIComponent(ACTIVE_PERIOD) +
+            '&dateFrom=<%= f.dateFrom||"" %>&dateTo=<%= f.dateTo||"" %>';
+        fetch('/api/admin/payroll/breakdown/' + staffId + '?' + params)
+            .then(function(r){ return r.json(); })
+            .then(function(data) {
+                loading.style.display = 'none';
+                content.style.display = 'block';
+                if (!data.success) { content.innerHTML = '<p style="color:red;">Error loading data.</p>'; return; }
+
+                var shifts = data.shifts || [];
+                // Show payslip buttons if there are shifts
+                var dlBtn = document.getElementById('pr-modal-download-btn');
+                var emailBtn = document.getElementById('pr-modal-email-btn');
+                if (dlBtn && shifts.length) dlBtn.style.display = '';
+                if (emailBtn && shifts.length) emailBtn.style.display = '';
+
+                if (!shifts.length) { content.innerHTML = '<p style="color:#64748b;text-align:center;padding:20px;">No shifts found for this period.</p>'; return; }
+
+                var totalHours = 0;
+                var totalBase = 0;
+                var totalPremium = 0;
+                var totalMileage = 0;
+                var totalGross = 0;
+                var exceptions = [];
+
+                shifts.forEach(function(s) {
+                    totalHours += Number(s.hours || 0);
+                    totalBase += Number(s.base || 0);
+                    totalPremium += Number(s.premium || 0);
+                    totalMileage += Number(s.mileagePayment || 0);
+                    totalGross += Number(s.gross || 0);
+                    exceptions = exceptions.concat(getShiftExceptions(s));
+                });
+
+                var topExceptions = Array.from(new Set(exceptions)).slice(0, 6);
+                var tax = totalGross * 0.2;
+                var prsi = totalGross * 0.025;
+                var usc = totalGross * 0.015;
+                var net = totalGross - tax - prsi - usc;
+
+                var timeline = [
+                    { title: 'Shift completed', value: shifts[0] ? (shifts[0].scheduledStart || 'Pending') : 'Pending' },
+                    { title: 'Timesheet submitted', value: shifts[0] ? (shifts[0].scheduledStart || 'Pending') : 'Pending' },
+                    { title: 'Manager approved', value: (data.payrollStatus === 'approved' || data.payrollStatus === 'paid') ? 'Approved' : 'Pending review' },
+                    { title: 'Payroll paid', value: data.payrollStatus === 'paid' ? 'Processed' : 'Pending' },
+                ];
+
+                var html = '<div class="pr-summary-grid">' +
+                    '<div class="pr-summary-card"><span class="pr-card-label">Hours Worked</span><span class="pr-card-value">' + formatHours(totalHours) + '</span><span class="pr-card-sub">Across ' + shifts.length + ' shift' + (shifts.length === 1 ? '' : 's') + '</span></div>' +
+                    '<div class="pr-summary-card"><span class="pr-card-label">Base Pay</span><span class="pr-card-value">' + formatCurrency(totalBase) + '</span><span class="pr-card-sub">Standard hours</span></div>' +
+                    '<div class="pr-summary-card"><span class="pr-card-label">Premiums</span><span class="pr-card-value">' + formatCurrency(totalPremium) + '</span><span class="pr-card-sub">Night, weekend and overtime</span></div>' +
+                    '<div class="pr-summary-card"><span class="pr-card-label">Gross Pay</span><span class="pr-card-value">' + formatCurrency(totalGross) + '</span><span class="pr-card-sub">Before deductions</span></div>' +
+                    '</div>' +
+                    '<div class="pr-exception-panel"><div class="pr-panel-title">Payroll Exceptions</div><div class="pr-exception-list">' +
+                    (topExceptions.length ? topExceptions.map(function(item) {
+                        return '<span class="pr-exception-chip' + (item === 'No issues detected' ? ' good' : '') + '">' + (item === 'No issues detected' ? '✓' : '⚠') + ' ' + item + '</span>';
+                    }).join('') : '<span class="pr-exception-chip good">✓ No issues detected</span>') +
+                    '</div></div>' +
+                    '<div class="pr-timeline-panel"><div class="pr-panel-title">Payroll Timeline</div><div class="pr-timeline">' +
+                    timeline.map(function(step) {
+                        return '<div class="pr-timeline-step"><div class="pr-timeline-dot"></div><div class="pr-timeline-text"><strong>' + step.title + '</strong><br>' + step.value + '</div></div>';
+                    }).join('') +
+                    '</div></div>' +
+                    '<div class="pr-table-wrap"><table class="pr-table"><thead><tr><th>Date</th><th>Client / Facility</th><th>Assignment</th><th>Start</th><th>Finish</th><th>Hours</th><th>Shift Type</th><th>Gross</th><th>Mileage</th><th>Details</th></tr></thead><tbody>';
+
+                shifts.forEach(function(s, index) {
+                    var dateStr = (s.scheduledStart || '').slice(0, 10) || '—';
+                    var startTime = (s.actualClockIn || s.scheduledStart || '').slice(11, 16) || '—';
+                    var finishTime = (s.actualClockOut || s.scheduledEnd || '').slice(11, 16) || '—';
+                    var assignmentName = s.assignmentName || s.facilityName || s.clientName || 'Assignment';
+                    var entityName = s.facilityName || s.clientName || s.assignmentName || 'Facility';
+                    var detailId = 'pr-shift-details-' + index;
+                    html += '<tr>' +
+                        '<td>' + dateStr + '</td>' +
+                        '<td>' + entityName + '</td>' +
+                        '<td>' + assignmentName + '</td>' +
+                        '<td>' + startTime + '</td>' +
+                        '<td>' + finishTime + '</td>' +
+                        '<td>' + formatHours(s.hours || 0) + '</td>' +
+                        '<td>' + getShiftTypeBadge(s.shiftType || 'day') + '</td>' +
+                        '<td>' + formatCurrency(s.gross || 0) + '</td>' +
+                        '<td>' + (Number(s.mileageKm || s.mileage_km || 0) > 0 ? Number(s.mileageKm || s.mileage_km || 0).toFixed(0) + 'km / ' + formatCurrency(s.mileagePayment || 0) : '—') + '</td>' +
+                        '<td><button type="button" class="pr-detail-toggle" data-toggle-target="' + detailId + '">Show details</button></td>' +
+                        '</tr>' +
+                        '<tr class="pr-shift-details-row" id="' + detailId + '" style="display:none;"><td colspan="10"><div class="pr-shift-details-grid">' +
+                        '<div class="pr-shift-detail-item"><strong>Assignment</strong>' + (s.assignmentName || '—') + '</div>' +
+                        '<div class="pr-shift-detail-item"><strong>Facility</strong>' + (s.facilityName || '—') + '</div>' +
+                        '<div class="pr-shift-detail-item"><strong>Client</strong>' + (s.clientName || '—') + '</div>' +
+                        '<div class="pr-shift-detail-item"><strong>Address</strong>' + (s.address || '—') + '</div>' +
+                        '<div class="pr-shift-detail-item"><strong>Division</strong>' + (s.division === 'agency-staffing' ? 'Agency' : 'Home Care') + '</div>' +
+                        '<div class="pr-shift-detail-item"><strong>Clock In</strong>' + (s.actualClockIn || s.actual_clock_in || 'Pending') + '</div>' +
+                        '<div class="pr-shift-detail-item"><strong>Clock Out</strong>' + (s.actualClockOut || s.actual_clock_out || 'Pending') + '</div>' +
+                        '<div class="pr-shift-detail-item"><strong>Break Duration</strong>' + (s.breakDurationMinutes || s.break_duration_minutes || 0) + ' mins</div>' +
+                        '<div class="pr-shift-detail-item"><strong>Mileage</strong>' + (Number(s.mileageKm || s.mileage_km || 0) > 0 ? Number(s.mileageKm || s.mileage_km || 0).toFixed(0) + 'km' : 'None') + '</div>' +
+                        '<div class="pr-shift-detail-item"><strong>Approved By</strong>' + (s.approvedBy || s.approved_by || 'Pending') + '</div>' +
+                        '<div class="pr-shift-detail-item"><strong>Manager Notes</strong>' + (s.managerNotes || '—') + '</div>' +
+                        '<div class="pr-shift-detail-item"><strong>Employee Notes</strong>' + (s.employeeNotes || s.notes || '—') + '</div>' +
+                        '</div></td></tr>';
+                });
+
+                html += '</tbody></table></div>' +
+                    '<div class="pr-calculation-panel"><div class="pr-panel-title">Payroll Calculation</div><div class="pr-calculation-list">' +
+                    '<div class="pr-calculation-row"><span>Base Pay</span><strong>' + formatCurrency(totalBase) + '</strong></div>' +
+                    '<div class="pr-calculation-row"><span>Premiums</span><strong>' + formatCurrency(totalPremium) + '</strong></div>' +
+                    '<div class="pr-calculation-row"><span>Mileage</span><strong>' + formatCurrency(totalMileage) + '</strong></div>' +
+                    '<div class="pr-calculation-row"><span>Gross Pay</span><strong>' + formatCurrency(totalGross) + '</strong></div>' +
+                    '<div class="pr-calculation-row"><span>Estimated Tax</span><strong>' + formatCurrency(tax) + '</strong></div>' +
+                    '<div class="pr-calculation-row"><span>PRSI</span><strong>' + formatCurrency(prsi) + '</strong></div>' +
+                    '<div class="pr-calculation-row"><span>USC</span><strong>' + formatCurrency(usc) + '</strong></div>' +
+                    '<div class="pr-calculation-row total"><span>Estimated Net Pay</span><strong>' + formatCurrency(net) + '</strong></div>' +
+                    '</div></div>';
+
+                content.innerHTML = html;
+                document.querySelectorAll('.pr-detail-toggle').forEach(function(button) {
+                    button.addEventListener('click', function() {
+                        const targetId = this.getAttribute('data-toggle-target');
+                        const target = document.getElementById(targetId);
+                        if (target) {
+                            target.style.display = target.style.display === 'none' ? '' : 'none';
+                        }
+                    });
+                });
+            })
+            .catch(function() {
+                loading.style.display = 'none';
+                content.style.display = 'block';
+                content.innerHTML = '<p style="color:red;">Could not load breakdown.</p>';
+            });
+    }
+
+    // Custom range form — require both dates before allowing submit
+    (function() {
+        const form = document.getElementById('pr-custom-range-form');
+        const fromInput = document.getElementById('pr-date-from');
+        const toInput = document.getElementById('pr-date-to');
+        const btn = document.getElementById('pr-custom-btn');
+        if (!form || !fromInput || !toInput || !btn) return;
+
+        function updateBtn() {
+            const valid = fromInput.value && toInput.value && fromInput.value <= toInput.value;
+            btn.style.opacity = valid ? '1' : '0.45';
+            btn.title = valid ? '' : 'Pick a From and To date first';
+        }
+
+        fromInput.addEventListener('change', updateBtn);
+        toInput.addEventListener('change', updateBtn);
+
+        form.addEventListener('submit', function(e) {
+            if (!fromInput.value || !toInput.value) {
+                e.preventDefault();
+                fromInput.style.borderColor = fromInput.value ? '' : '#dc2626';
+                toInput.style.borderColor = toInput.value ? '' : '#dc2626';
+                return;
+            }
+            if (fromInput.value > toInput.value) {
+                e.preventDefault();
+                toInput.style.borderColor = '#dc2626';
+                toInput.title = 'End date must be on or after start date';
+            }
+        });
+
+        updateBtn();
+    }());
+
+    function downloadPayslipFromModal() {
+        if (!currentBreakdownStaffId) return;
+        // Generate then redirect to download
+        fetch('/api/admin/payroll/' + currentBreakdownStaffId + '/generate-payslip', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ periodStart: PERIOD_START, periodEnd: PERIOD_END }),
+        }).then(function(r){ return r.json(); }).then(function(d) {
+            if (d.success && d.payslipId) {
+                window.open('/admin/payroll/payslip/' + d.payslipId + '/download', '_blank');
+            } else {
+                alert('Could not generate payslip: ' + (d.message || d.error || 'Unknown error'));
+            }
+        }).catch(function() { alert('Network error generating payslip'); });
+    }
+
+    function emailPayslipFromModal() {
+        if (!currentBreakdownStaffId) return;
+        if (!confirm('Email payslip to this staff member now?')) return;
+        fetch('/api/admin/payroll/' + currentBreakdownStaffId + '/email-payslip', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ periodStart: PERIOD_START, periodEnd: PERIOD_END }),
+        }).then(function(r){ return r.json(); }).then(function(d) {
+            alert(d.success ? '✅ Payslip emailed successfully' : '❌ ' + (d.error || d.message));
+        }).catch(function() { alert('Network error sending payslip'); });
+    }
+
+    function closeBreakdown() {
+        document.getElementById('pr-modal').classList.remove('open');
+    }
+
+    document.getElementById('pr-modal').addEventListener('click', function(e) {
+        if (e.target === e.currentTarget) closeBreakdown();
+    });
+
+    function approvePayroll(staffId, periodStart, periodEnd, grossPay, netPay, totalHours, mileageKm, mileagePayment) {
+        if (!confirm('Approve payroll for this staff member?')) return;
+        fetch('/api/admin/payroll/' + staffId + '/approve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ periodStart: periodStart, periodEnd: periodEnd, grossPay: grossPay, netPay: netPay, totalHours: totalHours, mileageKm: mileageKm, mileagePayment: mileagePayment })
+        }).then(function(r){ return r.json(); }).then(function(d) {
+            if (d.success) location.reload();
+            else alert('Error: ' + d.message);
+        });
+    }
+
+    function markPaid(staffId, periodStart, periodEnd) {
+        if (!confirm('Mark this payroll as paid?')) return;
+        fetch('/api/admin/payroll/' + staffId + '/mark-paid', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ periodStart: periodStart, periodEnd: periodEnd })
+        }).then(function(r){ return r.json(); }).then(function(d) {
+            if (d.success) location.reload();
+            else alert('Error: ' + d.message);
+        });
+    }
+
+    function revertPayroll(staffId, periodStart, periodEnd) {
+        if (!confirm('Revert this payroll back to draft?')) return;
+        fetch('/api/admin/payroll/' + staffId + '/revert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ periodStart: periodStart, periodEnd: periodEnd })
+        }).then(function(r){ return r.json(); }).then(function(d) {
+            if (d.success) location.reload();
+            else alert('Error: ' + d.message);
+        });
+    }
+    </script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+    <%- include('partials/portal-theme-head') %>
+</head>
+<body class="portal-page">
+    <div class="portal-shell" style="width:min(600px, calc(100% - 32px));">
+        <div class="portal-card">
+            <div class="portal-branding">
+                <img class="brand-logo" src="/images/logo.png" alt="Everkind logo" />
+                <div>
+                    <h1>Everkind</h1>
+                    <p>Staffing services registration</p>
+                </div>
+            </div>
+
+            <h2>Create your account</h2>
+            <p class="portal-subtext">Get started in 2 minutes. We'll verify your organisation and you can complete your profile once approved.</p>
+            <% if (error) { %><div class="form-message error"><%= error %></div><% } %>
+            <% if (message) { %><div class="form-message success"><%= message %></div><% } %>
+
+            <form class="portal-form" method="POST" action="/client-portal/register">
+                <!-- Organisation Section -->
+                <div class="staff-form-section">
+                    <div class="staff-form-section-header">
+                        <div>
+                            <h3>Your Organisation</h3>
+                        </div>
+                    </div>
+                    <div class="staff-form-grid">
+                        <label><span>Organisation Name *</span>
+                            <input type="text" name="organization_name" value="<%= formData ? formData.organizationName : '' %>" required placeholder="e.g. St. Mary's Nursing Home">
+                        </label>
+                        <label><span>Type of Organisation *</span>
+                            <select name="organization_type" required>
+                                <option value="">-- Select --</option>
+                                <% clientPortalOrganizationTypes.forEach((option) => { %>
+                                    <option value="<%= option %>" <%= formData && formData.organizationType === option ? 'selected' : '' %>><%= option %></option>
+                                <% }) %>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Contact Person Section -->
+                <div class="staff-form-section">
+                    <div class="staff-form-section-header">
+                        <div>
+                            <h3>Main Contact</h3>
+                        </div>
+                    </div>
+                    <div class="staff-form-grid">
+                        <label><span>First Name *</span>
+                            <input type="text" name="contact_first_name" value="<%= formData ? formData.contactFirstName : '' %>" required placeholder="Your first name">
+                        </label>
+                        <label><span>Last Name *</span>
+                            <input type="text" name="contact_last_name" value="<%= formData ? formData.contactLastName : '' %>" required placeholder="Your last name">
+                        </label>
+                        <label><span>Job Title *</span>
+                            <input type="text" name="contact_job_title" value="<%= formData ? formData.contactJobTitle : '' %>" required placeholder="e.g. Manager">
+                        </label>
+                        <label><span>Work Email *</span>
+                            <input type="email" name="email" value="<%= formData ? formData.email : '' %>" required placeholder="your.email@organisation.ie">
+                        </label>
+                        <label><span>Mobile Number *</span>
+                            <input type="text" name="mobile_number" value="<%= formData ? formData.mobileNumber : '' %>" required placeholder="087 123 4567">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Account Section -->
+                <div class="staff-form-section">
+                    <div class="staff-form-section-header">
+                        <div>
+                            <h3>Create Password</h3>
+                        </div>
+                    </div>
+                    <div class="staff-form-grid">
+                        <label><span>Password *</span>
+                            <input type="password" name="password" required placeholder="At least 8 characters">
+                        </label>
+                        <label><span>Confirm Password *</span>
+                            <input type="password" name="confirm_password" required placeholder="Confirm your password">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Agreement Section -->
+                <div class="staff-form-section">
+                    <div class="multi-select-grid">
+                        <label class="checkbox-field">
+                            <input type="checkbox" name="terms_agreement" value="1" required>
+                            <span>I agree to the <a href="/terms" target="_blank">Terms &amp; Conditions</a> *</span>
+                        </label>
+                        <label class="checkbox-field">
+                            <input type="checkbox" name="privacy_agreement" value="1" required>
+                            <span>I agree to the <a href="/privacy" target="_blank">Privacy Policy</a> *</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                    <button type="submit" class="primary-button">Create Account</button>
+                    <a href="/client-portal/login" class="secondary-button">Already have an account? Login</a>
+                </div>
+            </form>
+            <%- include('partials/portal-theme-toggle') %>
+        </div>
+    </div>
+</body>
+</html>

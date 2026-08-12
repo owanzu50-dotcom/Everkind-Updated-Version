@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+    <%- include('partials/portal-theme-head') %>
+    <style>
+        .onboarding-hero {
+            background: linear-gradient(135deg, #0f4c81 0%, #1d5f9e 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 22px;
+            margin-bottom: 18px;
+        }
+        .onboarding-hero h2 {
+            margin: 0 0 6px;
+            color: white;
+            font-size: 24px;
+        }
+        .onboarding-hero p {
+            margin: 0;
+            color: rgba(255,255,255,0.94);
+            line-height: 1.5;
+        }
+        .onboarding-progress {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin: 18px 0 22px;
+        }
+        .progress-step {
+            background: #f8fbff;
+            border: 1px solid #dfe9f5;
+            border-radius: 12px;
+            padding: 10px 8px;
+            text-align: center;
+        }
+        .progress-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            margin: 0 auto 8px;
+        }
+        .progress-icon.done { background-color: #16a34a; }
+        .progress-icon.active { background-color: #2563eb; }
+        .progress-icon.pending { background-color: #cbd5e1; color: #64748b; }
+        .progress-step.pending .progress-label { color: #64748b; }
+        .progress-step.done .progress-label { color: #166534; font-weight: 600; }
+        .progress-step.active .progress-label { color: #1d4ed8; font-weight: 600; }
+        .progress-label { font-size: 12px; font-weight: 500; }
+        .info-pill {
+            background: #eef7ff;
+            color: #154a72;
+            border: 1px solid #cfe3f2;
+            border-radius: 999px;
+            padding: 7px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .portal-card .staff-form-section {
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .portal-card .staff-form-section-header h3 {
+            margin: 0;
+            color: #0f4c81;
+        }
+        .portal-card .checkbox-field {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 10px 12px;
+            background: #fafcff;
+        }
+        @media (max-width: 700px) {
+            .onboarding-progress { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+    </style>
+</head>
+<body class="portal-page">
+    <div class="portal-shell" style="width:min(1000px, calc(100% - 32px));">
+        <div class="portal-card">
+            <div class="portal-branding">
+                <img class="brand-logo" src="/images/logo.png" alt="Everkind logo" />
+                <div>
+                    <h1>Everkind</h1>
+                    <p>Onboarding</p>
+                </div>
+            </div>
+
+            <% if (error) { %><div class="form-message error"><%= error %></div><% } %>
+            <% if (message) { %><div class="form-message success"><%= message %></div><% } %>
+
+            <div class="onboarding-hero">
+                <h2>Welcome to Everkind</h2>
+                <p>You're almost ready to start requesting healthcare staff. Complete your organisation profile so we can match the right support quickly and confidently.</p>
+            </div>
+
+            <div class="info-pill">✓ Account created • Review underway • Profile completion next</div>
+
+            <div class="onboarding-progress">
+                <div class="progress-step done">
+                    <div class="progress-icon done">✓</div>
+                    <div class="progress-label">Account Created</div>
+                </div>
+                <div class="progress-step <%= approved ? 'active' : 'pending' %>">
+                    <div class="progress-icon <%= approved ? 'active' : 'pending' %>"><%= approved ? '2' : '○' %></div>
+                    <div class="progress-label">Verification <%= approved ? '(In Progress)' : '(Pending Admin)' %></div>
+                </div>
+                <div class="progress-step <%= approved ? 'active' : 'pending' %>">
+                    <div class="progress-icon <%= approved ? 'active' : 'pending' %>"><%= approved ? '3' : '○' %></div>
+                    <div class="progress-label">Organisation Details <%= approved ? '(In Progress)' : '(Locked)' %></div>
+                </div>
+                <div class="progress-step pending">
+                    <div class="progress-icon pending">○</div>
+                    <div class="progress-label">Ready to Request</div>
+                </div>
+            </div>
+
+            <% if (!approved) { %>
+                <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:12px;padding:16px;margin:16px 0 8px;">
+                    <h3 style="margin-top:0;color:#92400e;">⏳ Awaiting admin verification</h3>
+                    <p style="color:#78350f;margin:8px 0 0 0;">
+                        Your organisation registration is being reviewed by our team. You'll receive an email once approved, and then you can finish your profile and request staff.
+                    </p>
+                </div>
+            <% } else { %>
+                <h2 style="margin: 12px 0 6px; color:#0f4c81;">Complete your organisation profile</h2>
+                <p style="margin:0 0 16px; color:#475569;">This helps us understand your service, staffing needs, and delivery requirements so we can support you quickly.</p>
+
+                <form class="portal-form" method="POST" action="/client-portal/onboarding/profile">
+                    <div class="staff-form-section">
+                        <div class="staff-form-section-header">
+                            <div>
+                                <h3>Organisation details</h3>
+                            </div>
+                        </div>
+                        <div class="staff-form-grid">
+                            <label><span>Trading Name</span>
+                                <input type="text" name="trading_name" value="<%= facility ? facility.tradingName : '' %>" placeholder="If different from organisation name">
+                            </label>
+                            <label><span>Registration Number</span>
+                                <input type="text" name="registration_number" value="<%= facility ? facility.registrationNumber : '' %>" placeholder="Companies House registration">
+                            </label>
+                            <label><span>HIQA Registration Number</span>
+                                <input type="text" name="hiqa_registration_number" value="<%= facility ? facility.hiqaRegistrationNumber : '' %>" placeholder="If applicable">
+                            </label>
+                            <label><span>VAT Number</span>
+                                <input type="text" name="vat_number" value="<%= facility ? facility.vatNumber : '' %>" placeholder="Optional">
+                            </label>
+                            <label><span>Website</span>
+                                <input type="url" name="website" value="<%= facility ? facility.website : '' %>" placeholder="https://yourorg.ie">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="staff-form-section">
+                        <div class="staff-form-section-header">
+                            <div>
+                                <h3>Address</h3>
+                            </div>
+                        </div>
+                        <div class="staff-form-grid">
+                            <label><span>Address Line 1 *</span>
+                                <input type="text" name="address_line_1" value="<%= facility ? facility.addressLine1 : '' %>" required placeholder="Street address">
+                            </label>
+                            <label><span>Address Line 2</span>
+                                <input type="text" name="address_line_2" value="<%= facility ? facility.addressLine2 : '' %>" placeholder="Apartment, suite, etc.">
+                            </label>
+                            <label><span>Town *</span>
+                                <input type="text" name="town" value="<%= facility ? facility.town : '' %>" required>
+                            </label>
+                            <label><span>County *</span>
+                                <input type="text" name="county" value="<%= facility ? facility.county : '' %>" required>
+                            </label>
+                            <label><span>Eircode *</span>
+                                <input type="text" name="eircode" value="<%= facility ? facility.eircode : '' %>" required placeholder="e.g. D01 F2C2">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="staff-form-section">
+                        <div class="staff-form-section-header">
+                            <div>
+                                <h3>Facility information</h3>
+                            </div>
+                        </div>
+                        <div class="staff-form-grid">
+                            <label><span>Number of Beds</span>
+                                <input type="number" name="number_of_beds" value="<%= facility ? facility.numberOfBeds : '' %>" placeholder="e.g. 50">
+                            </label>
+                            <label><span>Number of Residents</span>
+                                <input type="number" name="number_of_residents" value="<%= facility ? facility.numberOfResidents : '' %>" placeholder="Current occupancy">
+                            </label>
+                            <label><span>Current Staffing Provider</span>
+                                <input type="text" name="current_staffing_provider" value="<%= facility ? facility.currentStaffingProvider : '' %>" placeholder="Optional">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="staff-form-section">
+                        <div class="staff-form-section-header">
+                            <div>
+                                <h3>Which professionals do you require? *</h3>
+                            </div>
+                        </div>
+                        <div class="multi-select-block">
+                            <div class="multi-select-grid">
+                                <% clientPortalServiceRequirementOptions.forEach((option) => { %>
+                                    <label class="checkbox-field">
+                                        <input type="checkbox" name="service_requirements" value="<%= option %>" <%= facility && facility.serviceRequirements && facility.serviceRequirements.includes(option) ? 'checked' : '' %>>
+                                        <span><%= option %></span>
+                                    </label>
+                                <% }) %>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:32px;">
+                        <button type="submit" class="primary-button">Save &amp; Continue</button>
+                        <a href="/client-portal/dashboard" class="secondary-button">Save &amp; Exit</a>
+                    </div>
+                </form>
+            <% } %>
+            <%- include('partials/portal-theme-toggle') %>
+        </div>
+    </div>
+</body>
+</html>

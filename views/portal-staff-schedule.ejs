@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'schedule', isAdmin: false, currentStaffName: currentStaffName, currentStaffEmail: currentStaffEmail }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">My Schedule</h1>
+                    <p class="adm-page-subtitle">Only your assigned shifts are shown here.</p>
+                </div>
+            </div>
+
+            <div class="adm-filter-tabs">
+                <% [['today','Today'],['weekly','Weekly'],['monthly','Monthly'],['calendar','Calendar'],['list','List View']].forEach(([key,label]) => { %>
+                    <a href="/portal/my-schedule?view=<%= key %>" class="adm-filter-tab <%= viewMode === key ? 'active' : '' %>"><%= label %></a>
+                <% }) %>
+            </div>
+
+            <% if (viewMode === 'calendar') { %>
+                <div class="adm-card">
+                    <div class="adm-card-header"><div class="adm-card-title">Calendar</div></div>
+                    <div class="adm-card-body">
+                        <div class="staff-calendar-grid">
+                            <% const grouped = {}; allShifts.forEach((shift) => { const k = (shift.scheduledStart || '').slice(0, 10); grouped[k] = grouped[k] || []; grouped[k].push(shift); }); %>
+                            <% Object.keys(grouped).sort().forEach((day) => { %>
+                                <div class="staff-calendar-day">
+                                    <strong><%= day %></strong>
+                                    <% grouped[day].forEach((shift) => { %>
+                                        <div class="staff-calendar-pill">
+                                            <a href="/portal/shifts/<%= shift.id %>"><%= (shift.scheduledStart || '').slice(11, 16) %> · <%= shift.patientName %></a>
+                                        </div>
+                                    <% }) %>
+                                </div>
+                            <% }) %>
+                        </div>
+                    </div>
+                </div>
+            <% } %>
+
+            <div class="adm-card">
+                <div class="adm-card-header">
+                    <div class="adm-card-title"><%= viewMode === 'today' ? "Today's Shifts" : viewMode === 'list' ? 'Upcoming Shifts' : 'Assigned Shifts' %></div>
+                    <span class="adm-card-subtitle"><%= shifts.length %> shift<%= shifts.length !== 1 ? 's' : '' %></span>
+                </div>
+                <% if (shifts.length) { %>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead><tr><th>Type</th><th>Date</th><th>Time</th><th>Home Care Client / Facility</th><th>Address</th><th>Care Type</th><th>Status</th><th></th></tr></thead>
+                            <tbody>
+                                <% shifts.forEach((shift) => { %>
+                                    <tr>
+                                        <td><span class="adm-badge <%= shift.serviceDivision === 'agency-staffing' ? 'adm-badge-agency' : 'adm-badge-home-care' %>"><%= shift.serviceDivisionLabel %></span></td>
+                                        <td><%= (shift.scheduledStart || '').slice(0, 10) %></td>
+                                        <td><%= (shift.scheduledStart || '').slice(11, 16) %> - <%= (shift.scheduledEnd || '').slice(11, 16) %></td>
+                                        <td><strong><%= shift.displayEntityName || shift.patientName %></strong></td>
+                                        <td><%= shift.address || 'Address unavailable' %></td>
+                                        <td><%= shift.serviceType %></td>
+                                        <td><span class="adm-badge adm-badge-<%= shift.status === 'completed' ? 'completed' : shift.status === 'clocked_in' ? 'clocked-in' : shift.status === 'cancelled' ? 'cancelled' : 'scheduled' %>"><%= shift.status %></span></td>
+                                        <td><a class="adm-btn-secondary" href="/portal/shifts/<%= shift.id %>">View details</a></td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="adm-card-empty"><p>No shifts found for this view.</p></div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+    <script>
+    async function checkTravelReminder() {
+        if (!navigator.geolocation) {
+            return;
+        }
+        const firstUpcoming = <%- JSON.stringify((shifts || []).find((item) => item.status === "scheduled") || null) %>;
+        if (!firstUpcoming || !firstUpcoming.id) {
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(async (position) => {
+            try {
+                await fetch('/api/staff/shifts/' + firstUpcoming.id + '/travel-reminder-check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    })
+                });
+            } catch (error) {
+                // Travel reminder checks are best-effort.
+            }
+        });
+    }
+    checkTravelReminder();
+    setTimeout(() => window.location.reload(), 60000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'attendance', isAdmin: true, currentStaffName: currentStaffName, currentStaffEmail: typeof currentStaffEmail !== 'undefined' ? currentStaffEmail : '' }) %>
+
+        <main class="portal-content">
+            <% const attendanceFilters = typeof filters !== 'undefined' && filters ? filters : { status: 'all', division: 'all', q: '' }; %>
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Attendance</h1>
+                    <p class="adm-page-subtitle">Clock-in / clock-out records and timesheets</p>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <form method="GET" action="/admin/attendance" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <input type="date" name="date" class="adm-form-input" style="width:auto;padding:8px 12px;" value="<%= selectedDate %>">
+                        <select name="status" class="adm-form-select" style="width:auto;padding:8px 12px;">
+                            <option value="all" <%= attendanceFilters.status === 'all' ? 'selected' : '' %>>All statuses</option>
+                            <option value="scheduled" <%= attendanceFilters.status === 'scheduled' ? 'selected' : '' %>>Scheduled</option>
+                            <option value="on_duty" <%= attendanceFilters.status === 'on_duty' ? 'selected' : '' %>>On Duty</option>
+                            <option value="completed" <%= attendanceFilters.status === 'completed' ? 'selected' : '' %>>Completed</option>
+                            <option value="cancelled" <%= attendanceFilters.status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
+                            <option value="no_show" <%= attendanceFilters.status === 'no_show' ? 'selected' : '' %>>No Show</option>
+                        </select>
+                        <select name="division" class="adm-form-select" style="width:auto;padding:8px 12px;">
+                            <option value="all" <%= attendanceFilters.division === 'all' ? 'selected' : '' %>>All divisions</option>
+                            <option value="home-care" <%= attendanceFilters.division === 'home-care' ? 'selected' : '' %>>Home Care</option>
+                            <option value="agency-staffing" <%= attendanceFilters.division === 'agency-staffing' ? 'selected' : '' %>>Agency</option>
+                        </select>
+                        <input type="text" name="q" class="adm-form-input" style="width:220px;padding:8px 12px;" value="<%= attendanceFilters.q || '' %>" placeholder="Search staff/client/shift">
+                        <button type="submit" class="adm-btn-secondary">Filter</button>
+                        <a href="/admin/attendance" class="adm-btn-secondary">Reset</a>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Stats row -->
+            <div class="adm-attendance-stats">
+                <div class="adm-metric-card">
+                    <div class="adm-metric-icon green">✅</div>
+                    <span class="adm-metric-label">Clocked In</span>
+                    <span class="adm-metric-value"><%= stats.clockedIn %></span>
+                </div>
+                <div class="adm-metric-card">
+                    <div class="adm-metric-icon blue">🏁</div>
+                    <span class="adm-metric-label">Clocked Out</span>
+                    <span class="adm-metric-value"><%= stats.clockedOut %></span>
+                </div>
+                <div class="adm-metric-card">
+                    <div class="adm-metric-icon amber">⏰</div>
+                    <span class="adm-metric-label">Late Arrivals</span>
+                    <span class="adm-metric-value" style="<%= stats.late > 0 ? 'color:#d97706' : '' %>"><%= stats.late %></span>
+                </div>
+                <div class="adm-metric-card">
+                    <div class="adm-metric-icon" style="background:#fee2e2;">❌</div>
+                    <span class="adm-metric-label">Missed Visits</span>
+                    <span class="adm-metric-value" style="<%= stats.missed > 0 ? 'color:#dc2626' : '' %>"><%= stats.missed %></span>
+                </div>
+                <div class="adm-metric-card">
+                    <div class="adm-metric-icon purple">📊</div>
+                    <span class="adm-metric-label">Total Hours</span>
+                    <span class="adm-metric-value"><%= stats.totalHours %>h</span>
+                </div>
+            </div>
+
+            <!-- Attendance table -->
+            <div class="adm-card">
+                <div class="adm-card-header">
+                    <div>
+                        <div class="adm-card-title">Attendance Log</div>
+                        <div class="adm-card-subtitle">Showing <%= records ? records.length : 0 %> record<%= records && records.length === 1 ? '' : 's' %> for <%= selectedDate %></div>
+                    </div>
+                    <a href="/admin/attendance/export?date=<%= encodeURIComponent(selectedDate) %>&status=<%= encodeURIComponent(attendanceFilters.status || 'all') %>&division=<%= encodeURIComponent(attendanceFilters.division || 'all') %>&q=<%= encodeURIComponent(attendanceFilters.q || '') %>" class="adm-btn-secondary" style="font-size:0.8rem;padding:6px 12px;">📥 Export CSV</a>
+                </div>
+
+                <% if (records && records.length) { %>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Staff</th>
+                                    <th>Home Care Client / Facility</th>
+                                    <th>Scheduled</th>
+                                    <th>Clock In</th>
+                                    <th>Clock Out</th>
+                                    <th>Hours</th>
+                                    <th>GPS</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% records.forEach((r) => {
+                                    const start    = r.scheduled_start || '';
+                                    const end      = r.scheduled_end   || '';
+                                    const clockIn  = r.actual_clock_in;
+                                    const clockOut = r.actual_clock_out;
+
+                                    const schedTime = start ? start.slice(11,16) + ' – ' + (end ? end.slice(11,16) : '') : '—';
+                                    const ciTime    = clockIn  ? clockIn.slice(11,16)  : '—';
+                                    const coTime    = clockOut ? clockOut.slice(11,16) : '—';
+
+                                    let hoursWorked = '—';
+                                    if (clockIn && clockOut) {
+                                        const mins = Math.round((new Date(clockOut) - new Date(clockIn)) / 60000);
+                                        const h = Math.floor(mins / 60), m = mins % 60;
+                                        hoursWorked = (h ? h + 'h ' : '') + (m ? m + 'm' : '');
+                                    }
+
+                                    const gpsVerified = Boolean(r.clock_in_latitude);
+                                    const badgeCls  = r.status === 'completed' || r.status === 'clocked_out' ? 'adm-badge-active' :
+                                                      r.status === 'clocked_in' ? 'adm-badge-clocked-in' :
+                                                      r.status === 'no_show' || r.status === 'cancelled' ? 'adm-badge-inactive' : 'adm-badge-scheduled';
+                                    const badgeLabel = r.status === 'clocked_in' ? 'On Duty' :
+                                                       r.status === 'completed' || r.status === 'clocked_out' ? 'Completed' :
+                                                       r.status === 'no_show' ? 'No Show' :
+                                                       r.status === 'cancelled' ? 'Cancelled' : 'Scheduled';
+                                %>
+                                    <tr>
+                                        <td><span class="adm-badge <%= (String(r.service_division || '').toLowerCase() === 'agency-staffing' || Number(r.client_account_id || 0) > 0) ? 'adm-badge-agency' : 'adm-badge-home-care' %>"><%= (String(r.service_division || '').toLowerCase() === 'agency-staffing' || Number(r.client_account_id || 0) > 0) ? '🏥 AGENCY' : '🏠 HOME CARE' %></span></td>
+                                        <td>
+                                            <div style="display:flex;align-items:center;gap:8px;">
+                                                <div class="sidebar-user-avatar" style="width:30px;height:30px;font-size:0.78rem;flex-shrink:0;">
+                                                    <%= (r.staff_name||'?').charAt(0) %>
+                                                </div>
+                                                <span style="font-weight:600;font-size:0.85rem;"><%= r.staff_name || '—' %></span>
+                                            </div>
+                                        </td>
+                                        <td style="font-size:0.85rem;"><strong><%= r.patient_name || '—' %></strong><br><small><%= r.shift_code || '' %></small></td>
+                                        <td style="font-size:0.82rem;color:#374151;"><%= schedTime %></td>
+                                        <td style="font-size:0.85rem;font-weight:<%= clockIn ? '600' : '400' %>;color:<%= clockIn ? '#0f172a' : '#94a3b8' %>;"><%= ciTime %></td>
+                                        <td style="font-size:0.85rem;color:<%= clockOut ? '#0f172a' : '#94a3b8' %>;"><%= coTime %></td>
+                                        <td style="font-size:0.85rem;font-weight:600;color:#374151;"><%= hoursWorked %></td>
+                                        <td style="font-size:0.85rem;">
+                                            <% if (gpsVerified) { %>
+                                                <span style="color:#16a34a;font-size:0.78rem;font-weight:600;">✅ Verified</span>
+                                            <% } else { %>
+                                                <span style="color:#94a3b8;font-size:0.78rem;">—</span>
+                                            <% } %>
+                                        </td>
+                                        <td><span class="adm-badge <%= badgeCls %>"><%= badgeLabel %></span></td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="adm-card-empty">
+                        <div class="adm-card-empty-icon">⏰</div>
+                        <p>No attendance records for <%= selectedDate %>.</p>
+                    </div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

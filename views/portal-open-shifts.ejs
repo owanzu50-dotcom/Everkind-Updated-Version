@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'open-shifts', isAdmin: true, currentStaffName: currentStaffName, currentStaffEmail: typeof currentStaffEmail !== 'undefined' ? currentStaffEmail : '' }) %>
+
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Open Shifts</h1>
+                    <p class="adm-page-subtitle"><%= openShifts ? openShifts.length : 0 %> shift<%= (!openShifts || openShifts.length !== 1) ? 's' : '' %> available for pickup</p>
+                </div>
+                <button class="adm-btn-primary" onclick="document.getElementById('post-modal').style.display='flex'">
+                    📤 Post Open Shift
+                </button>
+            </div>
+
+            <div class="adm-card">
+                <% if (openShifts && openShifts.length) { %>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Date &amp; Time</th>
+                                    <th>Home Care Client / Facility</th>
+                                    <th>Location</th>
+                                    <th>Service</th>
+                                    <th>Role</th>
+                                    <th>Duration</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% openShifts.forEach((shift) => {
+                                    const start = shift.scheduledStart || shift.scheduled_start || '';
+                                    const end   = shift.scheduledEnd   || shift.scheduled_end   || '';
+                                    const dateStr = start ? start.slice(0,10) : (shift.shiftDate || shift.shift_date || '');
+                                    const timeStr = start ? start.slice(11,16) : '';
+                                    const endTime = end   ? end.slice(11,16)   : '';
+                                %>
+                                    <tr>
+                                        <td><span class="adm-badge <%= shift.serviceDivision === 'agency-staffing' ? 'adm-badge-agency' : 'adm-badge-home-care' %>"><%= shift.serviceDivisionLabel %></span><br><small><%= shift.shiftCode || ('#' + shift.id) %></small></td>
+                                        <td>
+                                            <div class="adm-cell-time">
+                                                <strong><%= dateStr %></strong>
+                                                <span><%= timeStr %><%= endTime ? ' – ' + endTime : '' %></span>
+                                            </div>
+                                        </td>
+                                        <td><strong><%= shift.displayEntityName || shift.patientName || shift.patient_name || '—' %></strong></td>
+                                        <td><%= [shift.address, shift.county].filter(Boolean).join(', ') || 'Location pending' %></td>
+                                        <td style="font-size:0.82rem;color:#64748b;"><%= shift.serviceType || shift.service_type || 'General Care' %></td>
+                                        <td><%= shift.roleRequired || shift.serviceType || 'Healthcare Assistant' %></td>
+                                        <td style="font-size:0.82rem;color:#64748b;">
+                                            <% if (timeStr && endTime) {
+                                                const [sh, sm] = timeStr.split(':').map(Number);
+                                                const [eh, em] = endTime.split(':').map(Number);
+                                                const mins = (eh * 60 + em) - (sh * 60 + sm);
+                                                const h = Math.floor(mins / 60), m = mins % 60;
+                                                %>
+                                                <%= h ? h + 'h ' : '' %><%= m ? m + 'm' : '' %>
+                                            <% } else { %>—<% } %>
+                                        </td>
+                                        <td><span class="adm-badge adm-badge-awaiting"><%= shift.operationalStatus.replace(/_/g, ' ') %></span></td>
+                                        <td>
+                                            <div class="adm-actions">
+                                                <form method="POST" action="/api/shifts/<%= shift.id %>/delete" style="display:inline;"
+                                                      onsubmit="return confirm('Remove this open shift from the pickup pool?')">
+                                                    <button type="submit" class="adm-icon-btn adm-icon-btn-danger" title="Delete">🗑️</button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="adm-card-empty">
+                        <div class="adm-card-empty-icon">📤</div>
+                        <p>No open shifts</p>
+                        <p style="font-size:0.8rem;margin-top:6px;">Post a shift so carers can pick it up from their app.</p>
+                        <button class="adm-btn-primary" style="margin-top:14px;" onclick="document.getElementById('post-modal').style.display='flex'">Post Open Shift</button>
+                    </div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+
+    <!-- Post Open Shift Modal -->
+    <div class="adm-modal-overlay" id="post-modal" style="display:none;" onclick="if(event.target===this)this.style.display='none'">
+        <div class="adm-modal">
+            <div class="adm-modal-header">
+                <span class="adm-modal-title">Post Open Shift</span>
+                <button class="adm-modal-close" onclick="document.getElementById('post-modal').style.display='none'">✕</button>
+            </div>
+            <form method="POST" action="/api/open-shifts" id="open-shift-form">
+                <div class="adm-modal-body">
+                    <p style="font-size:0.8rem;color:#64748b;margin-bottom:4px;">Open shifts appear in every carer's app for pickup. No staff member is assigned until someone claims it.</p>
+                    <div class="adm-form-group">
+                        <label class="adm-form-label">Client *</label>
+                        <select class="adm-form-select" name="patientId" required>
+                            <option value="">Select client…</option>
+                            <% patients.forEach(p => { %>
+                                <option value="<%= p.id %>"><%= p.name %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div class="adm-form-group">
+                        <label class="adm-form-label">Date *</label>
+                        <input type="date" class="adm-form-input" name="shiftDate" required
+                               value="<%= new Date().toISOString().slice(0,10) %>">
+                    </div>
+                    <div class="adm-form-grid-2">
+                        <div class="adm-form-group">
+                            <label class="adm-form-label">Start Time *</label>
+                            <input type="time" class="adm-form-input" name="startTime" value="09:00" required>
+                        </div>
+                        <div class="adm-form-group">
+                            <label class="adm-form-label">End Time *</label>
+                            <input type="time" class="adm-form-input" name="endTime" value="13:00" required>
+                        </div>
+                    </div>
+                    <div class="adm-form-group">
+                        <label class="adm-form-label">Service Type *</label>
+                        <select class="adm-form-select" name="serviceType">
+                            <option>Personal Care</option>
+                            <option>Domestic Assistance</option>
+                            <option>Companionship</option>
+                            <option>Medication Assistance</option>
+                            <option>Meal Preparation</option>
+                            <option>Overnight Care</option>
+                            <option>Live-in Care</option>
+                            <option>Palliative Care</option>
+                            <option>Respite Care</option>
+                            <option>Healthcare Staffing</option>
+                        </select>
+                    </div>
+                    <div class="adm-form-group">
+                        <label class="adm-form-label">Notes</label>
+                        <textarea class="adm-form-textarea" name="notes" rows="3" placeholder="Any special instructions…"></textarea>
+                    </div>
+                </div>
+                <div class="adm-modal-footer">
+                    <button type="button" class="adm-btn-secondary" onclick="document.getElementById('post-modal').style.display='none'">Cancel</button>
+                    <button type="submit" class="adm-btn-primary">Post Shift</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    document.getElementById('open-shift-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(this));
+        fetch('/api/open-shifts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).then(r => r.json()).then(d => {
+            if (d.success) { window.location.reload(); }
+            else { alert('Error: ' + (d.message || 'Could not post shift')); }
+        });
+    });
+    </script>
+</body>
+</html>

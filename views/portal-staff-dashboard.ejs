@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'home', isAdmin: false, currentStaffName: currentStaffName, currentStaffEmail: currentStaffEmail }) %>
+
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Welcome, <%= currentStaffName %></h1>
+                    <p class="adm-page-subtitle">Your staff dashboard for <%= weekLabel %></p>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <a href="/portal/my-schedule" class="adm-btn-primary">📅 View Schedule</a>
+                    <a href="/portal/profile" class="adm-btn-secondary">👤 My Profile</a>
+                </div>
+            </div>
+
+            <div class="adm-metric-grid">
+                <div class="adm-metric-card">
+                    <div class="adm-metric-icon green">🕒</div>
+                    <span class="adm-metric-label">Today's Shift</span>
+                    <span class="adm-metric-value"><%= todayShift ? '1' : '0' %></span>
+                    <span class="adm-metric-sub"><%= todayShift ? (todayShift.patientName + ' · ' + (todayShift.scheduledStart || '').slice(11, 16)) : 'No active visit today' %></span>
+                </div>
+                <a href="/portal/my-schedule?view=list" class="adm-metric-card adm-metric-link" title="Open your schedule">
+                    <div class="adm-metric-icon blue">🗓️</div>
+                    <span class="adm-metric-label">Upcoming Shifts</span>
+                    <span class="adm-metric-value"><%= upcomingShiftCount %></span>
+                    <span class="adm-metric-sub">Open your schedule</span>
+                </a>
+                <div class="adm-metric-card">
+                    <div class="adm-metric-icon amber">⏱️</div>
+                    <span class="adm-metric-label">Hours This Week</span>
+                    <span class="adm-metric-value"><%= weeklyHours %></span>
+                    <span class="adm-metric-sub">Worked clocked time</span>
+                </div>
+                <div class="adm-metric-card">
+                    <div class="adm-metric-icon purple">🔔</div>
+                    <span class="adm-metric-label">Unread Alerts</span>
+                    <span class="adm-metric-value"><%= unreadCount %></span>
+                    <span class="adm-metric-sub">Management updates</span>
+                </div>
+            </div>
+
+            <div class="adm-content-grid">
+                <div class="adm-section">
+                    <div class="adm-card">
+                        <div class="adm-card-header">
+                            <div>
+                                <div class="adm-card-title">Today's Shift</div>
+                                <div class="adm-card-subtitle">Clock in only when you are at the client address</div>
+                            </div>
+                        </div>
+                        <% if (todayShift) { %>
+                            <div class="adm-card-body">
+                                <div class="adm-shift-list">
+                                    <div class="adm-shift-item">
+                                        <div class="adm-shift-dot"></div>
+                                        <div class="adm-shift-info">
+                                            <div class="adm-shift-client"><%= todayShift.patientName %></div>
+                                            <div class="adm-shift-meta"><%= todayShift.address || 'Address available in schedule' %> · <%= todayShift.serviceType %></div>
+                                        </div>
+                                        <div class="adm-shift-time"><%= (todayShift.scheduledStart || '').slice(11, 16) %></div>
+                                    </div>
+                                </div>
+                                <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+                                    <a href="/portal/shifts/<%= todayShift.id %>" class="adm-btn-secondary">View Shift Details</a>
+                                    <% if (todayShift.status === 'scheduled') { %>
+                                        <button class="adm-btn-primary" type="button" onclick="clockAction(<%= todayShift.id %>, 'clock-in')">Clock In</button>
+                                    <% } %>
+                                    <% if (todayShift.status === 'clocked_in') { %>
+                                        <button class="adm-btn-primary" type="button" onclick="clockAction(<%= todayShift.id %>, 'clock-out')">Clock Out</button>
+                                    <% } %>
+                                    <a href="/portal/my-schedule" class="adm-btn-secondary">Open full schedule</a>
+                                </div>
+                                <p id="clock-message" class="form-message" style="display:none;margin-top:12px;"></p>
+                            </div>
+                        <% } else { %>
+                            <div class="adm-card-empty"><p>No shift assigned for today.</p></div>
+                        <% } %>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header">
+                            <div class="adm-card-title">Weekly Roster</div>
+                            <a href="/portal/weekly-roster" class="adm-btn-secondary">View roster</a>
+                        </div>
+                        <% if (weeklyRoster.length) { %>
+                            <div class="adm-table-wrap">
+                                <table class="adm-table">
+                                    <thead><tr><th>Date</th><th>Client</th><th>Time</th><th>Status</th></tr></thead>
+                                    <tbody>
+                                        <% weeklyRoster.forEach((shift) => { %>
+                                            <tr>
+                                                <td><%= (shift.scheduledStart || '').slice(0, 10) %></td>
+                                                <td><%= shift.patientName %></td>
+                                                <td><%= (shift.scheduledStart || '').slice(11, 16) %> - <%= (shift.scheduledEnd || '').slice(11, 16) %></td>
+                                                <td><span class="adm-badge adm-badge-<%= shift.status === 'completed' ? 'completed' : shift.status === 'clocked_in' ? 'clocked-in' : shift.status === 'cancelled' ? 'cancelled' : 'scheduled' %>"><%= shift.status %></span></td>
+                                            </tr>
+                                        <% }) %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } else { %>
+                            <div class="adm-card-empty"><p>No shifts in this roster week.</p></div>
+                        <% } %>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Assigned Clients</div></div>
+                        <% if (assignedClients && assignedClients.length) { %>
+                            <div class="adm-card-body client-assignment-summary">
+                                <% assignedClients.slice(0, 6).forEach((client) => { %>
+                                    <article class="client-team-card">
+                                        <strong><%= client.preferredName || client.name %></strong>
+                                        <p><%= client.status %></p>
+                                        <small><%= client.address || 'Address recorded in client profile' %></small>
+                                    </article>
+                                <% }) %>
+                            </div>
+                        <% } else { %>
+                            <div class="adm-card-empty"><p>No clients have been assigned to you yet.</p></div>
+                        <% } %>
+                    </div>
+                </div>
+
+                <div class="adm-section">
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Quick Actions</div></div>
+                        <div class="adm-card-body" style="display:grid;gap:8px;">
+                            <a href="/portal/my-schedule" class="adm-btn-primary" style="justify-content:center;">📅 View Schedule</a>
+                            <a href="/portal/staff-open-shifts" class="adm-btn-secondary" style="justify-content:center;">📤 View Open Shifts</a>
+                            <a href="/portal/notifications" class="adm-btn-secondary" style="justify-content:center;">🔔 Notifications</a>
+                            <a href="/portal/profile" class="adm-btn-secondary" style="justify-content:center;">👤 My Profile</a>
+                        </div>
+                    </div>
+
+                    <div class="adm-card">
+                        <div class="adm-card-header">
+                            <div class="adm-card-title">Recent Notifications</div>
+                            <a href="/portal/notifications" class="adm-btn-secondary">All</a>
+                        </div>
+                        <% if (notifications.length) { %>
+                            <div class="adm-card-body" style="display:grid;gap:10px;">
+                                <% notifications.forEach((note) => { %>
+                                    <div class="staff-notice-item <%= Number(note.is_read) ? 'read' : 'unread' %>">
+                                        <strong><%= note.title %></strong>
+                                        <p><%= note.body %></p>
+                                        <small><%= String(note.created_at || '').slice(0, 16).replace('T', ' ') %></small>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        <% } else { %>
+                            <div class="adm-card-empty"><p>No notifications yet.</p></div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    async function clockAction(shiftId, action) {
+        const message = document.getElementById('clock-message');
+        message.style.display = 'none';
+        try {
+            if (!navigator.geolocation) {
+                throw new Error('GPS is unavailable. Enable location services to clock ' + (action === 'clock-in' ? 'in' : 'out') + '.');
+            }
+            const position = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000 }));
+            const response = await fetch('/api/staff/shifts/' + shiftId + '/' + action, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    accuracy: position.coords.accuracy,
+                    device: navigator.userAgent
+                })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Clock action failed.');
+            }
+            message.className = 'form-message success';
+            message.textContent = data.message;
+            message.style.display = 'block';
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (error) {
+            message.className = 'form-message error';
+            message.textContent = error.message || 'Clock action failed.';
+            message.style.display = 'block';
+        }
+    }
+    </script>
+</body>
+</html>

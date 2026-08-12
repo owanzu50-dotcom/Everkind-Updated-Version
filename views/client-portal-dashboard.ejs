@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/client-portal-sidebar', { active: 'dashboard', currentClientName: currentClientName, currentClientEmail: currentClientEmail, clientPortalCounts: clientPortalCounts }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title"><%= account.displayName %></h1>
+                    <p class="adm-page-subtitle">Secure service dashboard for facility requests and upcoming bookings</p>
+                    <% if (String((account.status || '')).toLowerCase() !== 'approved') { %><p class="form-message error">This account is currently <%= account.status %>.</p><% } %>
+                    <% if (message) { %><p class="form-message success"><%= message %></p><% } %>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <a href="/facility-portal/requests/new" class="adm-btn-primary">➕ Request Staff</a>
+                    <a href="/facility-portal/requests" class="adm-btn-secondary">📋 View Requests</a>
+                </div>
+            </div>
+
+            <% const activeRequests = requests.filter((item) => ['pending_review','reviewing','request_more_information','approved','awaiting_staff','accepted','confirmed','travelling','checked_in','on_break'].includes(item.status)); %>
+            <% const filledRequests = requests.filter((item) => ['accepted','confirmed','travelling','checked_in','on_break','checked_out'].includes(item.status)); %>
+            <% const completedRequests = requests.filter((item) => item.status === 'shift_completed'); %>
+            <% const upcomingBookings = bookings.filter((item) => item.scheduledStart && item.scheduledStart >= new Date().toISOString().slice(0,16).replace('T',' ')); %>
+
+            <div class="adm-metric-grid">
+                <div class="adm-metric-card"><div class="adm-metric-icon green">🧾</div><span class="adm-metric-label">Active Staff Requests</span><span class="adm-metric-value"><%= activeRequests.length %></span><span class="adm-metric-sub">Open with operations</span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon blue">📤</div><span class="adm-metric-label">Open Requests</span><span class="adm-metric-value"><%= requests.filter((item) => ['pending_review','reviewing','request_more_information','approved','awaiting_staff'].includes(item.status)).length %></span><span class="adm-metric-sub">Awaiting review or staffing</span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon amber">✅</div><span class="adm-metric-label">Filled Requests</span><span class="adm-metric-value"><%= filledRequests.length %></span><span class="adm-metric-sub">Scheduled or published</span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon purple">🏁</div><span class="adm-metric-label">Completed Requests</span><span class="adm-metric-value"><%= completedRequests.length %></span><span class="adm-metric-sub">Historical activity</span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon blue">⭐</div><span class="adm-metric-label">Favourite Staff</span><span class="adm-metric-value"><%= account.favouriteStaffIds.length %></span><span class="adm-metric-sub">Saved for future matching</span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon green">📅</div><span class="adm-metric-label">Upcoming Bookings</span><span class="adm-metric-value"><%= upcomingBookings.length %></span><span class="adm-metric-sub">Scheduled service slots</span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon purple">💶</div><span class="adm-metric-label">Outstanding Invoices</span><span class="adm-metric-value">0</span><span class="adm-metric-sub">Future-ready billing</span></div>
+                <div class="adm-metric-card"><div class="adm-metric-icon amber">🔔</div><span class="adm-metric-label">Notifications</span><span class="adm-metric-value"><%= notifications.length %></span><span class="adm-metric-sub">Recent updates</span></div>
+            </div>
+
+            <div class="adm-content-grid">
+                <div class="adm-section">
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div><div class="adm-card-title">Recent Requests</div><div class="adm-card-subtitle">Latest facility portal requests</div></div><a href="/facility-portal/requests" class="adm-btn-secondary">All requests</a></div>
+                        <% if (requests.length) { %>
+                            <div class="adm-table-wrap">
+                                <table class="adm-table">
+                                    <thead><tr><th>Role</th><th>Date</th><th>Shift</th><th>Priority</th><th>Status</th></tr></thead>
+                                    <tbody>
+                                        <% requests.slice(0, 6).forEach((item) => { %>
+                                            <tr>
+                                                <td><strong><%= item.staff_required %></strong><br><span style="font-size:0.78rem;color:#64748b;"><%= item.quantityRequired %> required</span></td>
+                                                <td><%= item.shift_date %></td>
+                                                <td><%= item.shift_type %> · <%= item.start_time %> - <%= item.end_time %></td>
+                                                <td><span class="adm-badge adm-badge-<%= item.priority === 'Emergency' ? 'cancelled' : item.priority === 'Urgent' ? 'awaiting' : 'scheduled' %>"><%= item.priority %></span></td>
+                                                <td><span class="adm-badge adm-badge-<%= item.statusClass %>"><%= item.status.replace(/_/g, ' ') %></span></td>
+                                            </tr>
+                                        <% }) %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } else { %>
+                            <div class="adm-card-empty"><p>No requests submitted yet.</p></div>
+                        <% } %>
+                    </div>
+                </div>
+                <div class="adm-section">
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Upcoming Bookings</div></div>
+                        <% if (bookings.length) { %>
+                            <div class="adm-card-body" style="display:grid;gap:10px;">
+                                <% bookings.slice(0, 6).forEach((item) => { %>
+                                    <div class="staff-notice-item">
+                                        <strong><%= item.serviceType %> · <%= item.patientName %></strong>
+                                        <p><%= (item.scheduledStart || '').slice(0, 10) %> <%= (item.scheduledStart || '').slice(11, 16) %> - <%= (item.scheduledEnd || '').slice(11, 16) %></p>
+                                        <small><%= item.staffName %> · <%= item.address || 'Address confirmed by operations' %></small>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        <% } else { %>
+                            <div class="adm-card-empty"><p>No confirmed bookings yet.</p></div>
+                        <% } %>
+                    </div>
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div class="adm-card-title">Notifications</div></div>
+                        <% if (notifications.length) { %>
+                            <div class="adm-card-body" style="display:grid;gap:10px;">
+                                <% notifications.forEach((note) => { %>
+                                    <div class="staff-notice-item <%= Number(note.is_read) ? 'read' : 'unread' %>">
+                                        <strong><%= note.title %></strong>
+                                        <p><%= note.body %></p>
+                                        <small><%= String(note.created_at || '').slice(0, 16).replace('T', ' ') %></small>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        <% } else { %>
+                            <div class="adm-card-empty"><p>No notifications yet.</p></div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,151 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Healthcare staffing and home support services from Everkind across Ireland.">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="public-page">
+    <%- include('partials/site-header', { active: 'services' }) %>
+
+    <main id="main-content" tabindex="-1">
+        <section class="hero-section">
+            <div class="container hero-grid hero-grid--staffing">
+                <div class="hero-copy reveal-on-scroll">
+                    <span class="eyebrow">Our services</span>
+                    <h1>Healthcare staffing and home support, built around your needs.</h1>
+                    <p class="hero-subtitle">From urgent staffing cover to calm, dependable support at home, Everkind helps healthcare facilities and families across Ireland move forward with confidence.</p>
+                    <div class="hero-actions">
+                        <a href="/facility-portal/register" class="primary-button large">Request Staff</a>
+                        <a href="/assessment" class="secondary-button large">Book Consultation</a>
+                    </div>
+                </div>
+
+                <div class="hero-panel hero-panel--staffing reveal-on-scroll">
+                    <div class="hero-image-card">
+                        <img src="/images/services-hero.png" alt="Healthcare professionals working together" loading="eager">
+                        <div class="hero-image-badge">Temporary, permanent, and emergency cover</div>
+                    </div>
+                    <div class="hero-panel__meta">
+                        <div><strong>Fast</strong><span>response times</span></div>
+                        <div><strong>Trusted</strong><span>support across Ireland</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="container content-section">
+            <div class="section-heading narrow reveal-on-scroll">
+                <span class="eyebrow">What we provide</span>
+                <h2>High-quality support across staffing and care.</h2>
+                <p>We combine skilled professionals, clear communication and genuine care to support both families and healthcare organisations.</p>
+            </div>
+            <div class="staffing-grid">
+                <article class="service-card staffing-card reveal-on-scroll floating-lift">
+                    <div class="staffing-card__media"><img src="/images/hero.png" alt="Healthcare assistants in a care setting" loading="lazy"></div>
+                    <div class="staffing-card__body"><h3>Healthcare Staffing</h3><p>Reliable short-term, long-term, and emergency staffing solutions for hospitals, clinics, and care services.</p><a href="/facility-portal/register" class="secondary-button small">Request Staff</a></div>
+                </article>
+                <article class="service-card staffing-card reveal-on-scroll floating-lift">
+                    <div class="staffing-card__media"><img src="/images/home-companionship.png" alt="Compassionate home support" loading="lazy"></div>
+                    <div class="staffing-card__body"><h3>Home Care</h3><p>Warm, consistent support that helps people stay comfortable at home with dignity and reassurance.</p><a href="/assessment" class="secondary-button small">Book Assessment</a></div>
+                </article>
+                <article class="service-card staffing-card reveal-on-scroll floating-lift">
+                    <div class="staffing-card__media"><img src="/images/about-hero.png" alt="Support workers and carers" loading="lazy"></div>
+                    <div class="staffing-card__body"><h3>Residential Care</h3><p>Professional staffing and practical support for residential services, nursing homes and disability settings.</p><a href="/facility-portal/register" class="secondary-button small">Request Staff</a></div>
+                </article>
+                <article class="service-card staffing-card reveal-on-scroll floating-lift">
+                    <div class="staffing-card__media"><img src="/images/home-meal.png" alt="Domestic and catering support" loading="lazy"></div>
+                    <div class="staffing-card__body"><h3>Housekeeping & Catering</h3><p>Dependable domestic, cleaning, and catering staff for busy services and demanding environments.</p><a href="/facility-portal/register" class="secondary-button small">Request Staff</a></div>
+                </article>
+            </div>
+        </section>
+
+        <section class="container content-section">
+            <div class="facility-layout">
+                <div class="facility-layout__image reveal-on-scroll">
+                    <img src="/images/about-hero.png" alt="Healthcare professionals working together" loading="lazy">
+                    <div class="facility-layout__badge">Clear communication from day one</div>
+                </div>
+                <div class="facility-layout__content reveal-on-scroll">
+                    <span class="eyebrow">How we work</span>
+                    <h2>From first conversation to confident delivery.</h2>
+                    <p>We spend time understanding the setting, the people involved and the level of support required so the right match is made quickly and thoughtfully.</p>
+                    <ul class="check-list">
+                        <li>We discuss your staffing or care requirements in detail.</li>
+                        <li>We match the right people to the right setting.</li>
+                        <li>We keep communication clear, responsive and professional.</li>
+                    </ul>
+                    <div class="hero-actions">
+                        <a href="/assessment" class="primary-button">Book Consultation</a>
+                        <a href="/apply" class="secondary-button">Join Our Team</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="container content-section">
+            <div class="section-heading narrow reveal-on-scroll">
+                <span class="eyebrow">Why choose Everkind</span>
+                <h2>Trusted by families and healthcare organisations alike.</h2>
+            </div>
+            <div class="benefit-grid">
+                <article class="content-card benefit-card reveal-on-scroll floating-lift">
+                    <div class="benefit-card__icon" aria-hidden="true">🧭</div>
+                    <div><h3>Thoughtful matching</h3><p>We take the time to understand the care setting, the role and the people involved.</p></div>
+                </article>
+                <article class="content-card benefit-card reveal-on-scroll floating-lift">
+                    <div class="benefit-card__icon" aria-hidden="true">⏱️</div>
+                    <div><h3>Responsive support</h3><p>Fast communication and dependable follow-through when you need help most.</p></div>
+                </article>
+                <article class="content-card benefit-card reveal-on-scroll floating-lift">
+                    <div class="benefit-card__icon" aria-hidden="true">🛡️</div>
+                    <div><h3>Professional standards</h3><p>We focus on safe, compliant and reassuring service from the very first contact.</p></div>
+                </article>
+                <article class="content-card benefit-card reveal-on-scroll floating-lift">
+                    <div class="benefit-card__icon" aria-hidden="true">🤝</div>
+                    <div><h3>Consistent partnership</h3><p>We build long-term relationships with clients, families and care teams.</p></div>
+                </article>
+            </div>
+        </section>
+
+        <section class="container content-section">
+            <div class="home-cta reveal-on-scroll">
+                <div>
+                    <span class="eyebrow">Need support today?</span>
+                    <h2>Let Everkind help you plan the next step with confidence.</h2>
+                </div>
+                <div class="hero-actions">
+                    <a href="/facility-portal/register" class="primary-button">Request Staff</a>
+                    <a href="/assessment" class="secondary-button">Book Consultation</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <%- include('partials/site-footer') %>
+
+    <script>
+        (function () {
+            const reveals = document.querySelectorAll('.reveal-on-scroll');
+            if (!('IntersectionObserver' in window) || !reveals.length) {
+                reveals.forEach((element) => element.classList.add('is-visible'));
+                return;
+            }
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('is-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.18 });
+
+            reveals.forEach((element) => observer.observe(element));
+        })();
+    </script>
+</body>
+</html>

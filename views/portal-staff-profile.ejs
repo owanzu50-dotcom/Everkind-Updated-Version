@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'profile', isAdmin: false, currentStaffName: currentStaffName, currentStaffEmail: currentStaffEmail }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">My Profile</h1>
+                    <p class="adm-page-subtitle">Only your phone, address, emergency contact, availability, and photo can be updated here.</p>
+                </div>
+            </div>
+
+            <% if (message) { %><p class="form-message success"><%= message %></p><% } %>
+            <% if (error) { %><p class="form-message error"><%= error %></p><% } %>
+
+            <div class="adm-content-grid">
+                <div class="adm-card">
+                    <div class="adm-card-header"><div class="adm-card-title">Profile Details</div></div>
+                    <form class="adm-card-body" method="POST" action="/portal/profile" style="display:grid;gap:16px;">
+                        <div class="adm-form-grid-2">
+                            <div class="adm-form-group"><label class="adm-form-label">Name</label><input class="adm-form-input" value="<%= staffMember.name %>" readonly></div>
+                            <div class="adm-form-group"><label class="adm-form-label">Email</label><input class="adm-form-input" value="<%= staffMember.email || '' %>" readonly></div>
+                        </div>
+                        <div class="adm-form-grid-2">
+                            <div class="adm-form-group"><label class="adm-form-label">Role</label><input class="adm-form-input" value="<%= staffMember.role %>" readonly></div>
+                            <div class="adm-form-group"><label class="adm-form-label">Staff ID</label><input class="adm-form-input" value="#<%= String(staffMember.id).padStart(4, '0') %>" readonly></div>
+                        </div>
+                        <div class="adm-form-group"><label class="adm-form-label">Eligible Services</label><input class="adm-form-input" value="<%= (staffMember.serviceTypes || []).join(', ') || 'Both' %>" readonly></div>
+                        <div class="adm-form-grid-2">
+                            <div class="adm-form-group"><label class="adm-form-label">Phone</label><input class="adm-form-input" name="phone" value="<%= staffMember.phone || '' %>"></div>
+                            <div class="adm-form-group"><label class="adm-form-label">Emergency Contact</label><input class="adm-form-input" name="emergency_contact" value="<%= staffMember.emergency_contact || '' %>"></div>
+                        </div>
+                        <div class="adm-form-group"><label class="adm-form-label">Address</label><input class="adm-form-input" name="address" value="<%= staffMember.address || '' %>"></div>
+                        <div class="adm-form-group"><label class="adm-form-label">Availability</label><textarea class="adm-form-textarea" rows="3" name="availability"><%= staffMember.availability || '' %></textarea></div>
+                        <div class="adm-form-group"><label class="adm-form-label">Profile Photo URL</label><input class="adm-form-input" name="profile_photo" value="<%= staffMember.profile_photo || '' %>" placeholder="https://..."></div>
+                        <div class="adm-card" style="margin-top:6px;">
+                            <div class="adm-card-header"><div class="adm-card-title">Security</div></div>
+                            <div class="adm-card-body" style="display:grid;gap:12px;">
+                                <p style="margin:0;color:#64748b;font-size:0.9rem;">App Lock is available for mobile app sessions only and does not affect web portal access.</p>
+                                <label class="adm-form-label" style="display:flex;align-items:center;gap:8px;">
+                                    <input type="checkbox" name="app_lock_enabled" id="app-lock-enabled" <%= staffMember.appLockEnabled ? 'checked' : '' %>>
+                                    Enable App Lock (Mobile)
+                                </label>
+                                <div class="adm-form-group">
+                                    <label class="adm-form-label">Authentication Method</label>
+                                    <select class="adm-form-input" name="app_lock_method" id="app-lock-method">
+                                        <option value="">Choose method</option>
+                                        <option value="face_id" <%= staffMember.appLockMethod === 'face_id' ? 'selected' : '' %>>Face ID</option>
+                                        <option value="touch_id" <%= staffMember.appLockMethod === 'touch_id' ? 'selected' : '' %>>Touch ID</option>
+                                        <option value="fingerprint" <%= staffMember.appLockMethod === 'fingerprint' ? 'selected' : '' %>>Fingerprint</option>
+                                        <option value="device_pin" <%= staffMember.appLockMethod === 'device_pin' ? 'selected' : '' %>>Device PIN</option>
+                                    </select>
+                                </div>
+                                <p id="app-lock-mobile-note" style="margin:0;color:#b45309;font-size:0.85rem;display:none;">App Lock options are editable from a mobile device.</p>
+                            </div>
+                        </div>
+                        <div class="adm-card">
+                            <div class="adm-card-header"><div class="adm-card-title">Notification Settings</div></div>
+                            <div class="adm-card-body" style="display:grid;gap:10px;">
+                                <label class="adm-form-label" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" name="notify_shift_reminders" <%= staffMember.notifyShiftReminders ? 'checked' : '' %>> Shift Reminders</label>
+                                <label class="adm-form-label" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" name="notify_new_shift" <%= staffMember.notifyNewShift ? 'checked' : '' %>> New Shift Notifications</label>
+                                <label class="adm-form-label" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" name="notify_open_shift" <%= staffMember.notifyOpenShift ? 'checked' : '' %>> Open Shift Notifications</label>
+                                <label class="adm-form-label" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" name="notify_announcements" <%= staffMember.notifyAnnouncements ? 'checked' : '' %>> Company Announcements</label>
+                                <label class="adm-form-label" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" name="notify_training_reminders" <%= staffMember.notifyTrainingReminders ? 'checked' : '' %>> Training Reminders</label>
+                                <label class="adm-form-label" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" name="notify_compliance_alerts" <%= staffMember.notifyComplianceAlerts ? 'checked' : '' %>> Compliance Alerts</label>
+                                <label class="adm-form-label" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" name="notify_schedule_changes" <%= staffMember.notifyScheduleChanges ? 'checked' : '' %>> Schedule Changes</label>
+                                <div class="adm-form-group">
+                                    <label class="adm-form-label">Shift Reminder Lead Time</label>
+                                    <select class="adm-form-input" name="reminder_lead_minutes">
+                                        <option value="15" <%= Number(staffMember.reminderLeadMinutes) === 15 ? 'selected' : '' %>>15 minutes before</option>
+                                        <option value="30" <%= Number(staffMember.reminderLeadMinutes) === 30 ? 'selected' : '' %>>30 minutes before</option>
+                                        <option value="60" <%= Number(staffMember.reminderLeadMinutes) === 60 ? 'selected' : '' %>>1 hour before</option>
+                                        <option value="120" <%= Number(staffMember.reminderLeadMinutes) === 120 ? 'selected' : '' %>>2 hours before</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="adm-form-grid-2">
+                            <div class="adm-form-group"><label class="adm-form-label">Manager</label><input class="adm-form-input" value="<%= staffMember.manager_name || '' %>" readonly></div>
+                            <div class="adm-form-group"><label class="adm-form-label">Start Date</label><input class="adm-form-input" value="<%= staffMember.start_date ? String(staffMember.start_date).slice(0, 10) : '' %>" readonly></div>
+                        </div>
+                        <div class="adm-form-grid-2">
+                            <div class="adm-form-group"><label class="adm-form-label">Nationality</label><input class="adm-form-input" value="<%= staffMember.nationality || '' %>" readonly></div>
+                            <div class="adm-form-group"><label class="adm-form-label">Languages</label><input class="adm-form-input" value="<%= staffMember.languages || '' %>" readonly></div>
+                        </div>
+                        <button class="adm-btn-primary" type="submit">Save profile</button>
+                    </form>
+                </div>
+
+                <div class="adm-card">
+                    <div class="adm-card-header"><div class="adm-card-title">Change Password</div></div>
+                    <form class="adm-card-body" method="POST" action="/portal/profile/password" style="display:grid;gap:12px;">
+                        <div class="adm-form-group"><label class="adm-form-label">Current Password</label><input class="adm-form-input" type="password" name="current_password" required></div>
+                        <div class="adm-form-group"><label class="adm-form-label">New Password</label><input class="adm-form-input" type="password" name="new_password" minlength="8" required></div>
+                        <div class="adm-form-group"><label class="adm-form-label">Confirm New Password</label><input class="adm-form-input" type="password" name="confirm_password" minlength="8" required></div>
+                        <button class="adm-btn-secondary" type="submit">Update password</button>
+                    </form>
+                </div>
+
+                <div class="adm-card">
+                    <div class="adm-card-header"><div class="adm-card-title">Assigned Clients</div></div>
+                    <% if (assignedClients && assignedClients.length) { %>
+                        <div class="adm-card-body client-assignment-summary">
+                            <% assignedClients.forEach((client) => { %>
+                                <article class="client-team-card">
+                                    <strong><%= client.preferredName || client.name %></strong>
+                                    <p><%= client.status %></p>
+                                    <small><%= client.phone || 'Phone not recorded' %></small>
+                                </article>
+                            <% }) %>
+                        </div>
+                    <% } else { %>
+                        <div class="adm-card-empty"><p>No clients have been assigned to you yet.</p></div>
+                    <% } %>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+    (function () {
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+        if (!isMobile) {
+            const appLockEnabled = document.getElementById('app-lock-enabled');
+            const appLockMethod = document.getElementById('app-lock-method');
+            const mobileNote = document.getElementById('app-lock-mobile-note');
+            if (appLockEnabled) appLockEnabled.disabled = true;
+            if (appLockMethod) appLockMethod.disabled = true;
+            if (mobileNote) mobileNote.style.display = 'block';
+        }
+    }());
+    </script>
+</body>
+</html>

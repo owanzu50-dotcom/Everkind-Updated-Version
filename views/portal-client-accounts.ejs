@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/portal-sidebar', { active: 'client-portal', isAdmin: true, currentStaffName: currentStaffName, currentStaffEmail: currentStaffEmail }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">Facility Portal</h1>
+                    <p class="adm-page-subtitle">Review facility registrations, approve access, and convert facility requests into scheduled or open shifts.</p>
+                </div>
+            </div>
+            <% if (approvedFacilityEmail && approvedFacilityTemporaryPassword) { %>
+                <div class="adm-card" style="margin-bottom:1rem;">
+                    <div class="adm-card-title">Temporary login generated</div>
+                    <p style="margin:0.5rem 0 0;color:#334155;">Facility Email: <strong><%= approvedFacilityEmail %></strong></p>
+                    <p style="margin:0.25rem 0 0;color:#334155;">Temporary Password: <strong><%= approvedFacilityTemporaryPassword %></strong></p>
+                    <p style="margin:0.5rem 0 0;color:#64748b;font-size:0.85rem;">Share this once through a secure channel. The facility must change it on first login.</p>
+                </div>
+            <% } %>
+
+            <div class="adm-content-grid">
+                <div class="adm-section">
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div><div class="adm-card-title">Facility Registrations</div><div class="adm-card-subtitle"><%= registrations.length %> submitted</div></div></div>
+                        <% if (registrations.length) { %>
+                            <div class="adm-table-wrap">
+                                <table class="adm-table">
+                                    <thead><tr><th>Organisation</th><th>Contact</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead>
+                                    <tbody>
+                                        <% registrations.forEach((account) => { %>
+                                            <tr>
+                                                <td><span class="adm-badge adm-badge-agency">🏥 HEALTHCARE FACILITY</span><br><strong><%= account.organization_name %></strong><br><span style="font-size:0.78rem;color:#64748b;"><%= account.accountId %> · <%= account.email %></span></td>
+                                                <td><%= account.contact_first_name %> <%= account.contact_last_name %><br><span style="font-size:0.78rem;color:#64748b;"><%= account.mobile_number %></span></td>
+                                                <td><%= account.organization_type %></td>
+                                                <td><span class="adm-badge adm-badge-<%= account.statusClass %>"><%= account.status.replace(/_/g, ' ') %></span></td>
+                                                <td>
+                                                    <form method="POST" action="/portal/client-accounts/<%= account.id %>/status" class="inline-admin-form">
+                                                        <select class="adm-form-select" name="status">
+                                                            <% registrationStatuses.forEach((status) => { %>
+                                                                <option value="<%= status %>" <%= account.status === status ? 'selected' : '' %>><%= status.replace(/_/g, ' ') %></option>
+                                                            <% }) %>
+                                                        </select>
+                                                        <input class="adm-form-input" type="text" name="review_notes" value="<%= account.review_notes || '' %>" placeholder="Review notes">
+                                                        <button type="submit" class="adm-btn-secondary">Save</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        <% }) %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } else { %>
+                            <div class="adm-card-empty"><p>No facility registrations yet.</p></div>
+                        <% } %>
+                    </div>
+                </div>
+
+                <div class="adm-section">
+                    <div class="adm-card">
+                        <div class="adm-card-header"><div><div class="adm-card-title">Facility Requests</div><div class="adm-card-subtitle"><%= requests.length %> request<%= requests.length === 1 ? '' : 's' %></div></div></div>
+                        <% if (requests.length) { %>
+                            <div class="adm-table-wrap">
+                                <table class="adm-table">
+                                    <thead><tr><th>Facility</th><th>Role / Shift</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead>
+                                    <tbody>
+                                        <% requests.forEach((item) => { %>
+                                            <tr>
+                                                <td><strong><%= item.clientName %></strong><br><span style="font-size:0.78rem;color:#64748b;"><%= item.contactName %></span></td>
+                                                <td>
+                                                    <strong><%= item.staff_required %> x<%= item.quantityRequired %></strong><br>
+                                                    <span style="font-size:0.78rem;color:#64748b;"><%= item.shift_date %> · <%= item.shift_type %> · <%= item.start_time %> - <%= item.end_time %></span><br>
+                                                    <span style="font-size:0.78rem;color:#64748b;"><%= item.facility_name || item.clientName %> · <%= item.facility_county || 'County not set' %></span>
+                                                </td>
+                                                <td><span class="adm-badge adm-badge-<%= item.priority === 'Emergency' ? 'cancelled' : item.priority === 'Urgent' ? 'awaiting' : 'scheduled' %>"><%= item.priority %></span></td>
+                                                <td>
+                                                    <form method="POST" action="/portal/client-requests/<%= item.id %>/status" class="inline-admin-form">
+                                                        <select class="adm-form-select" name="status">
+                                                            <% requestStatuses.forEach((status) => { %>
+                                                                <option value="<%= status %>" <%= item.status === status ? 'selected' : '' %>><%= status.replace(/_/g, ' ') %></option>
+                                                            <% }) %>
+                                                        </select>
+                                                        <button type="submit" class="adm-btn-secondary">Update</button>
+                                                    </form>
+                                                </td>
+                                                <td>
+                                                    <div class="inline-admin-actions">
+                                                        <form method="POST" action="/portal/client-requests/<%= item.id %>/assign" class="inline-admin-form">
+                                                            <select class="adm-form-select" name="staff_id" required>
+                                                                <option value="">Assign staff…</option>
+                                                                <% staff.forEach((member) => { %>
+                                                                    <% if (String(member.employmentStatus || member.status || '').toLowerCase() === 'active') { %>
+                                                                        <option value="<%= member.id %>"><%= member.name %> · <%= member.role %></option>
+                                                                    <% } %>
+                                                                <% }) %>
+                                                            </select>
+                                                            <button type="submit" class="adm-btn-primary">Assign</button>
+                                                        </form>
+                                                        <form method="POST" action="/portal/client-requests/<%= item.id %>/publish-open-shift" onsubmit="return confirm('Publish this request as an open shift?')">
+                                                            <button type="submit" class="adm-btn-secondary">Publish Open Shift</button>
+                                                        </form>
+                                                        <form method="POST" action="/portal/client-requests/<%= item.id %>/duplicate" onsubmit="return confirm('Create a duplicate copy of this request?')">
+                                                            <button type="submit" class="adm-btn-secondary">Duplicate</button>
+                                                        </form>
+                                                    </div>
+                                                    <% if (item.notes) { %><p style="margin-top:8px;font-size:0.8rem;color:#64748b;white-space:pre-wrap;"><%= item.notes %></p><% } %>
+                                                </td>
+                                            </tr>
+                                        <% }) %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } else { %>
+                            <div class="adm-card-empty"><p>No facility requests yet.</p></div>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

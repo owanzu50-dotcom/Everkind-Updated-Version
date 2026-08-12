@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Compassionate home care and professional healthcare staffing across Ireland.">
+    <meta property="og:title" content="Everkind Home Care">
+    <meta property="og:description" content="Care that feels like family. Compassionate home support and trusted staffing across Ireland.">
+    <meta property="og:type" content="website">
+    <meta property="twitter:card" content="summary_large_image">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Everkind Home Care",
+        "url": "https://everkindcare.ie",
+        "description": "Compassionate home care and healthcare staffing across Ireland.",
+        "areaServed": "IE"
+    }
+    </script>
+</head>
+<body class="public-page">
+    <%- include('partials/site-header', { active: 'home' }) %>
+
+    <% const contact = websiteContact || {
+        phoneDisplay: "+353 89 985 9907",
+        phoneHref: "tel:+353899859907",
+        emailHref: "mailto:Everkind@outlook.ie",
+        whatsappHref: "https://wa.me/353899859907"
+    }; %>
+    <% const homeServices = [
+        { title: "Personal & Home Care", description: "Daily support, companionship, meal prep and dignity-led personal care at home.", image: "/images/home-companionship.png", href: "/assessment" },
+        { title: "Nursing & Clinical Support", description: "Qualified nurses and healthcare assistants for home and community care needs.", image: "/images/home-meal.png", href: "/services" },
+        { title: "Emergency Staffing", description: "Rapid, compliant staffing support for hospitals, nursing homes and facilities.", image: "/images/services-hero.png", href: "/facility-portal/register" }
+    ]; %>
+    <% const stats = Array.isArray(trustStats) ? trustStats : []; %>
+    <% const jobs = Array.isArray(publishedJobs) ? publishedJobs : []; %>
+    <% const featuredJobs = jobs.filter((job) => job.featured).slice(0, 3); %>
+    <% const homeJobs = featuredJobs.length ? featuredJobs : jobs.slice(0, 3); %>
+
+    <main id="main-content" tabindex="-1" class="home-premium">
+        <section class="hero-section home-premium-hero">
+            <div class="container hero-grid">
+                <div class="hero-copy reveal-on-scroll">
+                    <span class="eyebrow">Trusted local care</span>
+                    <h1>Care that feels like <span>family.</span></h1>
+                    <p>Compassionate, professional care delivered in the comfort of home. Because your loved one deserves more than care - they deserve kindness.</p>
+                    <div class="hero-actions">
+                        <a href="/assessment" class="primary-button">Get a Free Consultation</a>
+                        <a href="/services" class="secondary-button">Explore Services</a>
+                    </div>
+                    <ul class="hero-trust-list" aria-label="Trust indicators">
+                        <li>Licensed &amp; Insured</li>
+                        <li>Available 24/7</li>
+                    </ul>
+                </div>
+
+                <div class="hero-panel reveal-on-scroll">
+                    <div class="hero-image-card">
+                        <img src="/images/hero.png" alt="Caregiver speaking with an older client at home" loading="eager">
+                        <div class="hero-image-badge">
+                            <span class="hero-image-badge__eyebrow">Need urgent help?</span>
+                            <strong><a href="<%= contact.phoneHref %>">Call <%= contact.phoneDisplay %></a></strong>
+                            <span>We're here for you.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <% if (stats.length) { %>
+            <section class="container content-section home-trust-metrics" aria-label="Everkind trust statistics">
+                <div class="hero-stats-grid">
+                    <% stats.forEach((stat) => { %>
+                        <article class="stat-card reveal-on-scroll floating-lift">
+                            <strong><%= stat.value %></strong>
+                            <span><%= stat.label %></span>
+                        </article>
+                    <% }) %>
+                </div>
+            </section>
+        <% } %>
+
+        <section class="container content-section">
+            <div class="home-why-layout">
+                <div class="home-why-copy reveal-on-scroll">
+                    <span class="eyebrow">Why Everkind</span>
+                    <h2>Not just care, but <span>compassion.</span></h2>
+                    <p>We understand that inviting someone into your home requires trust. Our carers are selected for professionalism, warmth, and a genuine commitment to dignity-led support.</p>
+                    <div class="hero-actions">
+                        <a href="/about" class="secondary-button">Learn About Everkind</a>
+                    </div>
+                </div>
+                <div class="home-why-image reveal-on-scroll">
+                    <img src="/images/home-companionship.png" alt="Close-up of supportive hands during home care" loading="lazy">
+                </div>
+            </div>
+        </section>
+
+        <section class="container content-section">
+            <div class="section-heading narrow reveal-on-scroll">
+                <span class="eyebrow">Services</span>
+                <h2>Home care and healthcare staffing tailored to each family and facility.</h2>
+            </div>
+            <div class="service-grid home-service-grid">
+                <% homeServices.forEach((service) => { %>
+                    <article class="service-card reveal-on-scroll floating-lift">
+                        <img src="<%= service.image %>" alt="<%= service.title %>" class="service-card__image" loading="lazy">
+                        <div class="service-card__body">
+                            <h3><%= service.title %></h3>
+                            <p><%= service.description %></p>
+                            <a href="<%= service.href %>" class="secondary-button small">Learn More</a>
+                        </div>
+                    </article>
+                <% }) %>
+            </div>
+        </section>
+
+        <section class="container content-section">
+            <div class="home-careers-feature reveal-on-scroll">
+                <div class="home-careers-feature__copy">
+                    <span class="eyebrow">FLEXIBLE SHIFTS</span>
+                    <h2>Your time.<br><span>Your schedule.</span><br>Your life.</h2>
+                    <p>At Everkind, we believe great care starts with giving our team the freedom to choose work that fits their lives. Choose shifts that suit your schedule, build your career and make a meaningful difference every day.</p>
+
+                    <div class="home-careers-feature__benefits" aria-label="Flexible shift benefits">
+                        <article class="home-careers-feature__benefit">
+                            <span class="home-careers-feature__icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M4 12.5 9 17l11-11"></path>
+                                </svg>
+                            </span>
+                            <div>
+                                <h3>Choose what works for you</h3>
+                                <p>Pick shifts that fit your lifestyle, commitments and availability.</p>
+                            </div>
+                        </article>
+                        <article class="home-careers-feature__benefit">
+                            <span class="home-careers-feature__icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M12 7v5l3 2"></path>
+                                    <circle cx="12" cy="12" r="9"></circle>
+                                </svg>
+                            </span>
+                            <div>
+                                <h3>Better work-life balance</h3>
+                                <p>More flexibility means more time for the people and things that matter.</p>
+                            </div>
+                        </article>
+                        <article class="home-careers-feature__benefit">
+                            <span class="home-careers-feature__icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M12 20s-7-4.35-9-8.38C1.55 8.8 3.2 5.5 6.52 5.2c1.87-.18 3.48.8 4.48 2.1 1-1.3 2.61-2.28 4.48-2.1 3.32.3 4.97 3.6 3.52 6.42C19 15.65 12 20 12 20Z"></path>
+                                </svg>
+                            </span>
+                            <div>
+                                <h3>Make a real difference</h3>
+                                <p>Build a rewarding healthcare career while making a positive impact on people's lives.</p>
+                            </div>
+                        </article>
+                    </div>
+
+                    <% if (homeJobs.length) { %>
+                        <p class="home-careers-feature__availability">Now hiring across <strong><%= homeJobs.length %></strong> live role<%= homeJobs.length === 1 ? "" : "s" %>.</p>
+                    <% } %>
+
+                    <div class="home-careers-feature__cta">
+                        <h3>Join us today</h3>
+                        <p>Build a career that fits your life and makes a difference every day.</p>
+                        <a href="/careers" class="primary-button">Pick Your Shifts <span aria-hidden="true">→</span></a>
+                    </div>
+                </div>
+                <div class="home-careers-feature__media">
+                    <img src="/images/home-why-join-hero.png" alt="Everkind healthcare staff member with flexible shifts calendar and schedule tools" loading="lazy">
+                </div>
+            </div>
+        </section>
+
+        <section class="container content-section">
+            <div class="home-cta reveal-on-scroll">
+                <div>
+                    <span class="eyebrow">Need support now?</span>
+                    <h2>Speak with Everkind today about care at home or urgent staffing needs.</h2>
+                </div>
+                <div class="hero-actions">
+                    <a href="/assessment" class="primary-button">Book Consultation</a>
+                    <a href="/contact" class="secondary-button">Contact Team</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <%- include('partials/site-footer') %>
+
+    <script>
+        (function () {
+            const reveals = document.querySelectorAll('.reveal-on-scroll');
+            if (!reveals.length) {
+                return;
+            }
+
+            const revealObserver = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('is-visible');
+                        revealObserver.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.2 });
+
+            reveals.forEach((element) => {
+                revealObserver.observe(element);
+                const rect = element.getBoundingClientRect();
+                if (rect.top < window.innerHeight && rect.bottom > 0) {
+                    element.classList.add('is-visible');
+                    revealObserver.unobserve(element);
+                }
+            });
+        }());
+    </script>
+</body>
+</html>

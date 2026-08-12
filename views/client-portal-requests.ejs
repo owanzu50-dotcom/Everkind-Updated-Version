@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="portal-shell-page">
+    <div class="portal-layout">
+        <%- include('partials/client-portal-sidebar', { active: 'requests', currentClientName: currentClientName, currentClientEmail: currentClientEmail, clientPortalCounts: clientPortalCounts }) %>
+        <main class="portal-content">
+            <div class="adm-page-header">
+                <div>
+                    <h1 class="adm-page-title">My Requests</h1>
+                    <p class="adm-page-subtitle">Track all staffing and care requests submitted through your secure portal.</p>
+                </div>
+                <a href="/facility-portal/requests/new" class="adm-btn-primary">➕ New Request</a>
+            </div>
+            <div class="adm-card">
+                <% if (requests.length) { %>
+                    <div class="adm-table-wrap">
+                        <table class="adm-table">
+                            <thead><tr><th>Role</th><th>Facility</th><th>Date</th><th>Priority</th><th>Status</th><th>Assigned Staff</th><th>Notes</th></tr></thead>
+                            <tbody>
+                                <% requests.forEach((item) => { %>
+                                    <tr>
+                                        <td><strong><%= item.staff_required %></strong><br><span style="font-size:0.78rem;color:#64748b;"><%= item.quantityRequired %> required</span></td>
+                                        <td><strong><%= item.facility_name || item.clientName %></strong><br><span style="font-size:0.78rem;color:#64748b;"><%= item.facility_county || 'County not set' %></span></td>
+                                        <td><%= item.shift_date %><br><span style="font-size:0.78rem;color:#64748b;"><%= item.start_time %> - <%= item.end_time %></span></td>
+                                        <td><span class="adm-badge adm-badge-<%= item.priority === 'Emergency' ? 'cancelled' : item.priority === 'Urgent' ? 'awaiting' : 'scheduled' %>"><%= item.priority %></span></td>
+                                        <td><span class="adm-badge adm-badge-<%= item.statusClass %>"><%= item.status.replace(/_/g, ' ') %></span></td>
+                                        <td>
+                                            <% if (item.assignedStaff) { %>
+                                                <strong><%= item.assignedStaff.name %></strong><br>
+                                                <span style="font-size:0.78rem;color:#64748b;"><%= item.assignedStaff.role || 'Care staff' %></span><br>
+                                                <% if (item.assignedStaff.experienceYears) { %><span style="font-size:0.78rem;color:#64748b;"><%= item.assignedStaff.experienceYears %> yrs exp</span><% } %>
+                                                <% if (item.assignedStaff.qqiQualifications && item.assignedStaff.qqiQualifications.length) { %><br><span style="font-size:0.78rem;color:#64748b;">QQI: <%= item.assignedStaff.qqiQualifications.slice(0,1).join(', ') %></span><% } %>
+                                                <% if (item.assignedStaff.nmbiNumber) { %><br><span style="font-size:0.78rem;color:#64748b;">NMBI: <%= item.assignedStaff.nmbiNumber %></span><% } %>
+                                            <% } else { %>
+                                                <span style="font-size:0.8rem;color:#64748b;">Awaiting assignment</span>
+                                            <% } %>
+                                        </td>
+                                        <td style="white-space:pre-wrap;"><%= item.notes || '—' %></td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <div class="adm-card-empty"><p>No requests submitted yet.</p></div>
+                <% } %>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

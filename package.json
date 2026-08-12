@@ -1,0 +1,30 @@
+{
+  "name": "workspace",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "start": "node server/app.js",
+    "dev": "node server/app.js",
+    "build": "npm run typecheck:libs",
+    "typecheck:libs": "tsc --build",
+    "typecheck": "npm run typecheck:libs"
+  },
+  "private": true,
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.0.0",
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "express-session": "^1.18.1",
+    "multer": "^2.0.2",
+    "nodemailer": "^9.0.4",
+    "otplib": "^13.4.1",
+    "pdfkit": "^0.19.1",
+    "qrcode": "^1.5.4",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.4",
+    "typescript": "~5.9.3"
+  }
+}

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="public-page">
+    <%- include('partials/site-header', { active: 'contact' }) %>
+
+    <main class="container content-section narrow-page">
+        <div class="section-heading">
+            <span class="eyebrow">Get in touch</span>
+            <h1>Let’s talk about care.</h1>
+        </div>
+        <div class="info-grid two-col">
+            <div class="content-card">
+                <h3>Contact information</h3>
+                <ul class="check-list">
+                    <li><strong>Phone:</strong> <a href="tel:+353899859907">+353 89 985 9907</a></li>
+                    <li><strong>Email:</strong> <a href="mailto:Everkind@outlook.ie">Everkind@outlook.ie</a></li>
+                    <li><strong>Office:</strong> 31 Usher's Mill Green, Moneymore, Drogheda, Louth, A92A3VC, Ireland</li>
+                    <li><strong>Hours:</strong> Mon-Fri 8am-6pm, with on-call support 24/7</li>
+                </ul>
+            </div>
+            <form class="content-card assessment-form">
+                <label>First name<input type="text" required></label>
+                <label>Last name<input type="text" required></label>
+                <label>Email<input type="email" required></label>
+                <label>Phone<input type="tel" required></label>
+                <label>Message<textarea rows="4" placeholder="Tell us about your care needs"></textarea></label>
+                <button type="submit" class="primary-button">Send message</button>
+            </form>
+        </div>
+    </main>
+
+    <%- include('partials/site-footer') %>
+</body>
+</html>
