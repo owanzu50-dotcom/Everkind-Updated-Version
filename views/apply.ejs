@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="icon" type="image/png" href="/images/logo.png">
+</head>
+<body class="public-page">
+    <%- include('partials/site-header', { active: 'careers' }) %>
+
+    <main class="container content-section narrow-page">
+        <div class="section-heading">
+            <span class="eyebrow">Apply now</span>
+            <h1>Share a little about yourself.</h1>
+        </div>
+
+        <% if (typeof submitted !== 'undefined' && submitted) { %>
+            <div class="content-card" style="text-align:center;padding:40px 24px;">
+                <div style="font-size:2.5rem;margin-bottom:12px;">✅</div>
+                <h2 style="margin-bottom:8px;">Application received!</h2>
+                <p style="color:#4b5563;">Thank you for applying to Everkind. We'll be in touch soon.</p>
+                <a href="/" class="primary-button" style="margin-top:20px;display:inline-block;">Back to homepage</a>
+            </div>
+        <% } else { %>
+            <div class="info-grid two-col">
+                <div class="content-card">
+                    <h3>What we look for</h3>
+                    <ul class="check-list">
+                        <li>Reliable, warm, and professional approach to care</li>
+                        <li>Experience in home care, healthcare, or support services</li>
+                        <li>Willingness to follow training and care plans</li>
+                    </ul>
+                </div>
+                <% const roleOptions = ["Home Care Assistant", "Senior Care Worker", "Care Coordinator", "Healthcare Assistant", "Registered Nurse", "Support Worker"]; %>
+                <%
+                    const formValues = typeof formData !== 'undefined' && formData ? formData : {};
+                    const selectedAvailability = Array.isArray(formValues.availability_options) ? formValues.availability_options : [];
+                    const availabilityGroups = typeof applicationAvailabilityGroups !== 'undefined' && applicationAvailabilityGroups ? applicationAvailabilityGroups : { days: [], shifts: [], flexibility: [] };
+                    const totalAvailabilityOptions = []
+                        .concat(availabilityGroups.days || [])
+                        .concat(availabilityGroups.shifts || [])
+                        .concat(availabilityGroups.flexibility || []);
+                %>
+                <form class="content-card assessment-form" method="POST" action="/apply">
+                    <% if (typeof error !== 'undefined' && error) { %>
+                        <p style="color:#dc2626;background:#fee2e2;padding:10px 14px;border-radius:8px;font-size:0.875rem;"><%= error %></p>
+                    <% } %>
+                    <label>First Name *<input type="text" name="first_name" placeholder="First name" value="<%= formValues.first_name || '' %>" required></label>
+                    <label>Surname *<input type="text" name="surname" placeholder="Surname" value="<%= formValues.surname || '' %>" required></label>
+                    <label>Email *<input type="email" name="email" placeholder="you@example.com" value="<%= formValues.email || '' %>" required></label>
+                    <label>Phone<input type="tel" name="phone" placeholder="Contact number" value="<%= formValues.phone || '' %>"></label>
+                    <label>
+                        Role interest
+                        <div class="themed-role-select" data-themed-role-select>
+                            <select name="role" class="themed-role-select__native">
+                                <% roleOptions.forEach((role) => { %>
+                                    <option value="<%= role %>" <%= (formValues.role ? formValues.role === role : role === 'Home Care Assistant') ? 'selected' : '' %>><%= role %></option>
+                                <% }) %>
+                            </select>
+                            <button type="button" class="themed-role-select__trigger" data-themed-role-trigger aria-haspopup="listbox" aria-expanded="false">
+                                <span data-themed-role-label><%= formValues.role || 'Home Care Assistant' %></span>
+                            </button>
+                            <ul class="themed-role-select__menu" data-themed-role-menu role="listbox" hidden>
+                                <% roleOptions.forEach((role) => { %>
+                                    <li role="option">
+                                        <button type="button" data-role-value="<%= role %>"><%= role %></button>
+                                    </li>
+                                <% }) %>
+                            </ul>
+                        </div>
+                    </label>
+                    <label>
+                        Availability
+                        <div class="themed-role-select themed-availability-select" data-themed-availability-select>
+                            <button type="button" class="themed-role-select__trigger themed-availability-trigger" data-themed-availability-trigger aria-haspopup="listbox" aria-expanded="false">
+                                <span data-themed-availability-label><%= selectedAvailability.length ? (selectedAvailability.length + ' selected') : 'Select availability' %></span>
+                            </button>
+                            <div class="themed-role-select__menu themed-availability-menu" data-themed-availability-menu hidden>
+                                <label class="themed-availability-option themed-availability-option--select-all">
+                                    <input type="checkbox" data-select-all-availability <%= selectedAvailability.length && selectedAvailability.length === totalAvailabilityOptions.length ? 'checked' : '' %>>
+                                    <span>Select All</span>
+                                </label>
+                                <div class="themed-availability-group">
+                                    <strong>Days</strong>
+                                    <% (availabilityGroups.days || []).forEach((option) => { %>
+                                        <label class="themed-availability-option">
+                                            <input type="checkbox" name="availability_options" value="<%= option %>" <%= selectedAvailability.includes(option) ? 'checked' : '' %>>
+                                            <span><%= option %></span>
+                                        </label>
+                                    <% }) %>
+                                </div>
+                                <div class="themed-availability-group">
+                                    <strong>Shift Preferences</strong>
+                                    <% (availabilityGroups.shifts || []).forEach((option) => { %>
+                                        <label class="themed-availability-option">
+                                            <input type="checkbox" name="availability_options" value="<%= option %>" <%= selectedAvailability.includes(option) ? 'checked' : '' %>>
+                                            <span><%= option %></span>
+                                        </label>
+                                    <% }) %>
+                                </div>
+                                <div class="themed-availability-group">
+                                    <strong>Flexibility</strong>
+                                    <% (availabilityGroups.flexibility || []).forEach((option) => { %>
+                                        <label class="themed-availability-option">
+                                            <input type="checkbox" name="availability_options" value="<%= option %>" <%= selectedAvailability.includes(option) ? 'checked' : '' %>>
+                                            <span><%= option %></span>
+                                        </label>
+                                    <% }) %>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    <button type="submit" class="primary-button">Submit application</button>
+                </form>
+            </div>
+        <% } %>
+    </main>
+
+    <%- include('partials/site-footer') %>
+    <script>
+    (function () {
+        const controls = document.querySelectorAll("[data-themed-role-select]");
+        controls.forEach((control) => {
+            const nativeSelect = control.querySelector(".themed-role-select__native");
+            const trigger = control.querySelector("[data-themed-role-trigger]");
+            const label = control.querySelector("[data-themed-role-label]");
+            const menu = control.querySelector("[data-themed-role-menu]");
+            const optionButtons = menu ? menu.querySelectorAll("button[data-role-value]") : [];
+
+            if (!nativeSelect || !trigger || !label || !menu) {
+                return;
+            }
+
+            const syncLabel = () => {
+                label.textContent = nativeSelect.value || nativeSelect.options[nativeSelect.selectedIndex].textContent || "";
+                optionButtons.forEach((btn) => {
+                    const active = btn.getAttribute("data-role-value") === nativeSelect.value;
+                    btn.classList.toggle("is-active", active);
+                    if (active) {
+                        btn.setAttribute("aria-current", "true");
+                    } else {
+                        btn.removeAttribute("aria-current");
+                    }
+                });
+            };
+
+            const openMenu = () => {
+                menu.hidden = false;
+                trigger.setAttribute("aria-expanded", "true");
+                control.classList.add("is-open");
+            };
+
+            const closeMenu = () => {
+                menu.hidden = true;
+                trigger.setAttribute("aria-expanded", "false");
+                control.classList.remove("is-open");
+            };
+
+            trigger.addEventListener("click", (event) => {
+                event.preventDefault();
+                if (control.classList.contains("is-open")) {
+                    closeMenu();
+                } else {
+                    openMenu();
+                }
+            });
+
+            optionButtons.forEach((btn) => {
+                btn.addEventListener("click", () => {
+                    nativeSelect.value = btn.getAttribute("data-role-value");
+                    nativeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+                    syncLabel();
+                    closeMenu();
+                });
+
+                btn.addEventListener("mouseenter", () => {
+                    optionButtons.forEach((optionBtn) => optionBtn.classList.remove("is-hovered"));
+                    btn.classList.add("is-hovered");
+                });
+
+                btn.addEventListener("mouseleave", () => {
+                    btn.classList.remove("is-hovered");
+                });
+            });
+
+            nativeSelect.addEventListener("change", syncLabel);
+
+            document.addEventListener("click", (event) => {
+                if (!control.contains(event.target)) {
+                    closeMenu();
+                }
+            });
+
+            document.addEventListener("keydown", (event) => {
+                if (event.key === "Escape") {
+                    closeMenu();
+                }
+            });
+
+            syncLabel();
+        });
+
+        const availabilityControls = document.querySelectorAll("[data-themed-availability-select]");
+        availabilityControls.forEach((control) => {
+            const trigger = control.querySelector("[data-themed-availability-trigger]");
+            const label = control.querySelector("[data-themed-availability-label]");
+            const menu = control.querySelector("[data-themed-availability-menu]");
+            const allToggle = control.querySelector("[data-select-all-availability]");
+            const checkboxes = Array.from(control.querySelectorAll("input[name='availability_options']"));
+            if (!trigger || !label || !menu) {
+                return;
+            }
+
+            const syncLabel = () => {
+                const selected = checkboxes.filter((checkbox) => checkbox.checked).length;
+                label.textContent = selected ? `${selected} selected` : "Select availability";
+                if (allToggle) {
+                    allToggle.checked = checkboxes.length > 0 && selected === checkboxes.length;
+                }
+            };
+
+            const setMenuDirection = () => {
+                const padding = 24;
+                const menuHeight = Math.min(menu.scrollHeight || 320, 320);
+                const triggerRect = trigger.getBoundingClientRect();
+                const spaceBelow = window.innerHeight - triggerRect.bottom - padding;
+                const spaceAbove = triggerRect.top - padding;
+                const shouldOpenUp = spaceBelow < menuHeight && spaceAbove > spaceBelow;
+
+                control.classList.toggle("is-open-up", shouldOpenUp);
+                control.classList.toggle("is-open-down", !shouldOpenUp);
+            };
+
+            const openMenu = () => {
+                menu.hidden = false;
+                setMenuDirection();
+                trigger.setAttribute("aria-expanded", "true");
+                control.classList.add("is-open");
+            };
+            const closeMenu = () => {
+                menu.hidden = true;
+                trigger.setAttribute("aria-expanded", "false");
+                control.classList.remove("is-open");
+                control.classList.remove("is-open-up");
+                control.classList.remove("is-open-down");
+            };
+
+            trigger.addEventListener("click", (event) => {
+                event.preventDefault();
+                if (control.classList.contains("is-open")) {
+                    closeMenu();
+                } else {
+                    openMenu();
+                }
+            });
+
+            if (allToggle) {
+                allToggle.addEventListener("change", () => {
+                    checkboxes.forEach((checkbox) => {
+                        checkbox.checked = allToggle.checked;
+                    });
+                    syncLabel();
+                });
+            }
+
+            checkboxes.forEach((checkbox) => {
+                checkbox.addEventListener("change", syncLabel);
+            });
+
+            document.addEventListener("click", (event) => {
+                if (!control.contains(event.target)) {
+                    closeMenu();
+                }
+            });
+            document.addEventListener("keydown", (event) => {
+                if (event.key === "Escape") {
+                    closeMenu();
+                }
+            });
+
+            syncLabel();
+        });
+    }());
+    </script>
+</body>
+</html>
