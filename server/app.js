@@ -24,6 +24,10 @@ require("dotenv").config();
 const app = express();
 const preferredPort = Number(process.env.PORT) || 3000;
 const dbPath = path.join(__dirname, "..", "database", "everkind.db");
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+}
 const sessionSecret = process.env.SESSION_SECRET || "everkind-care-system-secret";
 const adminEmail = process.env.ADMIN_EMAIL || "admin@everkind.com";
 const adminPassword = process.env.ADMIN_PASSWORD || "everkind2026";
