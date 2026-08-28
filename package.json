@@ -11,6 +11,7 @@
   },
   "private": true,
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "bcrypt": "^6.0.0",
     "dotenv": "^17.0.0",
     "ejs": "^3.1.10",
@@ -20,8 +21,9 @@
     "nodemailer": "^9.0.4",
     "otplib": "^13.4.1",
     "pdfkit": "^0.19.1",
-    "qrcode": "^1.5.4",
-    "sqlite3": "^5.1.7"
+    "pg": "^8.16.0",
+    "pg-mem": "^2.1.0",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "prettier": "^3.8.4",

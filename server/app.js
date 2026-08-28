@@ -5,10 +5,10 @@ const path = require("path");
 const https = require("https");
 const fs = require("fs");
 const bcrypt = require("bcrypt");
-const sqlite3 = require("sqlite3").verbose();
 const PDFDocument = require("pdfkit");
 const nodemailer = require("nodemailer");
 const QRCode = require("qrcode");
+const { db, dbPath, runDb, getDb, allDb } = require("./postgres");
 const { createMfaSecurity, maskEmail, maskPhone } = require("./mfa");
 const {
     ACTIONS: RBAC_ACTIONS,
@@ -23,9 +23,8 @@ require("dotenv").config();
 
 const app = express();
 const preferredPort = Number(process.env.PORT) || 3000;
-const dbPath = path.join(__dirname, "..", "database", "everkind.db");
 const dbDir = path.dirname(dbPath);
-if (!fs.existsSync(dbDir)) {
+if (!fs.existsSync(dbDir) && !dbPath.startsWith("postgres://") && !dbPath.startsWith("postgresql://")) {
     fs.mkdirSync(dbDir, { recursive: true });
 }
 const sessionSecret = process.env.SESSION_SECRET || "everkind-care-system-secret";
@@ -68,14 +67,7 @@ const maxLoginAttemptsPerWindow = 5;
 const loginAttempts = new Map();
 const defaultPatientRetentionDays = 2190;
 
-const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-        console.error("Database connection error:", err.message);
-        return;
-    }
-
-    console.log("Connected to SQLite database at", dbPath);
-});
+console.log("Using PostgreSQL/Supabase-compatible database layer at", dbPath);
 
 const parseRetentionDays = (rawValue) => {
     const parsed = Number(rawValue);
@@ -874,42 +866,10 @@ const buildPatientExportPackage = async (patientId) => {
     };
 };
 
-const runDb = (sql, params = []) => new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-        if (err) {
-            reject(err);
-            return;
-        }
-
-        resolve(this);
-    });
-});
-
-const getDb = (sql, params = []) => new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-        if (err) {
-            reject(err);
-            return;
-        }
-
-        resolve(row);
-    });
-});
-
-const allDb = (sql, params = []) => new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-        if (err) {
-            reject(err);
-            return;
-        }
-
-        resolve(rows);
-    });
-});
-
 const ensureColumn = async (tableName, columnName, columnDefinition) => {
     const columns = await allDb(`PRAGMA table_info(${tableName})`);
-    const exists = columns.some((column) => column.name === columnName);
+    const normalizedColumnName = String(columnName || "").toLowerCase();
+    const exists = columns.some((column) => String(column.name || column.column_name || "").toLowerCase() === normalizedColumnName);
 
     if (!exists) {
         await runDb(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`);
@@ -12568,22 +12528,21 @@ app.delete("/api/shifts/:id", requirePortal, requireAdmin, async (req, res) => {
     }
 });
 
-app.get("/api/health", (req, res) => {
-    db.get("SELECT status FROM app_status WHERE id = 1", (err, row) => {
-        if (err) {
-            return res.status(500).json({
-                status: "error",
-                database: "unavailable",
-                message: err.message,
-            });
-        }
-
+app.get("/api/health", async (req, res) => {
+    try {
+        const row = await getDb("SELECT status FROM app_status WHERE id = 1");
         return res.json({
             status: "ok",
             database: row ? row.status : "healthy",
             message: "JS is connected to the backend",
         });
-    });
+    } catch (error) {
+        return res.status(500).json({
+            status: "error",
+            database: "unavailable",
+            message: error.message,
+        });
+    }
 });
 
 app.get("/api/dashboard", requirePortal, requireAdmin, async (req, res) => {
