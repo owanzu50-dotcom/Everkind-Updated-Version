@@ -3872,6 +3872,8 @@ const initializeDatabase = async () => {
     await ensureColumns("staff", [
         ["email_normalized", "TEXT"],
         ["phone_normalized", "TEXT"],
+        ["mobile_number", "TEXT"],
+        ["is_archived", "INTEGER NOT NULL DEFAULT 0"],
         ["email_verified", "INTEGER NOT NULL DEFAULT 0"],
         ["phone_verified", "INTEGER NOT NULL DEFAULT 0"],
         ["mfa_enabled", "INTEGER NOT NULL DEFAULT 0"],
@@ -4566,8 +4568,8 @@ const initializeDatabase = async () => {
             VALUES
                 ('Maya', 'Sinclair', 'Senior Care Worker', ?, '07700 900111', 'Active', ?, 'Morning', 'Maya Sinclair'),
                 ('Chris', 'O''Malley', 'Support Worker', 'chris@everkind.com', '07700 900112', 'Active', ?, 'Afternoon', 'Chris O''Malley'),
-                ('Iris', 'Kaur', 'Care Coordinator', ?, '07700 900113', 'Active', ?, 'Evening', 'Iris Kaur');
-        `, [staffDefaultEmail, staffPasswordHash, staffPasswordHash, staffDefaultEmail, staffPasswordHash]);
+                ('Iris', 'Kaur', 'Care Coordinator', 'iris@everkind.com', '07700 900113', 'Active', ?, 'Evening', 'Iris Kaur');
+        `, [staffDefaultEmail, staffPasswordHash, staffPasswordHash, staffPasswordHash]);
     }
 
     const staffColumns = await allDb("PRAGMA table_info(staff)");
