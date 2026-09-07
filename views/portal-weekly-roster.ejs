@@ -38,7 +38,7 @@
                                         <td><%= shift.patientName %></td>
                                         <td><%= shift.address || 'Address unavailable' %></td>
                                         <td><%= shift.serviceType %></td>
-                                        <td><span class="adm-badge adm-badge-<%= shift.status === 'completed' ? 'completed' : shift.status === 'clocked_in' ? 'clocked-in' : shift.status === 'cancelled' ? 'cancelled' : 'scheduled' %>"><%= shift.status %></span></td>
+                                        <td><span class="adm-badge adm-badge-<%= shift.status === 'completed' ? 'completed' : ['clocked_in', 'break'].includes(shift.status) ? 'clocked-in' : ['cancelled', 'missed', 'attendance_exception'].includes(shift.status) ? 'cancelled' : 'scheduled' %>"><%= shift.statusLabel %></span></td>
                                     </tr>
                                 <% }) %>
                             </tbody>

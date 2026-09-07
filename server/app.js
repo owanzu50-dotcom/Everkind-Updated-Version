@@ -1986,23 +1986,109 @@ const mapAppointmentRow = (appointment) => {
     };
 };
 
-const mapShiftRow = (shift) => {
+const getBusinessDateKey = (value = new Date()) => {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return "";
+    }
+    const formatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Dublin", year: "numeric", month: "2-digit", day: "2-digit" });
+    const parts = formatter.formatToParts(date);
+    const mapped = {};
+    for (const part of parts) {
+        if (part.type !== "literal") {
+            mapped[part.type] = part.value;
+        }
+    }
+    return mapped.year && mapped.month && mapped.day ? `${mapped.year}-${mapped.month}-${mapped.day}` : "";
+};
+
+const getEffectiveShiftState = (shift, now = new Date(), gracePeriodMinutes = 15) => {
+    if (!shift) {
+        return "scheduled";
+    }
+
+    const rawStatus = String(shift.status || "").trim().toLowerCase();
+    const scheduledStartValue = shift.scheduledStart || shift.scheduled_start || shift.shift_date || shift.start || "";
+    const scheduledEndValue = shift.scheduledEnd || shift.scheduled_end || shift.end || "";
+    const scheduledStart = scheduledStartValue ? new Date(normalizeDateTimeString(scheduledStartValue)) : null;
+    const scheduledEnd = scheduledEndValue ? new Date(normalizeDateTimeString(scheduledEndValue)) : null;
+    const hasClockIn = Boolean(shift.actual_clock_in || shift.actualClockIn);
+    const hasClockOut = Boolean(shift.actual_clock_out || shift.actualClockOut);
+    const hasValidStart = scheduledStart && !Number.isNaN(scheduledStart.getTime());
+    const hasValidEnd = scheduledEnd && !Number.isNaN(scheduledEnd.getTime());
+    const currentBusinessDate = getBusinessDateKey(now);
+    const shiftBusinessDate = hasValidStart ? getBusinessDateKey(scheduledStart) : "";
+    const shiftHasEnded = hasValidEnd
+        ? scheduledEnd.getTime() <= now.getTime()
+        : Boolean(shiftBusinessDate && shiftBusinessDate < currentBusinessDate);
+
+    if (rawStatus === "cancelled") {
+        return "cancelled";
+    }
+    if (["no_show", "missed", "absent", "unworked"].includes(rawStatus)) {
+        return "missed";
+    }
+    if (hasClockIn && hasClockOut) {
+        return "completed";
+    }
+    if (hasClockIn !== hasClockOut) {
+        if (!hasClockIn || shiftHasEnded) {
+            return "attendance_exception";
+        }
+        if (["on_break", "break"].includes(rawStatus)) {
+            return "break";
+        }
+        return "clocked_in";
+    }
+    if (!hasValidStart) {
+        return "scheduled";
+    }
+
+    if (shiftBusinessDate > currentBusinessDate || scheduledStart.getTime() > now.getTime()) {
+        return "scheduled";
+    }
+    if (shiftHasEnded || shiftBusinessDate < currentBusinessDate) {
+        return "missed";
+    }
+
+    const graceCutoff = scheduledStart.getTime() + (gracePeriodMinutes * 60 * 1000);
+    return now.getTime() > graceCutoff ? "running_late" : "not_clocked_in";
+};
+
+const isAvailableOpenShift = (shift, now = new Date()) => Boolean(
+    shift
+    && Number(shift.is_open || shift.isOpen || 0) === 1
+    && !(shift.staff_id || shift.staffId)
+    && getEffectiveShiftState(shift, now) === "scheduled"
+);
+
+const mapShiftRow = (shift, referenceTime = new Date(), gracePeriodMinutes = 15) => {
     if (!shift) {
         return shift;
     }
+    const now = referenceTime instanceof Date ? referenceTime : new Date();
     const division = getShiftDivision(shift);
     const hasAssignedStaff = Boolean(shift.staff_id || shift.staffId);
     const isOpen = Boolean(Number(shift.is_open || shift.isOpen || 0));
+    const effectiveStatus = getEffectiveShiftState(shift, now, gracePeriodMinutes);
     let operationalStatus = "assigned";
-    if (isOpen && !hasAssignedStaff) {
+    if (isOpen && !hasAssignedStaff && effectiveStatus === "scheduled") {
         operationalStatus = "open";
-    } else if (["clocked_in", "on_break", "travelling", "checked_in"].includes(String(shift.status || "").toLowerCase())) {
-        operationalStatus = "in_progress";
-    } else if (["clocked_out", "completed", "shift_completed", "checked_out"].includes(String(shift.status || "").toLowerCase())) {
-        operationalStatus = "completed";
-    } else if (["cancelled", "no_show"].includes(String(shift.status || "").toLowerCase())) {
-        operationalStatus = "cancelled";
+    } else if (effectiveStatus === "clocked_in") {
+        operationalStatus = "on_duty";
+    } else {
+        operationalStatus = effectiveStatus;
     }
+    const statusLabel = effectiveStatus === "clocked_in" ? "On Duty"
+        : effectiveStatus === "not_clocked_in" ? "Not Clocked In"
+            : effectiveStatus === "running_late" ? "Running Late"
+                : effectiveStatus === "attendance_exception"
+                    ? (shift.actual_clock_in || shift.actualClockIn ? "Missing Clock-Out" : "Attendance Exception")
+                    : effectiveStatus === "missed" ? "Missed / No Show"
+                        : effectiveStatus.charAt(0).toUpperCase() + effectiveStatus.slice(1).replace(/_/g, " ");
+    const statusClass = effectiveStatus === "clocked_in" || effectiveStatus === "break" ? "clocked_in"
+        : ["not_clocked_in", "running_late", "attendance_exception", "missed"].includes(effectiveStatus) ? "no_show"
+            : effectiveStatus;
     const divisionLabel = division === "agency-staffing" ? "🏥 AGENCY" : "🏠 HOME CARE";
     const homeCareClientName = shift.home_care_client_name || shift.patient_name || shift.patientName || shift.external_client_label || "Home Care Client";
     const facilityName = shift.facility_name || shift.organization_name || shift.external_client_label || "Healthcare Facility";
@@ -2034,7 +2120,10 @@ const mapShiftRow = (shift) => {
         clientRequestId: shift.client_request_id || shift.clientRequestId || null,
         scheduledStart: shift.scheduled_start || shift.start || null,
         scheduledEnd: shift.scheduled_end || shift.end || null,
-        status: shift.status || "scheduled",
+        storedStatus: shift.storedStatus || shift.status || "scheduled",
+        status: effectiveStatus,
+        statusLabel,
+        statusClass,
         serviceType: shift.service_type || shift.serviceType || "Personal Care",
         notes: shift.notes || "",
         careInstructions: shift.care_instructions || shift.notes || "",
@@ -2044,6 +2133,177 @@ const mapShiftRow = (shift) => {
         latitude: shift.latitude || shift.external_latitude || null,
         longitude: shift.longitude || shift.external_longitude || null,
     };
+};
+
+const shiftMatchesScheduleStatus = (shift, statusFilter) => {
+    if (!statusFilter || statusFilter === "all") {
+        return true;
+    }
+    if (statusFilter === "open") {
+        return shift.operationalStatus === "open";
+    }
+    if (statusFilter === "assigned" || statusFilter === "scheduled") {
+        return shift.status === "scheduled" && shift.operationalStatus !== "open";
+    }
+    if (statusFilter === "in_progress") {
+        return ["not_clocked_in", "running_late", "clocked_in", "break"].includes(shift.status);
+    }
+    if (statusFilter === "on_duty") {
+        return shift.status === "clocked_in";
+    }
+    return shift.status === statusFilter;
+};
+
+const buildScheduleSummary = (shifts) => {
+    const scheduled = shifts.filter((shift) => shiftMatchesScheduleStatus(shift, "scheduled")).length;
+    return {
+        all: shifts.length,
+        homeCare: shifts.filter((shift) => shift.serviceDivision === "home-care").length,
+        agency: shifts.filter((shift) => shift.serviceDivision === "agency-staffing").length,
+        open: shifts.filter((shift) => shift.operationalStatus === "open").length,
+        scheduled,
+        assigned: scheduled,
+        inProgress: shifts.filter((shift) => shiftMatchesScheduleStatus(shift, "in_progress")).length,
+        completed: shifts.filter((shift) => shift.status === "completed").length,
+        missed: shifts.filter((shift) => shift.status === "missed").length,
+        attendanceExceptions: shifts.filter((shift) => shift.status === "attendance_exception").length,
+        cancelled: shifts.filter((shift) => shift.status === "cancelled").length,
+    };
+};
+
+const isEmergencyTrackingShift = (shift) => {
+    const rawStatus = String(shift.storedStatus || shift.status || "").trim().toLowerCase();
+    return rawStatus.includes("emergency")
+        || rawStatus.includes("sos")
+        || String(shift.notes || "").toLowerCase().includes("sos");
+};
+
+const isActiveLiveTrackingShift = (shift) => !["completed", "missed", "attendance_exception", "cancelled"].includes(shift.status)
+    && (isEmergencyTrackingShift(shift) || ["not_clocked_in", "running_late", "clocked_in", "break"].includes(shift.status));
+
+const isCountableTodayShift = (shift) => ["scheduled", "not_clocked_in", "running_late", "clocked_in", "break", "completed", "attendance_exception"].includes(shift.status);
+
+const getShiftBusinessDateKey = (shift) => {
+    const value = shift.scheduledStart || shift.scheduled_start || shift.shiftDate || shift.shift_date || "";
+    const text = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?$/.test(text)) {
+        return text.slice(0, 10);
+    }
+    return getBusinessDateKey(normalizeDateTimeString(value));
+};
+
+const getOperationalShiftCounts = async (now = new Date()) => {
+    const candidateRows = await allDb(`
+        SELECT staff_id, shift_date, scheduled_start, scheduled_end,
+               actual_clock_in, actual_clock_out, status, is_open,
+               service_division, notes
+        FROM staff_shifts
+        WHERE COALESCE(is_open, 0) = 0
+    `);
+    const shifts = candidateRows.map((shift) => mapShiftRow(shift, now));
+    const currentBusinessDate = getBusinessDateKey(now);
+    const todayShifts = shifts.filter((shift) => getShiftBusinessDateKey(shift) === currentBusinessDate);
+
+    return {
+        homeVisits: todayShifts.filter((shift) => shift.serviceDivision === "home-care" && isCountableTodayShift(shift)).length,
+        scheduled: shifts.filter((shift) => shift.staffId && shiftMatchesScheduleStatus(shift, "scheduled")).length,
+        liveTracking: todayShifts.filter((shift) => shift.staffId && isActiveLiveTrackingShift(shift)).length,
+        todayShifts: todayShifts.filter(isCountableTodayShift).length,
+    };
+};
+
+const getAvailableOpenShiftCount = async (now = new Date()) => {
+    const rows = await allDb(`
+        SELECT staff_id, shift_date, scheduled_start, scheduled_end,
+               actual_clock_in, actual_clock_out, status, is_open
+        FROM staff_shifts
+        WHERE COALESCE(is_open, 0) = 1
+          AND staff_id IS NULL
+    `);
+    return rows.filter((shift) => isAvailableOpenShift(shift, now)).length;
+};
+
+const getDashboardShiftCollections = async (now = new Date()) => {
+    const selectDashboardShift = `
+        SELECT ss.*,
+               COALESCE(p.first_name || ' ' || p.last_name, ss.external_client_label, 'Client') AS patient_name,
+               s.first_name || ' ' || s.last_name AS staff_name,
+               s.status AS staff_status
+        FROM staff_shifts ss
+        LEFT JOIN patients p ON p.id = ss.patient_id
+        LEFT JOIN staff s ON s.id = ss.staff_id
+    `;
+    const [recentRows, scheduledCandidates] = await Promise.all([
+        allDb(`${selectDashboardShift} ORDER BY ss.created_at DESC LIMIT 4`),
+        allDb(`${selectDashboardShift}
+            WHERE ss.staff_id IS NOT NULL
+              AND COALESCE(ss.is_open, 0) = 0
+            ORDER BY COALESCE(ss.scheduled_start, ss.shift_date) ASC`),
+    ]);
+
+    const recentActivity = recentRows.map((row) => {
+        const shift = mapShiftRow(row, now);
+        const isLive = ["clocked_in", "break"].includes(shift.status);
+        return {
+            type: isLive ? "Live shift" : shift.statusLabel,
+            statusClass: shift.statusClass,
+            label: shift.patientName || "Patient",
+            detail: shift.staffName ? `${shift.staffName} · ${shift.statusLabel}` : shift.statusLabel,
+        };
+    });
+    const upcomingVisits = scheduledCandidates
+        .map((row) => mapShiftRow(row, now))
+        .filter((shift) => shiftMatchesScheduleStatus(shift, "scheduled"))
+        .slice(0, 5)
+        .map((shift) => ({
+            ...shift,
+            staff_name: shift.staffName,
+            client: shift.patientName || "Patient",
+            date: shift.scheduledStart ? shift.scheduledStart.slice(0, 10) : "Today",
+            time: shift.scheduledStart ? shift.scheduledStart.slice(11, 16) : "TBC",
+            type: "Scheduled shift",
+        }));
+
+    return { recentActivity, upcomingVisits };
+};
+
+const getValidStaffHourlyRate = async (staffId) => {
+    const numericStaffId = Number(staffId);
+    if (!Number.isInteger(numericStaffId) || numericStaffId <= 0) {
+        throw new Error("A valid staff member is required to freeze the shift pay rate.");
+    }
+    const staffMember = await getDb("SELECT hourly_rate FROM staff WHERE id = ?", [numericStaffId]);
+    const hasHourlyRate = staffMember
+        && staffMember.hourly_rate !== null
+        && staffMember.hourly_rate !== undefined
+        && String(staffMember.hourly_rate).trim() !== "";
+    const hourlyRate = Number(staffMember && staffMember.hourly_rate);
+    if (!hasHourlyRate || !Number.isFinite(hourlyRate) || hourlyRate < 0) {
+        throw new Error("Set a valid hourly rate for the staff member before assigning this shift.");
+    }
+    return hourlyRate;
+};
+
+const snapshotShiftPayRate = async (shiftId, staffId, assignedHourlyRate = null) => {
+    const numericShiftId = Number(shiftId);
+    const numericStaffId = Number(staffId);
+    if (!Number.isInteger(numericShiftId) || numericShiftId <= 0 || !Number.isInteger(numericStaffId) || numericStaffId <= 0) {
+        return;
+    }
+    const hourlyRate = assignedHourlyRate === null
+        ? await getValidStaffHourlyRate(numericStaffId)
+        : Number(assignedHourlyRate);
+    if (!Number.isFinite(hourlyRate) || hourlyRate < 0) {
+        throw new Error("Set a valid hourly rate for the staff member before assigning this shift.");
+    }
+    await runDb(
+        `UPDATE staff_shifts
+         SET pay_rate = ?, pay_rate_source = 'staff_rate_at_assignment'
+         WHERE id = ?
+           AND actual_clock_in IS NULL
+           AND COALESCE(payroll_status, 'draft') = 'draft'`,
+        [hourlyRate, numericShiftId]
+    );
 };
 
 const mapClientAccountRow = (account) => {
@@ -2762,6 +3022,7 @@ const queueDueShiftReminders = async (staffMember) => {
 };
 
 const createShiftFromClientRequest = async ({ clientAccount, clientRequest, staffId = null, isOpen = false }) => {
+    const assignedHourlyRate = staffId ? await getValidStaffHourlyRate(staffId) : null;
     const scheduledStart = `${clientRequest.shift_date} ${clientRequest.start_time}`;
     const scheduledEnd = `${clientRequest.shift_date} ${clientRequest.end_time}`;
     const clientName = clientRequest.facility_name || clientAccount.organization_name || mapClientAccountRow(clientAccount).displayName;
@@ -2822,6 +3083,9 @@ const createShiftFromClientRequest = async ({ clientAccount, clientRequest, staf
         ]
     );
     await runDb("UPDATE staff_shifts SET shift_code = ? WHERE id = ?", [buildShiftCode("agency-staffing", result.lastID), Number(result.lastID)]);
+    if (staffId) {
+        await snapshotShiftPayRate(result.lastID, staffId, assignedHourlyRate);
+    }
 
     if (staffId) {
         const staffMember = mapStaffRow(await getDb("SELECT * FROM staff WHERE id = ?", [Number(staffId)]));
@@ -2904,7 +3168,7 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 app.use(async (req, res, next) => {
     res.locals.staffPortalCounts = { openShifts: 0, notifications: 0, messages: 0 };
     res.locals.clientPortalCounts = { notifications: 0, openRequests: 0 };
-    res.locals.adminPortalCounts = { homeVisits: 0, shiftRequests: 0, openShifts: 0, schedule: 0, facilityPortal: 0, runningLate: 0 };
+    res.locals.adminPortalCounts = { homeVisits: 0, shiftRequests: 0, openShifts: 0, schedule: 0, facilityPortal: 0, liveTracking: 0 };
     res.locals.announcements = [];
     res.locals.publishedJobs = [];
     res.locals.websiteContact = buildPublicContact();
@@ -2938,28 +3202,20 @@ app.use(async (req, res, next) => {
     }
 
     try {
-        const [homeVisitsRow, shiftRequestsRow, openShiftsRow, scheduleRow, facilityRegistrationsRow, runningLateRow] = await Promise.all([
-            getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE COALESCE(service_division, 'home-care') = 'home-care' AND COALESCE(is_open, 0) = 0"),
+        const now = new Date();
+        const [shiftRequestsRow, openShiftsRow, operationalShiftCounts, facilityRegistrationsRow] = await Promise.all([
             getDb("SELECT COUNT(*) AS count FROM client_service_requests WHERE status IN ('pending_review', 'reviewing', 'request_more_information')"),
-            getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE COALESCE(is_open, 0) = 1 AND staff_id IS NULL"),
-            getDb("SELECT COUNT(*) AS count FROM staff_shifts"),
+            getAvailableOpenShiftCount(now),
+            getOperationalShiftCounts(now),
             getDb("SELECT COUNT(*) AS count FROM client_accounts WHERE status IN ('pending', 'more_info_requested', 'suspended')"),
-            getDb(
-                `SELECT COUNT(*) AS count
-                 FROM staff_shifts
-                 WHERE COALESCE(is_open, 0) = 0
-                    AND COALESCE(status, 'scheduled') NOT IN ('clocked_in', 'on_break', 'travelling', 'checked_in', 'completed', 'clocked_out', 'shift_completed', 'checked_out', 'cancelled', 'no_show')
-                    AND actual_clock_in IS NULL
-                    AND datetime(COALESCE(scheduled_start, shift_date)) <= datetime('now', '-15 minutes')`
-            ),
         ]);
         res.locals.adminPortalCounts = {
-            homeVisits: Number(homeVisitsRow ? homeVisitsRow.count : 0),
+            homeVisits: Number(operationalShiftCounts.homeVisits || 0),
             shiftRequests: Number(shiftRequestsRow ? shiftRequestsRow.count : 0),
-            openShifts: Number(openShiftsRow ? openShiftsRow.count : 0),
-            schedule: Number(scheduleRow ? scheduleRow.count : 0),
+            openShifts: Number(openShiftsRow || 0),
+            schedule: Number(operationalShiftCounts.scheduled || 0),
             facilityPortal: Number(facilityRegistrationsRow ? facilityRegistrationsRow.count : 0),
-            runningLate: Number(runningLateRow ? runningLateRow.count : 0),
+            liveTracking: Number(operationalShiftCounts.liveTracking || 0),
         };
     } catch (error) {
         console.error("Error loading admin portal badge counts:", error.message);
@@ -2995,7 +3251,10 @@ app.use(async (req, res, next) => {
         const staffId = Number(req.session.staffId);
         const staffMember = mapStaffRow(await getDb("SELECT * FROM staff WHERE id = ?", [staffId]));
         const [openShiftRows, notificationRow, messageRow] = await Promise.all([
-            allDb("SELECT id, service_division, client_account_id, request_source FROM staff_shifts WHERE COALESCE(is_open, 0) = 1 AND staff_id IS NULL"),
+            allDb(`SELECT id, staff_id, service_division, client_account_id, request_source,
+                          shift_date, scheduled_start, scheduled_end, actual_clock_in, actual_clock_out, status, is_open
+                   FROM staff_shifts
+                   WHERE COALESCE(is_open, 0) = 1 AND staff_id IS NULL`),
             getDb(
                 "SELECT COUNT(*) AS count FROM staff_notifications WHERE staff_id = ? AND deleted_at IS NULL AND COALESCE(is_read, 0) = 0",
                 [staffId]
@@ -3005,7 +3264,10 @@ app.use(async (req, res, next) => {
                 [staffId]
             ),
         ]);
-        const openShiftCount = (openShiftRows || []).filter((shift) => staffCanWorkDivision(staffMember, getShiftDivision(shift))).length;
+        const openShiftCount = (openShiftRows || []).filter((shift) => (
+            isAvailableOpenShift(shift)
+            && staffCanWorkDivision(staffMember, getShiftDivision(shift))
+        )).length;
 
         res.locals.staffPortalCounts = {
             openShifts: Number(openShiftCount),
@@ -4171,6 +4433,27 @@ const initializeDatabase = async () => {
     await ensureColumn("staff_shifts", "contact_person", "TEXT");
     await ensureColumn("staff_shifts", "mileage_km", "REAL DEFAULT 0");
     await ensureColumn("staff_shifts", "payroll_status", "TEXT DEFAULT 'draft'");
+    await ensureColumn("staff_shifts", "pay_rate", "REAL");
+    await ensureColumn("staff_shifts", "pay_rate_source", "TEXT");
+    await runDb(`
+        UPDATE staff_shifts
+        SET pay_rate = (
+                SELECT CAST(s.hourly_rate AS REAL)
+                FROM staff s
+                WHERE s.id = staff_shifts.staff_id
+            ),
+            pay_rate_source = 'legacy_staff_rate_backfill'
+        WHERE staff_id IS NOT NULL
+          AND pay_rate IS NULL
+          AND EXISTS (
+              SELECT 1
+              FROM staff s
+              WHERE s.id = staff_shifts.staff_id
+                AND s.hourly_rate IS NOT NULL
+                AND TRIM(CAST(s.hourly_rate AS TEXT)) != ''
+                AND CAST(s.hourly_rate AS REAL) >= 0
+          )
+    `);
 
     await runDb(`
         CREATE TABLE IF NOT EXISTS payroll_records (
@@ -4643,6 +4926,7 @@ const initializeDatabase = async () => {
             const patient = patientList[index];
             const startHour = String(8 + index * 4).padStart(2, "0");
             const endHour = String(12 + index * 4).padStart(2, "0");
+            const assignedHourlyRate = await getValidStaffHourlyRate(staffMember.id);
 
             const createdShift = await runDb(
                 `INSERT INTO staff_shifts (staff_id, patient_id, shift_date, scheduled_start, scheduled_end, status)
@@ -4653,6 +4937,7 @@ const initializeDatabase = async () => {
                 "UPDATE staff_shifts SET service_division = 'home-care', shift_code = ? WHERE id = ?",
                 [buildShiftCode("home-care", createdShift.lastID), Number(createdShift.lastID)]
             );
+            await snapshotShiftPayRate(createdShift.lastID, staffMember.id, assignedHourlyRate);
         }
     }
 
@@ -5940,36 +6225,14 @@ app.get("/portal/dashboard", requirePortal, requireAdmin, async (req, res) => {
         }
         const patientCount = await getDb("SELECT COUNT(*) AS count FROM patients WHERE COALESCE(is_archived, 0) = 0");
         const staffCount = await getDb("SELECT COUNT(*) AS count FROM staff");
-        const visitsToday = await getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE date(scheduled_start) = date('now') OR date(actual_clock_in) = date('now')");
+        const operationalShiftCounts = await getOperationalShiftCounts();
         const activeCarePlans = await getDb("SELECT COUNT(*) AS count FROM patients WHERE COALESCE(is_archived, 0) = 0 AND carePlan IS NOT NULL AND carePlan != ''");
-        const medicationDue = await getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE status IN ('scheduled', 'clocked_in') AND date(scheduled_start) = date('now')");
+        const currentBusinessDate = getBusinessDateKey();
+        const medicationDue = await getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE status IN ('scheduled', 'clocked_in') AND date(scheduled_start) = ?", [currentBusinessDate]);
         const incidentCount = await getDb("SELECT COUNT(*) AS count FROM care_notes WHERE severity = 'Critical'");
         const totalShifts = await getDb("SELECT COUNT(*) AS count FROM staff_shifts");
 
-        const recentActivityRows = await allDb(`
-            SELECT ss.*, COALESCE(p.first_name || ' ' || p.last_name, ss.external_client_label, 'Client') AS patient_name, s.first_name || ' ' || s.last_name AS staff_name, s.status AS staff_status
-            FROM staff_shifts ss
-            LEFT JOIN patients p ON p.id = ss.patient_id
-            LEFT JOIN staff s ON s.id = ss.staff_id
-            ORDER BY ss.created_at DESC
-            LIMIT 4
-        `);
-
-        const recentActivity = recentActivityRows.map((row) => ({
-            type: row.status === "clocked_in" ? "Live shift" : "Scheduled",
-            label: row.patient_name || "Patient",
-            detail: row.staff_name ? `${formatStaffDisplayName(row.staff_name, row.staff_status)} · ${row.status}` : row.status,
-        }));
-
-        const upcomingVisits = await allDb(`
-            SELECT ss.*, COALESCE(p.first_name || ' ' || p.last_name, ss.external_client_label, 'Client') AS patient_name, s.first_name || ' ' || s.last_name AS staff_name, s.status AS staff_status
-            FROM staff_shifts ss
-            LEFT JOIN patients p ON p.id = ss.patient_id
-            LEFT JOIN staff s ON s.id = ss.staff_id
-            WHERE ss.status IN ('scheduled', 'clocked_in')
-            ORDER BY ss.scheduled_start ASC
-            LIMIT 5
-        `);
+        const { recentActivity, upcomingVisits } = await getDashboardShiftCollections();
 
         const staffPreview = (await allDb("SELECT * FROM staff ORDER BY first_name LIMIT 4")).map(mapStaffRow);
 
@@ -5982,21 +6245,14 @@ app.get("/portal/dashboard", requirePortal, requireAdmin, async (req, res) => {
             metrics: {
                 patients: Number(patientCount.count),
                 staff: Number(staffCount.count),
-                visitsToday: Number(visitsToday.count),
+                visitsToday: Number(operationalShiftCounts.todayShifts || 0),
                 carePlans: Number(activeCarePlans.count),
                 medicationDue: Number(medicationDue.count),
                 incidents: Number(incidentCount.count),
                 totalShifts: Number(totalShifts.count),
             },
             recentActivity,
-            upcomingVisits: upcomingVisits.map((visit) => ({
-                ...visit,
-                staff_name: formatStaffDisplayName(visit.staff_name, visit.staff_status),
-                client: visit.patient_name || "Patient",
-                date: visit.scheduled_start ? visit.scheduled_start.slice(0, 10) : "Today",
-                time: visit.scheduled_start ? visit.scheduled_start.slice(11, 16) : "TBC",
-                type: visit.status === "clocked_in" ? "Live care visit" : "Scheduled shift",
-            })),
+            upcomingVisits,
             staffPreview,
         });
     } catch (error) {
@@ -6079,7 +6335,8 @@ app.get("/portal/shifts", requirePortal, async (req, res) => {
             LEFT JOIN client_service_requests csr ON csr.id = ss.client_request_id
             ORDER BY ss.scheduled_start ASC
         `);
-        const shifts = shiftRows.map(mapShiftRow);
+        const now = new Date();
+        const shifts = shiftRows.map((shift) => mapShiftRow(shift, now));
 
         const query = req.query || {};
         const searchTerm = String(query.q || "").trim().toLowerCase();
@@ -6105,7 +6362,7 @@ app.get("/portal/shifts", requirePortal, async (req, res) => {
             if (divisionFilter !== "all" && shift.serviceDivision !== divisionFilter) {
                 return false;
             }
-            if (statusFilter !== "all" && shift.operationalStatus !== statusFilter) {
+            if (!shiftMatchesScheduleStatus(shift, statusFilter)) {
                 return false;
             }
             if (staffFilter && String(shift.staffId || "") !== staffFilter) {
@@ -6150,16 +6407,7 @@ app.get("/portal/shifts", requirePortal, async (req, res) => {
             return searchText.includes(searchTerm);
         });
 
-        const summary = {
-            all: shifts.length,
-            homeCare: shifts.filter((shift) => shift.serviceDivision === "home-care").length,
-            agency: shifts.filter((shift) => shift.serviceDivision === "agency-staffing").length,
-            open: shifts.filter((shift) => shift.operationalStatus === "open").length,
-            assigned: shifts.filter((shift) => shift.operationalStatus === "assigned").length,
-            inProgress: shifts.filter((shift) => shift.operationalStatus === "in_progress").length,
-            completed: shifts.filter((shift) => shift.operationalStatus === "completed").length,
-            cancelled: shifts.filter((shift) => shift.operationalStatus === "cancelled").length,
-        };
+        const summary = buildScheduleSummary(shifts);
 
         const liveShift = filteredShifts.find((shift) => shift.status === "clocked_in" && (!staffId || shift.staffId === staffId)) || null;
         const myShifts = filteredShifts.filter((shift) => !staffId || shift.staffId === staffId);
@@ -6188,7 +6436,7 @@ app.get("/portal/shifts", requirePortal, async (req, res) => {
             isLoggedIn: true,
             isAdmin,
             currentStaffName: req.session.staffName || "Operations team",
-            liveShift: liveShift ? mapShiftRow(liveShift) : null,
+            liveShift: liveShift ? mapShiftRow(liveShift, now) : null,
             shifts: isAdmin ? filteredShifts : (myShifts.length ? myShifts : filteredShifts),
             userHasStaffProfile: Boolean(staffId),
             shiftStatus: req.query.status || "",
@@ -7124,7 +7372,7 @@ app.get("/portal/open-shifts", requirePortal, requireAdmin, async (req, res) => 
             isAdmin: true,
             currentStaffName: req.session.staffName || "Administrator",
             currentStaffEmail: req.session.staffEmail || adminEmail,
-            openShifts: openShifts.map(mapShiftRow),
+            openShifts: openShifts.map(mapShiftRow).filter((shift) => shift.operationalStatus === "open"),
             patients,
         });
     } catch (error) {
@@ -7271,7 +7519,7 @@ app.get("/portal/reports", requirePortal, requireAdmin, async (req, res) => {
         getDb("SELECT COUNT(*) AS count FROM staff_shifts"),
         getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE COALESCE(service_division, 'home-care') = 'home-care'"),
         getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE COALESCE(service_division, 'home-care') = 'agency-staffing'"),
-        getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE COALESCE(is_open, 0) = 1 AND staff_id IS NULL"),
+        getAvailableOpenShiftCount().then((count) => ({ count })),
         getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE status IN ('clocked_in', 'on_break')"),
         getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE status IN ('completed', 'clocked_out')"),
     ]);
@@ -7341,12 +7589,13 @@ const isDateWithinRange = (dateValue, fromDate, toDate) => {
 };
 
 const getDashboardModuleData = async () => {
-    const [patientCount, staffCount, visitsToday, activeCarePlans, medicationDue, incidentCount, totalShifts, recruitmentRows, inductionCount, activeRecruitmentStaffCount] = await Promise.all([
+    const currentBusinessDate = getBusinessDateKey();
+    const [patientCount, staffCount, operationalShiftCounts, activeCarePlans, medicationDue, incidentCount, totalShifts, recruitmentRows, inductionCount, activeRecruitmentStaffCount] = await Promise.all([
         getDb("SELECT COUNT(*) AS count FROM patients WHERE COALESCE(is_archived, 0) = 0"),
         getDb("SELECT COUNT(*) AS count FROM staff"),
-        getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE date(scheduled_start) = date('now') OR date(actual_clock_in) = date('now')"),
+        getOperationalShiftCounts(),
         getDb("SELECT COUNT(*) AS count FROM patients WHERE COALESCE(is_archived, 0) = 0 AND carePlan IS NOT NULL AND carePlan != ''"),
-        getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE status IN ('scheduled', 'clocked_in') AND date(scheduled_start) = date('now')"),
+        getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE status IN ('scheduled', 'clocked_in') AND date(scheduled_start) = ?", [currentBusinessDate]),
         getDb("SELECT COUNT(*) AS count FROM care_notes WHERE severity = 'Critical'"),
         getDb("SELECT COUNT(*) AS count FROM staff_shifts"),
         allDb(`
@@ -7382,36 +7631,14 @@ const getDashboardModuleData = async () => {
         }
     }
 
-    const recentActivityRows = await allDb(`
-        SELECT ss.*, COALESCE(p.first_name || ' ' || p.last_name, ss.external_client_label, 'Client') AS patient_name, s.first_name || ' ' || s.last_name AS staff_name, s.status AS staff_status
-        FROM staff_shifts ss
-        LEFT JOIN patients p ON p.id = ss.patient_id
-        LEFT JOIN staff s ON s.id = ss.staff_id
-        ORDER BY ss.created_at DESC
-        LIMIT 4
-    `);
-    const recentActivity = recentActivityRows.map((row) => ({
-        type: row.status === "clocked_in" ? "Live shift" : "Scheduled",
-        label: row.patient_name || "Patient",
-        detail: row.staff_name ? `${formatStaffDisplayName(row.staff_name, row.staff_status)} · ${row.status}` : row.status,
-    }));
-
-    const upcomingVisits = await allDb(`
-        SELECT ss.*, COALESCE(p.first_name || ' ' || p.last_name, ss.external_client_label, 'Client') AS patient_name, s.first_name || ' ' || s.last_name AS staff_name, s.status AS staff_status
-        FROM staff_shifts ss
-        LEFT JOIN patients p ON p.id = ss.patient_id
-        LEFT JOIN staff s ON s.id = ss.staff_id
-        WHERE ss.status IN ('scheduled', 'clocked_in')
-        ORDER BY ss.scheduled_start ASC
-        LIMIT 5
-    `);
+    const { recentActivity, upcomingVisits } = await getDashboardShiftCollections();
     const staffPreview = (await allDb("SELECT * FROM staff ORDER BY first_name LIMIT 4")).map(mapStaffRow);
 
     return {
         metrics: {
             patients: Number(patientCount ? patientCount.count : 0),
             staff: Number(staffCount ? staffCount.count : 0),
-            visitsToday: Number(visitsToday ? visitsToday.count : 0),
+            visitsToday: Number(operationalShiftCounts.todayShifts || 0),
             carePlans: Number(activeCarePlans ? activeCarePlans.count : 0),
             medicationDue: Number(medicationDue ? medicationDue.count : 0),
             incidents: Number(incidentCount ? incidentCount.count : 0),
@@ -7419,14 +7646,7 @@ const getDashboardModuleData = async () => {
         },
         recruitmentMetrics: recruitmentCounts,
         recentActivity,
-        upcomingVisits: upcomingVisits.map((visit) => ({
-            ...visit,
-            staff_name: formatStaffDisplayName(visit.staff_name, visit.staff_status),
-            client: visit.patient_name || "Patient",
-            date: visit.scheduled_start ? visit.scheduled_start.slice(0, 10) : "Today",
-            time: visit.scheduled_start ? visit.scheduled_start.slice(11, 16) : "TBC",
-            type: visit.status === "clocked_in" ? "Live care visit" : "Scheduled shift",
-        })),
+        upcomingVisits,
         staffPreview,
     };
 };
@@ -7636,6 +7856,7 @@ const getComplianceModuleData = async () => {
 };
 
 const getScheduleModuleData = async (query, staffId = null) => {
+    const now = new Date();
     const shiftRows = await allDb(`
         SELECT ss.*,
                p.home_care_client_id,
@@ -7663,7 +7884,7 @@ const getScheduleModuleData = async (query, staffId = null) => {
         LEFT JOIN client_service_requests csr ON csr.id = ss.client_request_id
         ORDER BY ss.scheduled_start ASC
     `);
-    const shifts = shiftRows.map(mapShiftRow);
+    const shifts = shiftRows.map((shift) => mapShiftRow(shift, now));
 
     const searchTerm = String(query.q || "").trim().toLowerCase();
     const divisionFilter = String(query.division || "all").trim().toLowerCase();
@@ -7688,7 +7909,7 @@ const getScheduleModuleData = async (query, staffId = null) => {
         if (divisionFilter !== "all" && shift.serviceDivision !== divisionFilter) {
             return false;
         }
-        if (statusFilter !== "all" && shift.operationalStatus !== statusFilter) {
+        if (!shiftMatchesScheduleStatus(shift, statusFilter)) {
             return false;
         }
         if (staffFilter && String(shift.staffId || "") !== staffFilter) {
@@ -7733,16 +7954,7 @@ const getScheduleModuleData = async (query, staffId = null) => {
         return searchText.includes(searchTerm);
     });
 
-    const summary = {
-        all: shifts.length,
-        homeCare: shifts.filter((shift) => shift.serviceDivision === "home-care").length,
-        agency: shifts.filter((shift) => shift.serviceDivision === "agency-staffing").length,
-        open: shifts.filter((shift) => shift.operationalStatus === "open").length,
-        assigned: shifts.filter((shift) => shift.operationalStatus === "assigned").length,
-        inProgress: shifts.filter((shift) => shift.operationalStatus === "in_progress").length,
-        completed: shifts.filter((shift) => shift.operationalStatus === "completed").length,
-        cancelled: shifts.filter((shift) => shift.operationalStatus === "cancelled").length,
-    };
+    const summary = buildScheduleSummary(shifts);
     const liveShift = filteredShifts.find((shift) => shift.status === "clocked_in" && (!staffId || shift.staffId === staffId)) || null;
 
     const [patients, staff, facilities] = await Promise.all([
@@ -7754,7 +7966,7 @@ const getScheduleModuleData = async (query, staffId = null) => {
     const counties = Array.from(new Set(shifts.map((shift) => String(shift.county || shift.location_county || "").trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
     return {
-        liveShift: liveShift ? mapShiftRow(liveShift) : null,
+        liveShift: liveShift ? mapShiftRow(liveShift, now) : null,
         shifts: filteredShifts,
         patients: patients.map(mapPatientRow),
         staff: staff.map(mapStaffRow),
@@ -7807,53 +8019,43 @@ const getOpenShiftsModuleData = async () => {
          ORDER BY first_name`
     )).map(mapPatientRow);
     return {
-        openShifts: openShifts.map(mapShiftRow),
+        openShifts: openShifts.map(mapShiftRow).filter((shift) => shift.operationalStatus === "open"),
         patients,
     };
 };
 
 const getLiveTrackingCategory = (shift, now = new Date(), gracePeriodMinutes = 15) => {
-    const rawStatus = String(shift.status || "").trim().toLowerCase();
-    const scheduledStartValue = shift.scheduledStart || shift.scheduled_start || shift.shift_date || "";
-    const scheduledStart = scheduledStartValue ? new Date(normalizeDateTimeString(scheduledStartValue)) : null;
-    const hasClockIn = Boolean(shift.actual_clock_in || shift.actualClockIn);
-    const hasClockOut = Boolean(shift.actual_clock_out || shift.actualClockOut);
-    const isEmergency = rawStatus.includes("emergency") || rawStatus.includes("sos") || String(shift.notes || "").toLowerCase().includes("sos");
+    const state = getEffectiveShiftState(shift, now, gracePeriodMinutes);
 
-    if (isEmergency) {
+    if (isEmergencyTrackingShift(shift)) {
         return "emergency_alert";
     }
-    if (["on_break", "break"].includes(rawStatus)) {
+    if (state === "break") {
         return "break";
     }
-    if (["completed", "clocked_out", "shift_completed", "checked_out"].includes(rawStatus) || hasClockOut) {
+    if (state === "completed") {
         return "finished";
     }
-    if (["clocked_in", "checked_in"].includes(rawStatus)) {
-        return "clocked_in";
-    }
-    if (["travelling"].includes(rawStatus)) {
-        return "on_duty";
-    }
-    if (["cancelled", "no_show"].includes(rawStatus)) {
-        return "cancelled";
-    }
-    if (!scheduledStart || Number.isNaN(scheduledStart.getTime())) {
-        return hasClockIn ? "clocked_in" : "not_clocked_in";
-    }
-
-    const graceCutoff = scheduledStart.getTime() + (gracePeriodMinutes * 60 * 1000);
-    if (!hasClockIn && now.getTime() > graceCutoff) {
+    if (state === "running_late") {
         return "running_late";
     }
-    return "not_clocked_in";
+    if (state === "clocked_in") {
+        return "clocked_in";
+    }
+    if (state === "missed" || state === "attendance_exception") {
+        return state;
+    }
+    if (state === "cancelled") {
+        return "cancelled";
+    }
+    return state;
 };
 
 const getLiveTrackingModuleData = async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const today = getBusinessDateKey(now);
     const gracePeriodMinutes = 15;
     const escalationMinutes = 30;
-    const now = new Date();
 
     const shiftRows = await allDb(`
         SELECT ss.*,
@@ -7880,61 +8082,62 @@ const getLiveTrackingModuleData = async () => {
         LEFT JOIN patients p ON p.id = ss.patient_id
         LEFT JOIN client_accounts ca ON ca.id = ss.client_account_id
         LEFT JOIN staff s ON s.id = ss.staff_id
-        WHERE (date(ss.scheduled_start) = ? OR date(ss.shift_date) = ?)
-          AND COALESCE(ss.is_open, 0) = 0
+        WHERE COALESCE(ss.is_open, 0) = 0
         ORDER BY ss.scheduled_start ASC
-    `, [today, today]);
+    `);
 
-    const records = shiftRows.map((shift) => {
-        const mapped = mapShiftRow(shift);
-        const category = getLiveTrackingCategory(shift, now, gracePeriodMinutes);
-        const scheduledStartValue = mapped.scheduledStart || mapped.shift_date || "";
-        const scheduledEndValue = mapped.scheduledEnd || "";
-        const scheduledStart = scheduledStartValue ? new Date(normalizeDateTimeString(scheduledStartValue)) : null;
-        const scheduledEnd = scheduledEndValue ? new Date(normalizeDateTimeString(scheduledEndValue)) : null;
-        const hasValidStart = scheduledStart && !Number.isNaN(scheduledStart.getTime());
-        const hasGps = Number.isFinite(Number(mapped.latitude)) && Number.isFinite(Number(mapped.longitude));
-        const minutesLate = category === "running_late" && hasValidStart
-            ? Math.max(0, Math.floor((now.getTime() - (scheduledStart.getTime() + gracePeriodMinutes * 60 * 1000)) / 60000))
-            : 0;
-        const countdownMinutes = !mapped.actual_clock_in && hasValidStart
-            ? Math.max(0, Math.floor((scheduledStart.getTime() - now.getTime()) / 60000))
-            : null;
+    const records = shiftRows
+        .map((shift) => {
+            const mapped = mapShiftRow(shift, now, gracePeriodMinutes);
+            const category = getLiveTrackingCategory(shift, now, gracePeriodMinutes);
+            const scheduledStartValue = mapped.scheduledStart || mapped.shift_date || "";
+            const scheduledEndValue = mapped.scheduledEnd || "";
+            const scheduledStart = scheduledStartValue ? new Date(normalizeDateTimeString(scheduledStartValue)) : null;
+            const scheduledEnd = scheduledEndValue ? new Date(normalizeDateTimeString(scheduledEndValue)) : null;
+            const hasValidStart = scheduledStart && !Number.isNaN(scheduledStart.getTime());
+            const hasGps = Number.isFinite(Number(mapped.latitude)) && Number.isFinite(Number(mapped.longitude));
+            const minutesLate = category === "running_late" && hasValidStart
+                ? Math.max(0, Math.floor((now.getTime() - (scheduledStart.getTime() + gracePeriodMinutes * 60 * 1000)) / 60000))
+                : 0;
+            const countdownMinutes = !mapped.actual_clock_in && hasValidStart
+                ? Math.max(0, Math.floor((scheduledStart.getTime() - now.getTime()) / 60000))
+                : null;
 
-        return {
-            ...mapped,
-            category,
-            displayStatus: category === "on_duty" ? "On Duty"
-                : category === "clocked_in" ? "Clocked In"
-                    : category === "running_late" ? "Running Late"
-                        : category === "not_clocked_in" ? "Not Clocked In"
-                            : category === "finished" ? "Finished"
-                                : category === "break" ? "Break"
-                                    : category === "emergency_alert" ? "Emergency Alert"
-                                        : category === "cancelled" ? "Cancelled" : "Scheduled",
-            isEscalated: category === "running_late" && minutesLate >= escalationMinutes,
-            minutesLate,
-            countdownMinutes,
-            scheduledStartIso: hasValidStart ? scheduledStart.toISOString() : "",
-            scheduledEndIso: scheduledEnd && !Number.isNaN(scheduledEnd.getTime()) ? scheduledEnd.toISOString() : "",
-            hasGps,
-            gpsStatus: hasGps ? "Live GPS" : "GPS issue",
-            gpsIssue: !hasGps,
-            shiftTypeLabel: mapped.serviceDivision === "agency-staffing" ? "Agency" : "Home Care",
-            entityName: mapped.serviceDivision === "agency-staffing" ? mapped.facilityName : mapped.homeCareClientName,
-            facilityCategory: String(mapped.facility_type || mapped.facilityType || mapped.serviceType || "community").toLowerCase(),
-            staffProfileId: mapped.staffId || shift.staff_profile_id || null,
-            staffIdentifier: String(shift.staff_identifier || mapped.staffId || "").trim(),
-            staffPhone: String(shift.staff_phone || "").trim(),
-            staffPhoto: String(shift.staff_photo || "").trim(),
-            phoneAvailable: Boolean(String(shift.staff_phone || "").trim()),
-            locationAddress: mapped.address || "",
-            locationCounty: mapped.county || "",
-            clientConfirmation: String(shift.client_confirmation || "Pending"),
-            managerApprovalStatus: String(shift.manager_approval_status || "Pending"),
-            leftEarly: Boolean(mapped.actual_clock_out && mapped.scheduledEnd && new Date(normalizeDateTimeString(mapped.actual_clock_out)).getTime() < new Date(normalizeDateTimeString(mapped.scheduledEnd)).getTime()),
-        };
-    });
+            return {
+                ...mapped,
+                category,
+                displayStatus: category === "on_duty" ? "On Duty"
+                    : category === "clocked_in" ? "Clocked In"
+                        : category === "running_late" ? "Running Late"
+                            : category === "not_clocked_in" ? "Not Clocked In"
+                                : category === "finished" ? "Finished"
+                                    : category === "break" ? "Break"
+                                        : category === "emergency_alert" ? "Emergency Alert"
+                                            : category === "cancelled" ? "Cancelled" : "Scheduled",
+                isEscalated: category === "running_late" && minutesLate >= escalationMinutes,
+                minutesLate,
+                countdownMinutes,
+                scheduledStartIso: hasValidStart ? scheduledStart.toISOString() : "",
+                scheduledEndIso: scheduledEnd && !Number.isNaN(scheduledEnd.getTime()) ? scheduledEnd.toISOString() : "",
+                hasGps,
+                gpsStatus: hasGps ? "Live GPS" : "GPS issue",
+                gpsIssue: !hasGps,
+                shiftTypeLabel: mapped.serviceDivision === "agency-staffing" ? "Agency" : "Home Care",
+                entityName: mapped.serviceDivision === "agency-staffing" ? mapped.facilityName : mapped.homeCareClientName,
+                facilityCategory: String(mapped.facility_type || mapped.facilityType || mapped.serviceType || "community").toLowerCase(),
+                staffProfileId: mapped.staffId || shift.staff_profile_id || null,
+                staffIdentifier: String(shift.staff_identifier || mapped.staffId || "").trim(),
+                staffPhone: String(shift.staff_phone || "").trim(),
+                staffPhoto: String(shift.staff_photo || "").trim(),
+                phoneAvailable: Boolean(String(shift.staff_phone || "").trim()),
+                locationAddress: mapped.address || "",
+                locationCounty: mapped.county || "",
+                clientConfirmation: String(shift.client_confirmation || "Pending"),
+                managerApprovalStatus: String(shift.manager_approval_status || "Pending"),
+                leftEarly: Boolean(mapped.actual_clock_out && mapped.scheduledEnd && new Date(normalizeDateTimeString(mapped.actual_clock_out)).getTime() < new Date(normalizeDateTimeString(mapped.scheduledEnd)).getTime()),
+            };
+        })
+        .filter((row) => getShiftBusinessDateKey(row) === today && isActiveLiveTrackingShift(row));
 
     const counts = {
         on_duty: records.filter((row) => row.category === "on_duty" || row.category === "clocked_in" || row.category === "break").length,
@@ -7959,7 +8162,8 @@ const getLiveTrackingModuleData = async () => {
 };
 
 const getAttendanceModuleData = async (query) => {
-    const selectedDate = String(query.date || new Date().toISOString().slice(0, 10)).trim();
+    const now = new Date();
+    const selectedDate = String(query.date || getBusinessDateKey(now)).trim();
     const statusFilter = String(query.status || "all").trim().toLowerCase();
     const divisionFilter = String(query.division || "all").trim().toLowerCase();
     const searchTerm = String(query.q || "").trim().toLowerCase();
@@ -7980,20 +8184,18 @@ const getAttendanceModuleData = async (query) => {
     `, [selectedDate, selectedDate]);
 
     const normalizedRecords = records.map((row) => {
-        const rawStatus = String(row.status || "").trim().toLowerCase();
-        let attendanceStatus = "scheduled";
-        if (["completed", "clocked_out", "shift_completed", "checked_out"].includes(rawStatus) || row.actual_clock_out) {
-            attendanceStatus = "completed";
-        } else if (["clocked_in", "on_break", "travelling", "checked_in"].includes(rawStatus) || row.actual_clock_in) {
-            attendanceStatus = "on_duty";
-        } else if (rawStatus === "no_show") {
-            attendanceStatus = "no_show";
-        } else if (rawStatus === "cancelled") {
-            attendanceStatus = "cancelled";
-        }
+        const effectiveStatus = getEffectiveShiftState(row, now, 15);
+        const attendanceStatus = effectiveStatus === "completed" ? "completed"
+            : effectiveStatus === "clocked_in" || effectiveStatus === "break" ? "on_duty"
+               : effectiveStatus === "missed" ? "no_show"
+                   : effectiveStatus;
+        const mapped = mapShiftRow(row, now, 15);
         return {
             ...row,
             staff_name: formatStaffDisplayName(row.staff_name, row.staff_status),
+            status: effectiveStatus,
+            status_label: mapped.statusLabel,
+            status_class: mapped.statusClass,
             attendance_status: attendanceStatus,
             attendance_division: getShiftDivision(row),
         };
@@ -8023,23 +8225,18 @@ const getAttendanceModuleData = async (query) => {
 
     const clockedIn = filteredRecords.filter((row) => row.actual_clock_in).length;
     const clockedOut = filteredRecords.filter((row) => row.actual_clock_out).length;
-    const missed = filteredRecords.filter((row) => row.status === "no_show").length;
+    const missed = filteredRecords.filter((row) => row.status === "missed").length;
     let totalMins = 0;
     for (const record of filteredRecords) {
         if (record.actual_clock_in && record.actual_clock_out) {
             totalMins += Math.round((new Date(record.actual_clock_out) - new Date(record.actual_clock_in)) / 60000);
         }
     }
-    const now = new Date();
     const late = filteredRecords.filter((record) => {
         if (record.actual_clock_in && record.scheduled_start) {
             return new Date(record.actual_clock_in) > new Date(record.scheduled_start.replace(" ", "T"));
         }
-        if (!record.actual_clock_in && record.scheduled_start) {
-            const start = new Date(record.scheduled_start.replace(" ", "T"));
-            return now > start && record.status !== "completed" && record.status !== "cancelled";
-        }
-        return false;
+        return record.status === "running_late";
     }).length;
 
     return {
@@ -8065,7 +8262,7 @@ const getReportsModuleData = async () => {
         getDb("SELECT COUNT(*) AS count FROM staff_shifts"),
         getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE COALESCE(service_division, 'home-care') = 'home-care'"),
         getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE COALESCE(service_division, 'home-care') = 'agency-staffing'"),
-        getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE COALESCE(is_open, 0) = 1 AND staff_id IS NULL"),
+        getAvailableOpenShiftCount().then((count) => ({ count })),
         getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE status IN ('clocked_in', 'on_break')"),
         getDb("SELECT COUNT(*) AS count FROM staff_shifts WHERE status IN ('completed', 'clocked_out')"),
     ]);
@@ -8116,15 +8313,15 @@ const getHomeVisitModuleData = async (query) => {
     const fromDate = String(query.date_from || "").trim();
     const toDate = String(query.date_to || "").trim();
     const today = new Date();
-    const todayKey = today.toISOString().slice(0, 10);
+    const todayKey = getBusinessDateKey(today);
     const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-    const tomorrowKey = tomorrow.toISOString().slice(0, 10);
+    const tomorrowKey = getBusinessDateKey(tomorrow);
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - today.getDay());
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
-    const weekStartKey = weekStart.toISOString().slice(0, 10);
-    const weekEndKey = weekEnd.toISOString().slice(0, 10);
+    const weekStartKey = getBusinessDateKey(weekStart);
+    const weekEndKey = getBusinessDateKey(weekEnd);
 
     const shiftRows = await allDb(`
         SELECT ss.*,
@@ -8142,7 +8339,7 @@ const getHomeVisitModuleData = async (query) => {
     const shifts = shiftRows.map(mapShiftRow);
 
     const filteredVisits = shifts.filter((shift) => {
-        const shiftDate = isoDateKey(shift.scheduledStart || shift.shiftDate || shift.shift_date);
+        const shiftDate = getShiftBusinessDateKey(shift);
         const status = String(shift.operationalStatus || "").toLowerCase();
         if (fromDate || toDate) {
             if (!isDateWithinRange(shiftDate, fromDate, toDate)) {
@@ -8164,14 +8361,15 @@ const getHomeVisitModuleData = async (query) => {
         if (filter === "cancelled") {
             return status === "cancelled";
         }
-        return shiftDate === todayKey;
+        return shiftDate === todayKey && isCountableTodayShift(shift);
     });
 
-    const todayVisits = shifts.filter((shift) => isoDateKey(shift.scheduledStart || shift.shiftDate || shift.shift_date) === todayKey);
+    const todayVisits = shifts.filter((shift) => getShiftBusinessDateKey(shift) === todayKey);
+    const countableTodayVisits = todayVisits.filter(isCountableTodayShift);
     const summary = {
-        today: todayVisits.length,
+        today: countableTodayVisits.length,
         completed: todayVisits.filter((shift) => shift.operationalStatus === "completed").length,
-        outstanding: todayVisits.filter((shift) => shift.operationalStatus === "assigned" || shift.operationalStatus === "open" || shift.operationalStatus === "in_progress").length,
+        outstanding: todayVisits.filter((shift) => ["scheduled", "open", "not_clocked_in", "running_late", "on_duty", "break"].includes(shift.operationalStatus)).length,
         missed: todayVisits.filter((shift) => shift.operationalStatus === "missed").length,
         cancelled: todayVisits.filter((shift) => shift.operationalStatus === "cancelled").length,
     };
@@ -8298,31 +8496,6 @@ const PAYROLL_SETTING_KEYS = {
     overtimeWeeklyHours: "payroll.overtimeWeeklyHours",
     mileageRatePerKm: "payroll.mileageRatePerKm",
 };
-const PAYROLL_OVERRIDE_FIELDS = [
-    "staffName",
-    "staffRole",
-    "staffEmployeeNumber",
-    "paymentDate",
-    "notes",
-    "basicHours",
-    "nightHours",
-    "weekendHours",
-    "bankHolidayHours",
-    "overtimeHours",
-    "mileageKm",
-    "homeCareHours",
-    "agencyHours",
-    "basicRate",
-    "nightRate",
-    "weekendRate",
-    "bankHolidayRate",
-    "overtimeRate",
-    "mileageRate",
-    "payeTax",
-    "prsiAmount",
-    "uscAmount",
-];
-
 const roundPayrollNumber = (value, decimals = 2) => {
     const parsed = Number(value || 0);
     if (!Number.isFinite(parsed)) {
@@ -8381,6 +8554,25 @@ const savePayrollSettings = async (settings) => {
 };
 
 const recalculatePayrollSnapshot = (snapshot = {}) => {
+    const shiftItems = Array.isArray(snapshot.shiftItems)
+        ? snapshot.shiftItems.map((item) => ({
+            shiftId: Number(item.shiftId || 0),
+            shiftCode: String(item.shiftCode || "").trim(),
+            date: String(item.date || item.scheduledStart || "").slice(0, 10),
+            assignmentName: String(item.assignmentName || "").trim(),
+            division: String(item.division || "").trim(),
+            shiftType: String(item.shiftType || "day").trim(),
+            hours: roundPayrollNumber(parseNonNegativeNumber(item.hours, 0), 4),
+            breakMinutes: roundPayrollNumber(parseNonNegativeNumber(item.breakMinutes, 0), 2),
+            payRate: roundPayrollNumber(parseNonNegativeNumber(item.payRate, 0), 4),
+            payRateSource: String(item.payRateSource || "").trim(),
+            base: roundPayrollNumber(parseNonNegativeNumber(item.base, 0), 2),
+            premium: roundPayrollNumber(parseNonNegativeNumber(item.premium, 0), 2),
+            overtimeHours: roundPayrollNumber(parseNonNegativeNumber(item.overtimeHours, 0), 4),
+            overtimePremium: roundPayrollNumber(parseNonNegativeNumber(item.overtimePremium, 0), 2),
+            gross: roundPayrollNumber(parseNonNegativeNumber(item.gross, 0), 2),
+        }))
+        : [];
     const normalized = {
         staffId: Number(snapshot.staffId || 0),
         staffName: String(snapshot.staffName || snapshot.name || "Staff Member").trim() || "Staff Member",
@@ -8405,19 +8597,33 @@ const recalculatePayrollSnapshot = (snapshot = {}) => {
         uscAmount: roundPayrollNumber(parseNonNegativeNumber(snapshot.uscAmount, 0), 2),
         homeCareHours: roundPayrollNumber(parseNonNegativeNumber(snapshot.homeCareHours, 0), 2),
         agencyHours: roundPayrollNumber(parseNonNegativeNumber(snapshot.agencyHours, 0), 2),
-        shiftCount: Number(snapshot.shiftCount || 0),
+        shiftCount: shiftItems.length || Number(snapshot.shiftCount || 0),
+        shiftItems,
     };
 
-    const basicPay = roundPayrollNumber(normalized.basicHours * normalized.basicRate, 2);
-    const nightPay = roundPayrollNumber(normalized.nightHours * normalized.nightRate, 2);
-    const weekendPay = roundPayrollNumber(normalized.weekendHours * normalized.weekendRate, 2);
-    const bankHolidayPay = roundPayrollNumber(normalized.bankHolidayHours * normalized.bankHolidayRate, 2);
-    const overtimePay = roundPayrollNumber(normalized.overtimeHours * normalized.overtimeRate, 2);
+    const hasShiftItems = shiftItems.length > 0;
+    const basicPay = roundPayrollNumber(hasShiftItems
+        ? shiftItems.filter((item) => item.shiftType === "day").reduce((sum, item) => sum + item.base + item.premium, 0)
+        : normalized.basicHours * normalized.basicRate, 2);
+    const nightPay = roundPayrollNumber(hasShiftItems
+        ? shiftItems.filter((item) => item.shiftType === "night").reduce((sum, item) => sum + item.base + item.premium, 0)
+        : normalized.nightHours * normalized.nightRate, 2);
+    const weekendPay = roundPayrollNumber(hasShiftItems
+        ? shiftItems.filter((item) => item.shiftType === "weekend").reduce((sum, item) => sum + item.base + item.premium, 0)
+        : normalized.weekendHours * normalized.weekendRate, 2);
+    const bankHolidayPay = roundPayrollNumber(hasShiftItems
+        ? shiftItems.filter((item) => item.shiftType === "bank_holiday").reduce((sum, item) => sum + item.base + item.premium, 0)
+        : normalized.bankHolidayHours * normalized.bankHolidayRate, 2);
+    const overtimePay = roundPayrollNumber(hasShiftItems
+        ? shiftItems.reduce((sum, item) => sum + item.overtimePremium, 0)
+        : normalized.overtimeHours * normalized.overtimeRate, 2);
     const mileagePayment = roundPayrollNumber(normalized.mileageKm * normalized.mileageRate, 2);
     const grossPay = roundPayrollNumber(basicPay + nightPay + weekendPay + bankHolidayPay + overtimePay + mileagePayment, 2);
     const totalDeductions = roundPayrollNumber(normalized.payeTax + normalized.prsiAmount + normalized.uscAmount, 2);
     const netPay = roundPayrollNumber(grossPay - totalDeductions, 2);
-    const totalHours = roundPayrollNumber(normalized.basicHours + normalized.nightHours + normalized.weekendHours + normalized.bankHolidayHours, 2);
+    const totalHours = roundPayrollNumber(hasShiftItems
+        ? shiftItems.reduce((sum, item) => sum + item.hours, 0)
+        : normalized.basicHours + normalized.nightHours + normalized.weekendHours + normalized.bankHolidayHours, 2);
     const regularHours = roundPayrollNumber(Math.max(0, totalHours - normalized.overtimeHours), 2);
 
     return {
@@ -8462,12 +8668,13 @@ const buildPayrollSnapshotFromStaffRow = (staffRow = {}, payrollSettings = PAYRO
         weekendRate: overrides.weekendRate !== undefined ? overrides.weekendRate : hourlyRate * (1 + payrollSettings.weekendPremium),
         bankHolidayRate: overrides.bankHolidayRate !== undefined ? overrides.bankHolidayRate : hourlyRate * (1 + payrollSettings.bankHolidayPremium),
         overtimeRate: overrides.overtimeRate !== undefined ? overrides.overtimeRate : hourlyRate * payrollSettings.overtimePremium,
-        payeTax: overrides.payeTax !== undefined ? overrides.payeTax : (staffRow.estimatedTax || grossPay * 0.2),
-        prsiAmount: overrides.prsiAmount !== undefined ? overrides.prsiAmount : grossPay * 0.04,
-        uscAmount: overrides.uscAmount !== undefined ? overrides.uscAmount : grossPay * 0.02,
+        payeTax: overrides.payeTax !== undefined ? overrides.payeTax : (staffRow.estimatedTax || 0),
+        prsiAmount: overrides.prsiAmount !== undefined ? overrides.prsiAmount : (staffRow.prsiAmount || 0),
+        uscAmount: overrides.uscAmount !== undefined ? overrides.uscAmount : (staffRow.uscAmount || 0),
         homeCareHours: overrides.homeCareHours !== undefined ? overrides.homeCareHours : (staffRow.homeCareHours || 0),
         agencyHours: overrides.agencyHours !== undefined ? overrides.agencyHours : (staffRow.agencyHours || 0),
         shiftCount: overrides.shiftCount !== undefined ? overrides.shiftCount : (Array.isArray(staffRow.shifts) ? staffRow.shifts.length : 0),
+        shiftItems: Array.isArray(staffRow.shifts) ? staffRow.shifts : [],
     };
     return recalculatePayrollSnapshot(snapshot);
 };
@@ -8490,6 +8697,18 @@ const getPayrollSnapshotForRecord = (payrollRecord, staffRow, payrollSettings = 
 };
 
 const buildPayslipEarningsRows = (snapshot) => {
+    if (Array.isArray(snapshot.shiftItems) && snapshot.shiftItems.length) {
+        const rows = snapshot.shiftItems.map((item) => ({
+            label: `${item.shiftCode || `Shift ${item.shiftId}`}${item.date ? ` · ${item.date}` : ""}`,
+            hours: item.hours,
+            rate: item.hours > 0 ? roundPayrollNumber((item.base + item.premium + item.overtimePremium) / item.hours, 4) : item.payRate,
+            amount: item.gross,
+        }));
+        if (snapshot.mileageKm > 0) {
+            rows.push({ label: "Mileage", hours: null, rate: snapshot.mileageRate, amount: snapshot.mileagePayment, quantity: snapshot.mileageKm });
+        }
+        return rows;
+    }
     const rows = [];
     if (snapshot.basicHours > 0) rows.push({ label: "Basic Hours", hours: snapshot.basicHours, rate: snapshot.basicRate, amount: snapshot.basicPay });
     if (snapshot.nightHours > 0) rows.push({ label: "Night Hours", hours: snapshot.nightHours, rate: snapshot.nightRate, amount: snapshot.nightPay });
@@ -8515,6 +8734,9 @@ const applyPayrollSnapshotToStaffRow = (staffRow, snapshot) => ({
     staffRole: snapshot.staffRole || staffRow.staffRole,
     staffEmployeeNumber: snapshot.staffEmployeeNumber || staffRow.staffEmployeeNumber,
     hourlyRate: snapshot.basicRate,
+    rateLabel: Array.isArray(snapshot.shiftItems) && new Set(snapshot.shiftItems.map((item) => item.payRate)).size > 1
+        ? "Multiple rates"
+        : `€${Number(snapshot.basicRate || (Array.isArray(snapshot.shiftItems) && snapshot.shiftItems[0] && snapshot.shiftItems[0].payRate) || 0).toFixed(2)}`,
     dayHours: snapshot.basicHours,
     nightHours: snapshot.nightHours,
     weekendHours: snapshot.weekendHours,
@@ -8526,6 +8748,9 @@ const applyPayrollSnapshotToStaffRow = (staffRow, snapshot) => ({
     mileagePayment: snapshot.mileagePayment,
     grossPay: snapshot.grossPay,
     estimatedTax: snapshot.payeTax,
+    prsiAmount: snapshot.prsiAmount,
+    uscAmount: snapshot.uscAmount,
+    totalDeductions: snapshot.totalDeductions,
     netPay: snapshot.netPay,
     baseGross: snapshot.basicPay,
     premiums: snapshot.nightPay + snapshot.weekendPay + snapshot.bankHolidayPay,
@@ -8535,81 +8760,73 @@ const applyPayrollSnapshotToStaffRow = (staffRow, snapshot) => ({
     payrollSnapshot: snapshot,
 });
 
-const buildPayrollOverridePayload = (liveSnapshot, candidateSnapshot) => {
-    const overrides = {};
-    PAYROLL_OVERRIDE_FIELDS.forEach((fieldName) => {
-        const liveValue = liveSnapshot[fieldName];
-        const candidateValue = candidateSnapshot[fieldName];
-        if (typeof candidateValue === "string") {
-            if (String(candidateValue || "") !== String(liveValue || "")) {
-                overrides[fieldName] = candidateValue;
-            }
-            return;
-        }
-        const normalizedLive = roundPayrollNumber(parseNonNegativeNumber(liveValue, 0), 4);
-        const normalizedCandidate = roundPayrollNumber(parseNonNegativeNumber(candidateValue, 0), 4);
-        if (normalizedLive !== normalizedCandidate) {
-            overrides[fieldName] = candidateValue;
-        }
-    });
-    return overrides;
-};
-
-const calcShiftHours = (startStr, endStr) => {
+const calcShiftHours = (startStr, endStr, breakMinutes = 0) => {
     if (!startStr || !endStr) return 0;
     const start = new Date(String(startStr).replace(" ", "T"));
     const end = new Date(String(endStr).replace(" ", "T"));
-    return Math.max(0, (end - start) / 3600000);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+        return 0;
+    }
+    const workedMinutes = Math.max(0, ((end - start) / 60000) - parseNonNegativeNumber(breakMinutes, 0));
+    return roundPayrollNumber(workedMinutes / 60, 4);
 };
 
 const classifyShiftType = (shift) => {
     const startStr = shift.actual_clock_in || shift.scheduled_start || "";
     if (!startStr) return "day";
-    const date = new Date(startStr.replace(" ", "T"));
     const dateKey = startStr.slice(0, 10);
     if (IRISH_BANK_HOLIDAYS.has(dateKey)) return "bank_holiday";
-    const dow = date.getDay(); // 0=Sun, 6=Sat
+    const dow = new Date(`${dateKey}T12:00:00`).getDay(); // 0=Sun, 6=Sat
     if (dow === 0 || dow === 6) return "weekend";
-    const hour = date.getHours();
+    const hour = Number(String(startStr).slice(11, 13));
     if (hour >= 22 || hour < 8) return "night";
     return "day";
 };
 
-const calcShiftEarnings = (shift, hourlyRate, payrollSettings = PAYROLL_RATES) => {
-    const startStr = shift.actual_clock_in || shift.scheduled_start || "";
-    const endStr = shift.actual_clock_out || shift.scheduled_end || "";
-    const totalHours = calcShiftHours(startStr, endStr);
+const calcShiftEarnings = (shift, payrollSettings = PAYROLL_RATES) => {
+    const startStr = shift.actual_clock_in || "";
+    const endStr = shift.actual_clock_out || "";
+    const totalHours = calcShiftHours(startStr, endStr, shift.break_duration_minutes);
     const type = classifyShiftType(shift);
-    const base = totalHours * hourlyRate;
+    const hasFrozenPayRate = shift.pay_rate !== null
+        && shift.pay_rate !== undefined
+        && String(shift.pay_rate).trim() !== "";
+    const payRate = Number(shift.pay_rate);
+    if (!hasFrozenPayRate || !Number.isFinite(payRate) || payRate < 0) {
+        throw new Error(`Shift ${shift.id || shift.shift_code || "record"} has no frozen pay rate.`);
+    }
+    const base = roundPayrollNumber(totalHours * payRate, 2);
     let premium = 0;
-    if (type === "night") premium = base * payrollSettings.nightPremium;
-    else if (type === "weekend") premium = base * payrollSettings.weekendPremium;
-    else if (type === "bank_holiday") premium = base * payrollSettings.bankHolidayPremium;
-    return { totalHours, type, base, premium, gross: base + premium };
+    if (type === "night") premium = roundPayrollNumber(base * payrollSettings.nightPremium, 2);
+    else if (type === "weekend") premium = roundPayrollNumber(base * payrollSettings.weekendPremium, 2);
+    else if (type === "bank_holiday") premium = roundPayrollNumber(base * payrollSettings.bankHolidayPremium, 2);
+    return { totalHours, type, payRate, base, premium, gross: roundPayrollNumber(base + premium, 2) };
 };
 
 const getPayrollPeriodDates = (query) => {
     const today = new Date();
-    const todayKey = today.toISOString().slice(0, 10);
+    const todayKey = getBusinessDateKey(today);
     const period = String(query.period || "weekly").toLowerCase();
 
     if (period === "custom" && query.dateFrom && query.dateTo) {
         return { periodStart: String(query.dateFrom).slice(0, 10), periodEnd: String(query.dateTo).slice(0, 10), period: "custom" };
     }
     if (period === "monthly") {
-        const start = new Date(today.getFullYear(), today.getMonth(), 1);
-        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        return { periodStart: start.toISOString().slice(0, 10), periodEnd: end.toISOString().slice(0, 10), period };
+        return { periodStart: `${todayKey.slice(0, 7)}-01`, periodEnd: getBusinessDateKey(new Date(`${todayKey}T12:00:00`).setMonth(new Date(`${todayKey}T12:00:00`).getMonth() + 1, 0)), period };
     }
     if (period === "fortnightly") {
-        const start = new Date(today.getTime() - 13 * 86400000);
-        return { periodStart: start.toISOString().slice(0, 10), periodEnd: todayKey, period };
+        const start = new Date(`${todayKey}T12:00:00`);
+        start.setDate(start.getDate() - 13);
+        return { periodStart: getBusinessDateKey(start), periodEnd: todayKey, period };
     }
     // default: weekly — Mon to Sun of current week
-    const dayOfWeek = today.getDay() || 7;
-    const monday = new Date(today.getTime() - (dayOfWeek - 1) * 86400000);
-    const sunday = new Date(monday.getTime() + 6 * 86400000);
-    return { periodStart: monday.toISOString().slice(0, 10), periodEnd: sunday.toISOString().slice(0, 10), period: "weekly" };
+    const businessToday = new Date(`${todayKey}T12:00:00`);
+    const dayOfWeek = businessToday.getDay() || 7;
+    const monday = new Date(businessToday);
+    monday.setDate(businessToday.getDate() - (dayOfWeek - 1));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return { periodStart: getBusinessDateKey(monday), periodEnd: getBusinessDateKey(sunday), period: "weekly" };
 };
 
 const getPayrollModuleData = async (query = {}) => {
@@ -8637,7 +8854,7 @@ const getPayrollModuleData = async (query = {}) => {
     const shiftRows = await allDb(`
         SELECT ss.id, ss.shift_code, ss.staff_id, ss.service_division, ss.status,
                ss.scheduled_start, ss.scheduled_end, ss.actual_clock_in, ss.actual_clock_out,
-               ss.mileage_km,
+               ss.break_duration_minutes, ss.mileage_km, ss.payroll_status, ss.pay_rate, ss.pay_rate_source,
                COALESCE(ss.external_client_label, ca.organization_name, p.first_name || ' ' || p.last_name) AS assignment_name,
                p.home_care_client_id, ca.facility_id, ca.organization_name AS facility_name,
                COALESCE(s.first_name || ' ' || s.last_name, s.name, 'Staff member') AS staff_name,
@@ -8651,6 +8868,8 @@ const getPayrollModuleData = async (query = {}) => {
         WHERE ${whereClause}
         ORDER BY ss.staff_id ASC, ss.scheduled_start ASC
     `, params);
+    const now = new Date();
+    const payableShiftRows = shiftRows.filter((row) => getEffectiveShiftState(row, now) === "completed");
 
     // Fetch existing payroll records for status
     const existingRecords = await allDb(
@@ -8664,7 +8883,7 @@ const getPayrollModuleData = async (query = {}) => {
 
     // Group shifts by staff
     const staffMap = new Map();
-    for (const row of shiftRows) {
+    for (const row of payableShiftRows) {
         const sId = Number(row.staff_id);
         if (!staffMap.has(sId)) {
             staffMap.set(sId, {
@@ -8677,14 +8896,23 @@ const getPayrollModuleData = async (query = {}) => {
                 dayHours: 0, nightHours: 0, weekendHours: 0, bankHolidayHours: 0,
                 overtimeHours: 0, regularHours: 0,
                 mileageKm: 0, mileagePayment: 0,
-                baseGross: 0, premiums: 0, grossPay: 0,
-                estimatedTax: 0, netPay: 0,
+                baseGross: 0, premiums: 0, overtimePremium: 0, grossPay: 0,
+                estimatedTax: 0, prsiAmount: 0, uscAmount: 0, totalDeductions: 0, netPay: 0,
+                rates: new Set(),
                 shifts: [],
             });
         }
         const entry = staffMap.get(sId);
         const div = getShiftDivision(row);
-        const earnings = calcShiftEarnings(row, entry.hourlyRate, payrollSettings);
+        const earnings = calcShiftEarnings(row, payrollSettings);
+        const accumulatedHours = entry.homeCareHours + entry.agencyHours;
+        const regularCapacity = Math.max(0, overtimeThresholdHours - accumulatedHours);
+        const overtimeHours = Math.max(0, earnings.totalHours - regularCapacity);
+        const overtimePremium = roundPayrollNumber(overtimeHours * earnings.payRate * payrollSettings.overtimePremium, 2);
+        earnings.overtimeHours = overtimeHours;
+        earnings.overtimePremium = overtimePremium;
+        earnings.gross = roundPayrollNumber(earnings.gross + overtimePremium, 2);
+        entry.rates.add(earnings.payRate);
 
         if (div === "agency-staffing") entry.agencyHours += earnings.totalHours;
         else entry.homeCareHours += earnings.totalHours;
@@ -8699,6 +8927,8 @@ const getPayrollModuleData = async (query = {}) => {
         entry.mileagePayment += shiftMileage * payrollSettings.mileageRatePerKm;
         entry.baseGross += earnings.base;
         entry.premiums += earnings.premium;
+        entry.overtimeHours += overtimeHours;
+        entry.overtimePremium += overtimePremium;
 
         entry.shifts.push({
             shiftId: row.id,
@@ -8711,11 +8941,16 @@ const getPayrollModuleData = async (query = {}) => {
             scheduledEnd: row.scheduled_end || "",
             actualClockIn: row.actual_clock_in || "",
             actualClockOut: row.actual_clock_out || "",
-            status: row.status || "scheduled",
+            status: "completed",
             hours: earnings.totalHours,
+            breakMinutes: parseNonNegativeNumber(row.break_duration_minutes, 0),
             shiftType: earnings.type,
+            payRate: earnings.payRate,
+            payRateSource: row.pay_rate_source || "staff_rate_at_assignment",
             base: earnings.base,
             premium: earnings.premium,
+            overtimeHours,
+            overtimePremium,
             gross: earnings.gross,
             mileageKm: shiftMileage,
             mileagePayment: shiftMileage * payrollSettings.mileageRatePerKm,
@@ -8726,11 +8961,13 @@ const getPayrollModuleData = async (query = {}) => {
     const staffRows = [];
     for (const [, entry] of staffMap) {
         const totalHours = entry.homeCareHours + entry.agencyHours;
-        const overtimeHours = Math.max(0, totalHours - overtimeThresholdHours);
+        const overtimeHours = entry.overtimeHours;
         const regularHours = Math.max(0, totalHours - overtimeHours);
-        const overtimePremium = overtimeHours * entry.hourlyRate * payrollSettings.overtimePremium;
-        const grossPay = entry.baseGross + entry.premiums + overtimePremium + entry.mileagePayment;
-        const estimatedTax = grossPay * 0.2;
+        const overtimePremium = entry.overtimePremium;
+        const grossPay = roundPayrollNumber(entry.baseGross + entry.premiums + overtimePremium + entry.mileagePayment, 2);
+        const estimatedTax = 0;
+        const rates = [...entry.rates];
+        const hourlyRate = rates.length === 1 ? rates[0] : 0;
 
         // Skip role filter here (done after because role is on staff not shift)
         if (roleFilter && !entry.staffRole.toLowerCase().includes(roleFilter)) continue;
@@ -8743,9 +8980,14 @@ const getPayrollModuleData = async (query = {}) => {
             regularHours,
             overtimeHours,
             overtimePremium,
+            hourlyRate,
+            rateLabel: rates.length > 1 ? "Multiple rates" : `€${hourlyRate.toFixed(2)}`,
             grossPay,
             estimatedTax,
-            netPay: grossPay - estimatedTax,
+            prsiAmount: 0,
+            uscAmount: 0,
+            totalDeductions: 0,
+            netPay: grossPay,
             payrollStatus,
         };
         if (payrollRecord) {
@@ -9282,7 +9524,11 @@ const generateAndStorePayslip = async (staffRow, periodStart, periodEnd, payment
     const fileName = `payslip-${staffRow.staffId}-${periodStart}-${periodEnd}.pdf`;
     const filePath = path.join(payslipsDir, fileName);
     const payrollSettings = await getPayrollSettings();
-    const normalizedSnapshot = buildPayrollSnapshotFromStaffRow(staffRow, payrollSettings, { paymentDate });
+    const payrollRecord = await getDb("SELECT * FROM payroll_records WHERE staff_id = ? AND period_start = ? AND period_end = ?", [staffRow.staffId, periodStart, periodEnd]);
+    if (!payrollRecord || !["approved", "paid"].includes(String(payrollRecord.status || "").toLowerCase())) {
+        throw new Error("Payroll must be approved before a payslip can be generated.");
+    }
+    const normalizedSnapshot = getPayrollSnapshotForRecord(payrollRecord, staffRow, payrollSettings);
 
     const staffRecord = await getDb("SELECT pps_number, employment_type, email FROM staff WHERE id = ?", [staffRow.staffId]);
     const pdfBuffer = await generatePayslipPDF(
@@ -9291,30 +9537,9 @@ const generateAndStorePayslip = async (staffRow, periodStart, periodEnd, payment
     );
     fs.writeFileSync(filePath, pdfBuffer);
 
-    const payrollRecord = await getDb("SELECT id FROM payroll_records WHERE staff_id = ? AND period_start = ? AND period_end = ?", [staffRow.staffId, periodStart, periodEnd]);
     const now = new Date().toISOString();
     const pd2 = normalizedSnapshot.paymentDate || new Date(new Date(periodEnd).getTime() + 2 * 86400000).toISOString().slice(0, 10);
     const schedAt = new Date(new Date(pd2).getTime() - 2 * 86400000).toISOString().slice(0, 10) + "T09:00:00.000Z";
-
-    if (payrollRecord) {
-        await runDb(
-            `UPDATE payroll_records
-             SET total_hours = ?, gross_pay = ?, net_pay = ?, mileage_km = ?, mileage_payment = ?,
-                 payment_date = ?, notes = ?, updated_at = ?
-             WHERE id = ?`,
-            [
-                normalizedSnapshot.totalHours,
-                normalizedSnapshot.grossPay,
-                normalizedSnapshot.netPay,
-                normalizedSnapshot.mileageKm,
-                normalizedSnapshot.mileagePayment,
-                pd2,
-                normalizedSnapshot.notes || "",
-                now,
-                payrollRecord.id,
-            ]
-        );
-    }
 
     await runDb(`
         INSERT INTO payslips (staff_id, payroll_record_id, period_start, period_end, gross_pay, net_pay, file_path, payment_date, email_status, email_scheduled_at, generated_at, generated_by, payslip_ref)
@@ -9323,7 +9548,7 @@ const generateAndStorePayslip = async (staffRow, periodStart, periodEnd, payment
             gross_pay = excluded.gross_pay, net_pay = excluded.net_pay, file_path = excluded.file_path,
             payment_date = excluded.payment_date, email_status = 'scheduled', email_scheduled_at = excluded.email_scheduled_at,
             generated_at = excluded.generated_at, generated_by = excluded.generated_by
-    `, [staffRow.staffId, payrollRecord ? payrollRecord.id : null, periodStart, periodEnd,
+    `, [staffRow.staffId, payrollRecord.id, periodStart, periodEnd,
         normalizedSnapshot.grossPay, normalizedSnapshot.netPay, filePath, pd2, schedAt, now, generatedBy || "system", payslipRef]);
 
     return { filePath, pdfBuffer, payslipRef };
@@ -9365,15 +9590,11 @@ const buildPayslipDetailData = async (payslipRecord) => {
     }
 
     const payrollRecord = await getDb("SELECT * FROM payroll_records WHERE staff_id = ? AND period_start = ? AND period_end = ?", [payslipRecord.staff_id, payslipRecord.period_start, payslipRecord.period_end]);
+    if (!payrollRecord || !payrollRecord.snapshot_json) {
+        return null;
+    }
     const payrollSettings = await getPayrollSettings();
-    const payrollData = await getPayrollModuleData({
-        period: "custom",
-        dateFrom: payslipRecord.period_start,
-        dateTo: payslipRecord.period_end,
-        staffId: payslipRecord.staff_id,
-    });
-    const payrollRow = payrollData.staffRows.find((row) => row.staffId === Number(payslipRecord.staff_id)) || null;
-    const fallbackRow = payrollRow || {
+    const fallbackRow = {
         staffId: Number(payslipRecord.staff_id),
         staffName: payslipRecord.staff_name || "Staff Member",
         staffRole: payslipRecord.staff_role || "",
@@ -9386,7 +9607,7 @@ const buildPayslipDetailData = async (payslipRecord) => {
         overtimeHours: 0,
         mileageKm: Number(payrollRecord ? payrollRecord.mileage_km : 0),
         mileagePayment: Number(payrollRecord ? payrollRecord.mileage_payment : 0),
-        estimatedTax: Number(payrollRecord && payrollRecord.gross_pay ? Number(payrollRecord.gross_pay) * 0.2 : 0),
+        estimatedTax: 0,
         grossPay: Number(payslipRecord.gross_pay || 0),
         netPay: Number(payslipRecord.net_pay || 0),
         totalHours: Number(payrollRecord ? payrollRecord.total_hours : 0),
@@ -9395,19 +9616,16 @@ const buildPayslipDetailData = async (payslipRecord) => {
         agencyHours: 0,
         shifts: [],
     };
-    const liveSnapshot = buildPayrollSnapshotFromStaffRow(fallbackRow, payrollSettings, {
-        paymentDate: payslipRecord.payment_date || "",
-        notes: payrollRecord ? payrollRecord.notes || "" : "",
-    });
-    const snapshot = payrollRecord ? getPayrollSnapshotForRecord(payrollRecord, fallbackRow, payrollSettings) : liveSnapshot;
+    const snapshot = getPayrollSnapshotForRecord(payrollRecord, fallbackRow, payrollSettings);
 
     return {
         ...snapshot,
-        liveSnapshot,
-        storedOverrides: payrollRecord ? parseJsonObjectField(payrollRecord.snapshot_json) : {},
+        liveSnapshot: snapshot,
+        storedOverrides: parseJsonObjectField(payrollRecord.snapshot_json),
         earningsRows: buildPayslipEarningsRows(snapshot),
         deductionRows: buildPayslipDeductionRows(snapshot),
-        payrollRecordId: payrollRecord ? payrollRecord.id : null,
+        payrollRecordId: payrollRecord.id,
+        payrollStatus: payrollRecord.status,
         payrollSettings,
     };
 };
@@ -10031,27 +10249,54 @@ app.get("/api/admin/payroll/breakdown/:staffId", requirePortal, requireAdmin, as
 app.post("/api/admin/payroll/:staffId/approve", requirePortal, requireAdmin, async (req, res) => {
     try {
         const staffId = Number(req.params.staffId);
-        const { periodStart, periodEnd, grossPay, netPay, totalHours, mileageKm, mileagePayment, paymentDate } = req.body || {};
+        const { periodStart, periodEnd, paymentDate } = req.body || {};
         if (!staffId || !periodStart || !periodEnd) return res.status(400).json({ success: false, message: "Missing required fields" });
+        const existingPayrollRecord = await getDb(
+            "SELECT status FROM payroll_records WHERE staff_id = ? AND period_start = ? AND period_end = ?",
+            [staffId, periodStart, periodEnd]
+        );
+        if (String(existingPayrollRecord && existingPayrollRecord.status || "").toLowerCase() === "paid") {
+            return res.status(409).json({ success: false, message: "Paid payroll cannot be approved again." });
+        }
+        const payrollData = await getPayrollModuleData({ period: "custom", dateFrom: periodStart, dateTo: periodEnd, staffId });
+        const staffRow = payrollData.staffRows.find((row) => row.staffId === staffId);
+        if (!staffRow || !staffRow.shifts.length) {
+            return res.status(409).json({ success: false, message: "No completed shifts with valid clock-in and clock-out are available for approval." });
+        }
+        const payrollSettings = await getPayrollSettings();
         const approvedBy = req.session.staffEmail || adminEmail;
         const now = new Date().toISOString();
         const pd = paymentDate || new Date(new Date(periodEnd).getTime() + 2 * 86400000).toISOString().slice(0, 10);
-        await runDb(`
-            INSERT INTO payroll_records (staff_id, period_start, period_end, total_hours, gross_pay, net_pay, mileage_km, mileage_payment, status, approved_by, approved_at, payment_date, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?, ?)
-            ON CONFLICT(staff_id, period_start, period_end) DO UPDATE SET
-                status = 'approved', approved_by = excluded.approved_by, approved_at = excluded.approved_at,
-                total_hours = excluded.total_hours, gross_pay = excluded.gross_pay, net_pay = excluded.net_pay,
-                mileage_km = excluded.mileage_km, mileage_payment = excluded.mileage_payment,
-                payment_date = excluded.payment_date, updated_at = excluded.updated_at
-        `, [staffId, periodStart, periodEnd, Number(totalHours)||0, Number(grossPay)||0, Number(netPay)||0, Number(mileageKm)||0, Number(mileagePayment)||0, approvedBy, now, pd, now]);
+        const snapshot = buildPayrollSnapshotFromStaffRow(staffRow, payrollSettings, { paymentDate: pd });
+        const shiftIds = snapshot.shiftItems.map((shift) => shift.shiftId).filter((shiftId) => Number.isInteger(shiftId) && shiftId > 0);
+
+        await runDb("BEGIN IMMEDIATE");
+        try {
+            await runDb(`
+                INSERT INTO payroll_records (staff_id, period_start, period_end, total_hours, gross_pay, net_pay, mileage_km, mileage_payment, status, approved_by, approved_at, payment_date, snapshot_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?, ?, ?)
+                ON CONFLICT(staff_id, period_start, period_end) DO UPDATE SET
+                    status = 'approved', approved_by = excluded.approved_by, approved_at = excluded.approved_at,
+                    total_hours = excluded.total_hours, gross_pay = excluded.gross_pay, net_pay = excluded.net_pay,
+                    mileage_km = excluded.mileage_km, mileage_payment = excluded.mileage_payment,
+                    payment_date = excluded.payment_date, snapshot_json = excluded.snapshot_json, updated_at = excluded.updated_at
+            `, [staffId, periodStart, periodEnd, snapshot.totalHours, snapshot.grossPay, snapshot.netPay, snapshot.mileageKm, snapshot.mileagePayment, approvedBy, now, pd, JSON.stringify(snapshot), now]);
+            if (shiftIds.length) {
+                await runDb(
+                    `UPDATE staff_shifts SET payroll_status = 'approved' WHERE id IN (${shiftIds.map(() => "?").join(", ")})`,
+                    shiftIds
+                );
+            }
+            await runDb("COMMIT");
+        } catch (transactionError) {
+            await runDb("ROLLBACK");
+            throw transactionError;
+        }
         await writeAuditEvent(req, { ...getActorContext(req), action: "payroll_approved", targetType: "staff", targetIdentifier: String(staffId), outcome: "success" });
 
         // Auto-generate payslip PDF in background
         try {
-            const payrollData = await getPayrollModuleData({ period: "custom", dateFrom: periodStart, dateTo: periodEnd, staffId });
-            const staffRow = payrollData.staffRows.find((r) => r.staffId === staffId);
-            if (staffRow) await generateAndStorePayslip(staffRow, periodStart, periodEnd, pd, approvedBy);
+            await generateAndStorePayslip(staffRow, periodStart, periodEnd, pd, approvedBy);
         } catch (psErr) {
             console.error("Payslip auto-generation failed:", psErr.message);
         }
@@ -10068,11 +10313,34 @@ app.post("/api/admin/payroll/:staffId/mark-paid", requirePortal, requireAdmin, a
         const staffId = Number(req.params.staffId);
         const { periodStart, periodEnd } = req.body || {};
         if (!staffId || !periodStart || !periodEnd) return res.status(400).json({ success: false, message: "Missing required fields" });
+        const payrollRecord = await getDb(
+            "SELECT * FROM payroll_records WHERE staff_id = ? AND period_start = ? AND period_end = ?",
+            [staffId, periodStart, periodEnd]
+        );
+        if (!payrollRecord || String(payrollRecord.status || "").toLowerCase() !== "approved") {
+            return res.status(409).json({ success: false, message: "Only approved payroll can be marked as paid." });
+        }
+        const snapshotShiftItems = parseJsonObjectField(payrollRecord.snapshot_json).shiftItems;
+        const shiftIds = Array.isArray(snapshotShiftItems) ? snapshotShiftItems : [];
         const now = new Date().toISOString();
-        await runDb(`
-            UPDATE payroll_records SET status = 'paid', paid_at = ?, updated_at = ?
-            WHERE staff_id = ? AND period_start = ? AND period_end = ?
-        `, [now, now, staffId, periodStart, periodEnd]);
+        await runDb("BEGIN IMMEDIATE");
+        try {
+            await runDb(`
+                UPDATE payroll_records SET status = 'paid', paid_at = ?, updated_at = ?
+                WHERE id = ?
+            `, [now, now, payrollRecord.id]);
+            const payableShiftIds = shiftIds.map((shift) => Number(shift.shiftId)).filter((shiftId) => Number.isInteger(shiftId) && shiftId > 0);
+            if (payableShiftIds.length) {
+                await runDb(
+                    `UPDATE staff_shifts SET payroll_status = 'paid' WHERE id IN (${payableShiftIds.map(() => "?").join(", ")})`,
+                    payableShiftIds
+                );
+            }
+            await runDb("COMMIT");
+        } catch (transactionError) {
+            await runDb("ROLLBACK");
+            throw transactionError;
+        }
         await writeAuditEvent(req, { ...getActorContext(req), action: "payroll_paid", targetType: "staff", targetIdentifier: String(staffId), outcome: "success" });
         return res.json({ success: true });
     } catch (error) {
@@ -10086,7 +10354,39 @@ app.post("/api/admin/payroll/:staffId/revert", requirePortal, requireAdmin, asyn
         const staffId = Number(req.params.staffId);
         const { periodStart, periodEnd } = req.body || {};
         if (!staffId || !periodStart || !periodEnd) return res.status(400).json({ success: false, message: "Missing required fields" });
-        await runDb(`DELETE FROM payroll_records WHERE staff_id = ? AND period_start = ? AND period_end = ?`, [staffId, periodStart, periodEnd]);
+        const payrollRecord = await getDb(
+            "SELECT * FROM payroll_records WHERE staff_id = ? AND period_start = ? AND period_end = ?",
+            [staffId, periodStart, periodEnd]
+        );
+        if (!payrollRecord) {
+            return res.status(404).json({ success: false, message: "Payroll record not found." });
+        }
+        if (String(payrollRecord.status || "").toLowerCase() === "paid") {
+            return res.status(409).json({ success: false, message: "Paid payroll cannot be reverted. Record a correction through the existing payroll adjustment workflow." });
+        }
+        const snapshotShiftItems = parseJsonObjectField(payrollRecord.snapshot_json).shiftItems;
+        const shiftItems = Array.isArray(snapshotShiftItems) ? snapshotShiftItems : [];
+        const shiftIds = shiftItems.map((shift) => Number(shift.shiftId)).filter((shiftId) => Number.isInteger(shiftId) && shiftId > 0);
+        await runDb("BEGIN IMMEDIATE");
+        try {
+            await runDb(
+                `UPDATE payroll_records
+                 SET status = 'draft', approved_by = NULL, approved_at = NULL, updated_at = CURRENT_TIMESTAMP
+                 WHERE id = ?`,
+                [payrollRecord.id]
+            );
+            await runDb("UPDATE payslips SET email_status = 'voided' WHERE payroll_record_id = ?", [payrollRecord.id]);
+            if (shiftIds.length) {
+                await runDb(
+                    `UPDATE staff_shifts SET payroll_status = 'draft' WHERE id IN (${shiftIds.map(() => "?").join(", ")})`,
+                    shiftIds
+                );
+            }
+            await runDb("COMMIT");
+        } catch (transactionError) {
+            await runDb("ROLLBACK");
+            throw transactionError;
+        }
         return res.json({ success: true });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
@@ -10099,7 +10399,7 @@ app.get("/admin/payroll/export", requirePortal, requireAdmin, async (req, res) =
         const data = await getPayrollModuleData(req.query || {});
         res.setHeader("Content-Type", "text/csv");
         res.setHeader("Content-Disposition", `attachment; filename="payroll-${data.periodStart}-to-${data.periodEnd}.csv"`);
-        const cols = ["Staff Name","Employee No.","Role","Period","Home Care Hrs","Agency Hrs","Day Hrs","Night Hrs","Weekend Hrs","Bank Hol Hrs","Overtime Hrs","Total Hrs","Mileage km","Mileage €","Hourly Rate","Base Gross","Premiums","Total Gross","Tax (Est.)","Net Pay","Status"];
+        const cols = ["Staff Name","Employee No.","Role","Period","Home Care Hrs","Agency Hrs","Day Hrs","Night Hrs","Weekend Hrs","Bank Hol Hrs","Overtime Hrs","Total Hrs","Mileage km","Mileage €","Pay Rate","Base Gross","Premiums","Total Gross","Deductions","Net Pay","Status"];
         let csv = cols.join(",") + "\n";
         for (const r of data.staffRows) {
             csv += [
@@ -10110,9 +10410,9 @@ app.get("/admin/payroll/export", requirePortal, requireAdmin, async (req, res) =
                 r.weekendHours.toFixed(2), r.bankHolidayHours.toFixed(2),
                 r.overtimeHours.toFixed(2), r.totalHours.toFixed(2),
                 r.mileageKm.toFixed(2), r.mileagePayment.toFixed(2),
-                r.hourlyRate.toFixed(2), r.baseGross.toFixed(2),
+                `"${r.rateLabel || `€${r.hourlyRate.toFixed(2)}`}"`, r.baseGross.toFixed(2),
                 (r.premiums + r.overtimePremium).toFixed(2), r.grossPay.toFixed(2),
-                r.estimatedTax.toFixed(2), r.netPay.toFixed(2),
+                Number(r.totalDeductions || 0).toFixed(2), r.netPay.toFixed(2),
                 `"${r.payrollStatus}"`
             ].join(",") + "\n";
         }
@@ -10219,6 +10519,9 @@ app.post("/admin/payroll/payslip/:id/update", requirePortal, requireAdmin, async
         if (!payslipDetail || !payslipDetail.payrollRecordId) {
             return res.redirect(`/admin/payroll/payslip/${payslipId}?error=` + encodeURIComponent("This payslip cannot be edited because the payroll record is missing."));
         }
+        if (String(payslipDetail.payrollStatus || "").toLowerCase() === "paid") {
+            return res.redirect(`/admin/payroll/payslip/${payslipId}?error=` + encodeURIComponent("Paid payroll is final and cannot be edited."));
+        }
 
         const updatedSnapshot = recalculatePayrollSnapshot({
             ...payslipDetail,
@@ -10227,33 +10530,24 @@ app.post("/admin/payroll/payslip/:id/update", requirePortal, requireAdmin, async
             staffEmployeeNumber: String(req.body.staffEmployeeNumber || payslipDetail.staffEmployeeNumber || "").trim(),
             paymentDate: String(req.body.paymentDate || payslipDetail.paymentDate || "").trim().slice(0, 10),
             notes: String(req.body.notes || "").trim(),
-            basicHours: req.body.basicHours,
-            nightHours: req.body.nightHours,
-            weekendHours: req.body.weekendHours,
-            bankHolidayHours: req.body.bankHolidayHours,
-            overtimeHours: req.body.overtimeHours,
-            mileageKm: req.body.mileageKm,
-            homeCareHours: req.body.homeCareHours,
-            agencyHours: req.body.agencyHours,
-            basicRate: req.body.basicRate,
-            nightRate: req.body.nightRate,
-            weekendRate: req.body.weekendRate,
-            bankHolidayRate: req.body.bankHolidayRate,
-            overtimeRate: req.body.overtimeRate,
-            mileageRate: req.body.mileageRate,
             payeTax: req.body.payeTax,
             prsiAmount: req.body.prsiAmount,
             uscAmount: req.body.uscAmount,
         });
-        const overridePayload = buildPayrollOverridePayload(payslipDetail.liveSnapshot || payslipDetail, updatedSnapshot);
         await runDb(
             `UPDATE payroll_records
-             SET payment_date = ?, notes = ?, snapshot_json = ?, updated_at = ?
+             SET total_hours = ?, gross_pay = ?, net_pay = ?, mileage_km = ?, mileage_payment = ?,
+                 payment_date = ?, notes = ?, snapshot_json = ?, updated_at = ?
              WHERE id = ?`,
             [
+                updatedSnapshot.totalHours,
+                updatedSnapshot.grossPay,
+                updatedSnapshot.netPay,
+                updatedSnapshot.mileageKm,
+                updatedSnapshot.mileagePayment,
                 updatedSnapshot.paymentDate || ps.payment_date || "",
                 updatedSnapshot.notes || "",
-                serializeJsonField(overridePayload),
+                JSON.stringify(updatedSnapshot),
                 new Date().toISOString(),
                 payslipDetail.payrollRecordId,
             ]
@@ -10270,7 +10564,7 @@ app.post("/admin/payroll/payslip/:id/update", requirePortal, requireAdmin, async
                 grossPay: updatedSnapshot.grossPay,
                 netPay: updatedSnapshot.netPay,
                 totalHours: updatedSnapshot.totalHours,
-                overrideFields: Object.keys(overridePayload),
+                adjustmentType: "metadata_and_deductions",
             }),
         });
         return res.redirect(`/admin/payroll/payslip/${payslipId}?message=` + encodeURIComponent("Payslip updated successfully."));
@@ -10306,6 +10600,7 @@ app.post("/api/admin/payroll/:staffId/email-payslip", requirePortal, requireAdmi
             SELECT ps.*, s.email AS staff_email, COALESCE(s.first_name || ' ' || s.last_name, s.name) AS staff_name
             FROM payslips ps JOIN staff s ON s.id = ps.staff_id
             WHERE ps.staff_id = ? AND ps.period_start = ? AND ps.period_end = ?
+              AND COALESCE(ps.email_status, '') != 'voided'
             ORDER BY ps.generated_at DESC LIMIT 1
         `, [staffId, periodStart, periodEnd]);
         if (!ps) return res.status(404).json({ success: false, message: "Payslip not found — generate it first" });
@@ -10324,7 +10619,9 @@ app.get("/portal/payslips", requireStaffOnly, async (req, res) => {
     try {
         const staffId = req.session.staffId;
         const payslips = await allDb(`
-            SELECT * FROM payslips WHERE staff_id = ? ORDER BY period_start DESC LIMIT 50
+            SELECT * FROM payslips
+            WHERE staff_id = ? AND COALESCE(email_status, '') != 'voided'
+            ORDER BY period_start DESC LIMIT 50
         `, [staffId]);
         return res.render("portal-staff-payslips", {
             title: "My Payslips",
@@ -10344,7 +10641,7 @@ app.get("/portal/payslips", requireStaffOnly, async (req, res) => {
 app.get("/portal/payslip/:id/download", requireStaffOnly, async (req, res) => {
     try {
         const staffId = req.session.staffId;
-        const ps = await getDb("SELECT * FROM payslips WHERE id = ? AND staff_id = ?", [Number(req.params.id), staffId]);
+        const ps = await getDb("SELECT * FROM payslips WHERE id = ? AND staff_id = ? AND COALESCE(email_status, '') != 'voided'", [Number(req.params.id), staffId]);
         if (!ps) return res.status(404).send("Payslip not found");
         const filePath = await ensurePayslipFileExists(ps, req.session.staffEmail || req.session.staffName || "staff");
         if (!filePath || !fs.existsSync(filePath)) return res.status(404).send("Payslip file not found");
@@ -10363,7 +10660,7 @@ app.get("/portal/payslip/:id", requireStaffOnly, async (req, res) => {
             SELECT ps.*, COALESCE(s.first_name || ' ' || s.last_name, s.name) AS staff_name, s.email AS staff_email, s.role AS staff_role
             FROM payslips ps
             LEFT JOIN staff s ON s.id = ps.staff_id
-            WHERE ps.id = ? AND ps.staff_id = ?
+            WHERE ps.id = ? AND ps.staff_id = ? AND COALESCE(ps.email_status, '') != 'voided'
         `, [Number(req.params.id), staffId]);
         if (!ps) {
             return res.status(404).render("portal-payslip-detail", {
@@ -12419,6 +12716,7 @@ app.post("/api/shifts", requirePortal, requireAdmin, async (req, res) => {
         }
         const serviceType = serviceTypeInput || patient.serviceTypes[0] || "Personal Care";
         const careInstructions = String(req.body.care_instructions || req.body.notes || patient.shift_instructions || "").trim();
+        const assignedHourlyRate = await getValidStaffHourlyRate(staffId);
 
         const result = await runDb(
             `INSERT INTO staff_shifts (patient_id, staff_id, shift_date, scheduled_start, scheduled_end, status, service_type, notes, care_instructions, service_division, role_required)
@@ -12426,6 +12724,7 @@ app.post("/api/shifts", requirePortal, requireAdmin, async (req, res) => {
             [patientId, staffId, shiftDate, scheduledStart, scheduledEnd, serviceType, careInstructions || null, careInstructions || null, serviceDivision, staffMember.role || serviceType]
         );
         await runDb("UPDATE staff_shifts SET shift_code = ? WHERE id = ?", [buildShiftCode(serviceDivision, result.lastID), Number(result.lastID)]);
+        await snapshotShiftPayRate(result.lastID, staffId, assignedHourlyRate);
 
         if (staffMember.notifyNewShift) {
             await queueStaffNotification(
@@ -12480,6 +12779,7 @@ app.patch("/api/shifts/:id", requirePortal, requireAdmin, async (req, res) => {
         if (!shift) {
             return res.status(404).json({ success: false, message: "Shift not found." });
         }
+        const assignedHourlyRate = staffId !== undefined ? await getValidStaffHourlyRate(staffId) : null;
         if (patientId !== undefined) {
             const patient = mapPatientRow(await getDb("SELECT * FROM patients WHERE id = ? AND COALESCE(is_archived, 0) = 0", [patientId]));
             if (!patient) {
@@ -12518,6 +12818,9 @@ app.patch("/api/shifts/:id", requirePortal, requireAdmin, async (req, res) => {
 
         params.push(shiftId);
         await runDb(`UPDATE staff_shifts SET ${updates.join(", ")} WHERE id = ?`, params);
+        if (staffId !== undefined) {
+            await snapshotShiftPayRate(shiftId, staffId, assignedHourlyRate);
+        }
         if (serviceDivision !== undefined) {
             await runDb("UPDATE staff_shifts SET shift_code = ? WHERE id = ?", [buildShiftCode(serviceDivision, shiftId), shiftId]);
         }
@@ -12984,6 +13287,9 @@ const renderShiftDetailPage = async (req, res, isAdminView) => {
         const durationMinutes = shiftStart && shiftEnd && !Number.isNaN(shiftStart.getTime()) && !Number.isNaN(shiftEnd.getTime())
             ? Math.max(0, Math.round((shiftEnd.getTime() - shiftStart.getTime()) / 60000))
             : 0;
+        const actualHours = shift.actual_clock_in && shift.actual_clock_out
+            ? calcShiftHours(shift.actual_clock_in, shift.actual_clock_out, shift.break_duration_minutes)
+            : null;
 
         const visitNotes = await allDb(
             `SELECT svn.*, st.first_name || ' ' || st.last_name AS staff_name
@@ -13028,6 +13334,7 @@ const renderShiftDetailPage = async (req, res, isAdminView) => {
             shift,
             clientName,
             durationMinutes,
+            actualMinutes: actualHours === null ? null : Math.round(actualHours * 60),
             visitNotes,
             attachments,
             clientDocuments,
@@ -13889,7 +14196,7 @@ app.get("/portal/home", requireStaffOnly, async (req, res) => {
         await queueDueShiftReminders(staffMember);
 
         const today = new Date();
-        const todayKey = toDateKey(today);
+        const todayKey = getBusinessDateKey(today);
         const weekRange = getWeekRange(today);
         const assignedShifts = (await allDb(
             `SELECT ss.*, COALESCE(p.first_name || ' ' || p.last_name, ss.external_client_label, 'Client') AS patient_name, COALESCE(p.address, ss.location_address) AS address
@@ -13903,10 +14210,11 @@ app.get("/portal/home", requireStaffOnly, async (req, res) => {
         )).map(mapShiftRow);
         const visibleAssignedShifts = filterShiftsForStaffDivision(staffMember, assignedShifts);
 
-        const todayShift = visibleAssignedShifts.find((shift) => toDateKey(shift.scheduledStart) === todayKey && !["completed", "cancelled", "no_show"].includes(shift.status)) || null;
+        const currentShiftStatuses = new Set(["scheduled", "not_clocked_in", "running_late", "clocked_in", "break"]);
+        const todayShift = visibleAssignedShifts.find((shift) => toDateKey(shift.scheduledStart) === todayKey && currentShiftStatuses.has(shift.status)) || null;
         const upcomingShifts = visibleAssignedShifts.filter((shift) => {
             const shiftDateKey = toDateKey(shift.scheduledStart);
-            return shiftDateKey >= todayKey && !["completed", "cancelled", "no_show"].includes(shift.status);
+            return shiftDateKey >= todayKey && currentShiftStatuses.has(shift.status);
         });
         const upcomingShiftCount = upcomingShifts.length;
         const upcomingShiftPreview = upcomingShifts.slice(0, 8);
@@ -13981,7 +14289,7 @@ app.get("/portal/my-schedule", requireStaffOnly, async (req, res) => {
         )).map(mapShiftRow);
         const visibleAllShifts = filterShiftsForStaffDivision(staffMember, allShifts);
 
-        const todayKey = toDateKey(new Date());
+        const todayKey = getBusinessDateKey();
         const weekRange = getWeekRange(new Date());
         const monthKey = todayKey.slice(0, 7);
         const filteredShifts = visibleAllShifts.filter((shift) => {
@@ -13995,7 +14303,7 @@ app.get("/portal/my-schedule", requireStaffOnly, async (req, res) => {
             if (viewMode === "monthly" || viewMode === "calendar") {
                 return shiftDateKey.startsWith(monthKey);
             }
-            return shiftDateKey >= todayKey && !["completed", "cancelled", "no_show"].includes(shift.status);
+            return shiftDateKey >= todayKey && ["scheduled", "not_clocked_in", "running_late", "clocked_in", "break"].includes(shift.status);
         });
 
         return res.render("portal-staff-schedule", {
@@ -14067,7 +14375,7 @@ app.get("/portal/staff-open-shifts", requireStaffOnly, async (req, res) => {
              WHERE COALESCE(ss.is_open, 0) = 1 AND ss.staff_id IS NULL
              ORDER BY ss.scheduled_start ASC`,
             []
-        )).map(mapShiftRow);
+        )).map(mapShiftRow).filter((shift) => shift.operationalStatus === "open");
         const requestCache = new Map();
         const openShifts = [];
         for (const shift of openShiftRows) {
@@ -14130,6 +14438,10 @@ app.post("/api/staff/open-shifts/:id/accept", requireStaffOnly, async (req, res)
         if (Number(shift.is_open || 0) !== 1 || shift.staff_id) {
             return res.status(409).json({ success: false, message: "This open shift has already been taken." });
         }
+        if (!isAvailableOpenShift(shift)) {
+            return res.status(409).json({ success: false, message: "This shift is no longer available." });
+        }
+        const assignedHourlyRate = await getValidStaffHourlyRate(staffId);
         if (shift.client_request_id) {
             const request = mapClientRequestRow(await getDb("SELECT * FROM client_service_requests WHERE id = ?", [Number(shift.client_request_id)]));
             const eligibility = await staffMeetsRequestRequirements({
@@ -14150,6 +14462,7 @@ app.post("/api/staff/open-shifts/:id/accept", requireStaffOnly, async (req, res)
             "UPDATE staff_shifts SET staff_id = ?, is_open = 0, status = 'scheduled' WHERE id = ? AND COALESCE(is_open, 0) = 1 AND staff_id IS NULL",
             [staffId, shiftId]
         );
+        await snapshotShiftPayRate(shiftId, staffId, assignedHourlyRate);
         if (shift.client_request_id) {
             await runDb(
                 "UPDATE client_service_requests SET status = 'accepted', assigned_staff_id = ?, scheduled_shift_id = ?, accepted_by_staff_at = datetime('now'), updated_at = CURRENT_TIMESTAMP WHERE id = ?",

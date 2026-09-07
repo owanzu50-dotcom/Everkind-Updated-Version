@@ -26,12 +26,12 @@
 
             <!-- Metric cards -->
             <div class="adm-metric-grid">
-                <div class="adm-metric-card">
+                <a href="/staff" class="adm-metric-card adm-metric-link" aria-label="Open Staff Directory">
                     <div class="adm-metric-icon green">👥</div>
                     <span class="adm-metric-label">Active Staff</span>
                     <span class="adm-metric-value"><%= metrics.staff %></span>
                     <span class="adm-metric-sub">Care team members</span>
-                </div>
+                </a>
                 <div class="adm-metric-card">
                     <div class="adm-metric-icon blue">🏠</div>
                     <span class="adm-metric-label">Active Clients</span>
@@ -156,7 +156,7 @@
                                     <tbody>
                                         <% recentActivity.forEach((item) => { %>
                                             <tr>
-                                                <td><span class="adm-badge adm-badge-<%= item.type === 'Live shift' ? 'active' : 'scheduled' %>"><%= item.type %></span></td>
+                                                <td><span class="adm-badge adm-badge-<%= item.type === 'Live shift' ? 'active' : item.statusClass %>"><%= item.type %></span></td>
                                                 <td><%= item.label %></td>
                                                 <td style="color:#64748b;font-size:0.8rem;"><%= item.detail %></td>
                                             </tr>

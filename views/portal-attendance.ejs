@@ -24,8 +24,11 @@
                         <select name="status" class="adm-form-select" style="width:auto;padding:8px 12px;">
                             <option value="all" <%= attendanceFilters.status === 'all' ? 'selected' : '' %>>All statuses</option>
                             <option value="scheduled" <%= attendanceFilters.status === 'scheduled' ? 'selected' : '' %>>Scheduled</option>
+                            <option value="not_clocked_in" <%= attendanceFilters.status === 'not_clocked_in' ? 'selected' : '' %>>Not Clocked In</option>
+                            <option value="running_late" <%= attendanceFilters.status === 'running_late' ? 'selected' : '' %>>Running Late</option>
                             <option value="on_duty" <%= attendanceFilters.status === 'on_duty' ? 'selected' : '' %>>On Duty</option>
                             <option value="completed" <%= attendanceFilters.status === 'completed' ? 'selected' : '' %>>Completed</option>
+                            <option value="attendance_exception" <%= attendanceFilters.status === 'attendance_exception' ? 'selected' : '' %>>Attendance Exception</option>
                             <option value="cancelled" <%= attendanceFilters.status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
                             <option value="no_show" <%= attendanceFilters.status === 'no_show' ? 'selected' : '' %>>No Show</option>
                         </select>
@@ -115,13 +118,10 @@
                                     }
 
                                     const gpsVerified = Boolean(r.clock_in_latitude);
-                                    const badgeCls  = r.status === 'completed' || r.status === 'clocked_out' ? 'adm-badge-active' :
-                                                      r.status === 'clocked_in' ? 'adm-badge-clocked-in' :
-                                                      r.status === 'no_show' || r.status === 'cancelled' ? 'adm-badge-inactive' : 'adm-badge-scheduled';
-                                    const badgeLabel = r.status === 'clocked_in' ? 'On Duty' :
-                                                       r.status === 'completed' || r.status === 'clocked_out' ? 'Completed' :
-                                                       r.status === 'no_show' ? 'No Show' :
-                                                       r.status === 'cancelled' ? 'Cancelled' : 'Scheduled';
+                                    const badgeCls  = r.status === 'completed' ? 'adm-badge-active' :
+                                                      r.status === 'clocked_in' || r.status === 'break' ? 'adm-badge-clocked-in' :
+                                                      ['missed', 'attendance_exception', 'cancelled'].includes(r.status) ? 'adm-badge-inactive' : 'adm-badge-scheduled';
+                                    const badgeLabel = r.status_label || String(r.status || '').replace(/_/g, ' ');
                                 %>
                                     <tr>
                                         <td><span class="adm-badge <%= (String(r.service_division || '').toLowerCase() === 'agency-staffing' || Number(r.client_account_id || 0) > 0) ? 'adm-badge-agency' : 'adm-badge-home-care' %>"><%= (String(r.service_division || '').toLowerCase() === 'agency-staffing' || Number(r.client_account_id || 0) > 0) ? '🏥 AGENCY' : '🏠 HOME CARE' %></span></td>

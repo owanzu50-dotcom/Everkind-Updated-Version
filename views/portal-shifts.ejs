@@ -16,7 +16,7 @@
         <% if (isAdmin) { %>
             <!-- ========== ADMIN: Schedule management view ========== -->
             <% const filters = scheduleFilters || {}; %>
-            <% const summary = scheduleSummary || { all: shifts.length, homeCare: 0, agency: 0, open: 0, assigned: 0, inProgress: 0, completed: 0, cancelled: 0 }; %>
+            <% const summary = scheduleSummary || { all: shifts.length, homeCare: 0, agency: 0, open: 0, scheduled: 0, inProgress: 0, completed: 0, missed: 0, attendanceExceptions: 0, cancelled: 0 }; %>
             <header class="portal-header">
                 <div>
                     <span class="eyebrow">Central operations</span>
@@ -36,7 +36,7 @@
                 <a class="adm-metric-link" href="/admin/schedule?division=home-care"><div class="adm-metric-card <%= filters.division === 'home-care' ? 'active' : '' %>"><div class="adm-metric-icon green">🏠</div><span class="adm-metric-label">Home Care</span><span class="adm-metric-value"><%= summary.homeCare %></span></div></a>
                 <a class="adm-metric-link" href="/admin/schedule?division=agency-staffing"><div class="adm-metric-card <%= filters.division === 'agency-staffing' ? 'active' : '' %>"><div class="adm-metric-icon blue">🏥</div><span class="adm-metric-label">Agency Shifts</span><span class="adm-metric-value"><%= summary.agency %></span></div></a>
                 <a class="adm-metric-link" href="/admin/schedule?status=open"><div class="adm-metric-card <%= filters.status === 'open' ? 'active' : '' %>"><div class="adm-metric-icon amber">🟠</div><span class="adm-metric-label">Open</span><span class="adm-metric-value"><%= summary.open %></span></div></a>
-                <a class="adm-metric-link" href="/admin/schedule?status=assigned"><div class="adm-metric-card <%= filters.status === 'assigned' ? 'active' : '' %>"><div class="adm-metric-icon green">🟢</div><span class="adm-metric-label">Assigned</span><span class="adm-metric-value"><%= summary.assigned %></span></div></a>
+                <a class="adm-metric-link" href="/admin/schedule?status=scheduled"><div class="adm-metric-card <%= filters.status === 'scheduled' ? 'active' : '' %>"><div class="adm-metric-icon green">🟢</div><span class="adm-metric-label">Scheduled</span><span class="adm-metric-value"><%= summary.scheduled %></span></div></a>
                 <a class="adm-metric-link" href="/admin/schedule?status=in_progress"><div class="adm-metric-card <%= filters.status === 'in_progress' ? 'active' : '' %>"><div class="adm-metric-icon blue">🔵</div><span class="adm-metric-label">In Progress</span><span class="adm-metric-value"><%= summary.inProgress %></span></div></a>
                 <a class="adm-metric-link" href="/admin/schedule?status=completed"><div class="adm-metric-card <%= filters.status === 'completed' ? 'active' : '' %>"><div class="adm-metric-icon purple">✅</div><span class="adm-metric-label">Completed</span><span class="adm-metric-value"><%= summary.completed %></span></div></a>
             </div>
@@ -56,9 +56,15 @@
                     <select class="adm-form-select" name="status">
                         <option value="all" <%= (filters.status || 'all') === 'all' ? 'selected' : '' %>>All statuses</option>
                         <option value="open" <%= filters.status === 'open' ? 'selected' : '' %>>Open</option>
-                        <option value="assigned" <%= filters.status === 'assigned' ? 'selected' : '' %>>Assigned</option>
+                        <option value="scheduled" <%= filters.status === 'scheduled' ? 'selected' : '' %>>Scheduled</option>
+                        <option value="not_clocked_in" <%= filters.status === 'not_clocked_in' ? 'selected' : '' %>>Not Clocked In</option>
+                        <option value="running_late" <%= filters.status === 'running_late' ? 'selected' : '' %>>Running Late</option>
+                        <option value="on_duty" <%= filters.status === 'on_duty' ? 'selected' : '' %>>On Duty</option>
+                        <option value="break" <%= filters.status === 'break' ? 'selected' : '' %>>Break</option>
                         <option value="in_progress" <%= filters.status === 'in_progress' ? 'selected' : '' %>>In Progress</option>
                         <option value="completed" <%= filters.status === 'completed' ? 'selected' : '' %>>Completed</option>
+                        <option value="missed" <%= filters.status === 'missed' ? 'selected' : '' %>>Missed / No Show</option>
+                        <option value="attendance_exception" <%= filters.status === 'attendance_exception' ? 'selected' : '' %>>Attendance Exception</option>
                         <option value="cancelled" <%= filters.status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
                     </select>
                     <input class="adm-form-input" type="date" name="date_from" value="<%= filters.dateFrom || '' %>">
@@ -100,9 +106,11 @@
                     <a class="adm-filter-tab <%= (filters.division || '') === 'home-care' ? 'active' : '' %>" href="/admin/schedule?division=home-care">🏠 Home Care</a>
                     <a class="adm-filter-tab <%= (filters.division || '') === 'agency-staffing' ? 'active' : '' %>" href="/admin/schedule?division=agency-staffing">🏥 Agency</a>
                     <a class="adm-filter-tab <%= (filters.status || '') === 'open' ? 'active' : '' %>" href="/admin/schedule?status=open">Open</a>
-                    <a class="adm-filter-tab <%= (filters.status || '') === 'assigned' ? 'active' : '' %>" href="/admin/schedule?status=assigned">Assigned</a>
+                    <a class="adm-filter-tab <%= (filters.status || '') === 'scheduled' ? 'active' : '' %>" href="/admin/schedule?status=scheduled">Scheduled</a>
                     <a class="adm-filter-tab <%= (filters.status || '') === 'in_progress' ? 'active' : '' %>" href="/admin/schedule?status=in_progress">In Progress</a>
                     <a class="adm-filter-tab <%= (filters.status || '') === 'completed' ? 'active' : '' %>" href="/admin/schedule?status=completed">Completed</a>
+                    <a class="adm-filter-tab <%= (filters.status || '') === 'missed' ? 'active' : '' %>" href="/admin/schedule?status=missed">Missed</a>
+                    <a class="adm-filter-tab <%= (filters.status || '') === 'attendance_exception' ? 'active' : '' %>" href="/admin/schedule?status=attendance_exception">Attendance Exceptions</a>
                     <a class="adm-filter-tab <%= (filters.status || '') === 'cancelled' ? 'active' : '' %>" href="/admin/schedule?status=cancelled">Cancelled</a>
                 </div>
             </section>
@@ -133,7 +141,7 @@
                                     const startStr  = startDate ? startDate.toLocaleTimeString('en-IE',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';
                                     const endStr    = endDate   ? endDate.toLocaleTimeString('en-IE',{hour:'2-digit',minute:'2-digit',hour12:false})   : '';
                                 %>
-                                <tr class="shift-row" data-status="<%= shift.operationalStatus %>">
+                                <tr class="shift-row" data-status="<%= shift.status %>">
                                     <td><span class="adm-badge <%= shift.serviceDivision === 'agency-staffing' ? 'adm-badge-agency' : 'adm-badge-home-care' %>"><%= shift.serviceDivisionLabel %></span><br><small><%= shift.shiftCode || ('#' + shift.id) %></small></td>
                                     <td><%= dateStr %></td>
                                     <td><%= startStr %><% if (endStr) { %> – <%= endStr %><% } %></td>
@@ -147,8 +155,8 @@
                                     <td><%= shift.roleRequired || shift.serviceType %></td>
                                     <td><%= shift.requirementLabel || shift.serviceType %></td>
                                     <td>
-                                        <span class="badge shift-status-<%= shift.status %>">
-                                            <%= shift.operationalStatus.replace(/_/g, ' ') %>
+                                        <span class="badge shift-status-<%= shift.statusClass %>">
+                                            <%= shift.statusLabel %>
                                         </span>
                                     </td>
                                     <td>
@@ -164,7 +172,7 @@
                                                 data-start="<%= shift.scheduledStart || '' %>"
                                                 data-end="<%= shift.scheduledEnd || '' %>"
                                                 data-service="<%= shift.serviceType %>"
-                                                data-status="<%= shift.status %>"
+                                                data-status="<%= shift.storedStatus %>"
                                                 data-notes="<%= (shift.careInstructions || shift.notes || '').replace(/"/g, '&quot;') %>">✏️</button>
                                             <button class="icon-btn icon-btn-danger"
                                                 type="button"
@@ -304,8 +312,8 @@
                                 </div>
                                 <div class="shift-times">
                                     <span><%= shift.scheduledStart ? new Date(shift.scheduledStart).toLocaleString() : 'TBC' %></span>
-                                    <span class="badge shift-status-<%= shift.status %>">
-                                        <% if (shift.status === 'clocked_in') { %>Live<% } else if (shift.status === 'clocked_out') { %>Done<% } else { %>Scheduled<% } %>
+                                    <span class="badge shift-status-<%= shift.statusClass %>">
+                                        <%= shift.statusLabel %>
                                     </span>
                                 </div>
                                 <a class="adm-btn-secondary" href="/admin/shifts/<%= shift.id %>">View details</a>

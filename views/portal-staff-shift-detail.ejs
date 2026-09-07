@@ -29,9 +29,18 @@
                             <p><strong>Date:</strong> <%= (shift.scheduledStart || '').slice(0, 10) %></p>
                             <p><strong>Start Time:</strong> <%= (shift.scheduledStart || '').slice(11, 16) %></p>
                             <p><strong>End Time:</strong> <%= (shift.scheduledEnd || '').slice(11, 16) %></p>
-                            <p><strong>Duration:</strong> <%= Math.floor(durationMinutes / 60) %>h <%= durationMinutes % 60 %>m</p>
+                            <p><strong>Scheduled Duration:</strong> <%= Math.floor(durationMinutes / 60) %>h <%= durationMinutes % 60 %>m</p>
+                            <p><strong>Actual Worked Time:</strong>
+                                <% if (actualMinutes !== null) { %>
+                                    <%= Math.floor(actualMinutes / 60) %>h <%= actualMinutes % 60 %>m
+                                <% } else if (shift.actual_clock_in) { %>
+                                    Missing clock-out
+                                <% } else { %>
+                                    No completed attendance
+                                <% } %>
+                            </p>
                             <p><strong>Shift Type:</strong> <%= shift.serviceType %></p>
-                            <p><strong>Current Status:</strong> <span class="adm-badge adm-badge-<%= shift.status === 'completed' ? 'completed' : shift.status === 'clocked_in' ? 'clocked-in' : shift.status === 'cancelled' ? 'cancelled' : 'scheduled' %>"><%= shift.status %></span></p>
+                            <p><strong>Current Status:</strong> <span class="adm-badge adm-badge-<%= shift.status === 'completed' ? 'completed' : ['clocked_in', 'break'].includes(shift.status) ? 'clocked-in' : ['cancelled', 'missed', 'attendance_exception'].includes(shift.status) ? 'cancelled' : 'scheduled' %>"><%= shift.statusLabel %></span></p>
                         </div>
                     </div>
 

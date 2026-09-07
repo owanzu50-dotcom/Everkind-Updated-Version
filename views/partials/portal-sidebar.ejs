@@ -1,5 +1,5 @@
 <%
-    const adminCounts = (typeof adminPortalCounts !== 'undefined' && adminPortalCounts) ? adminPortalCounts : { homeVisits: 0, shiftRequests: 0, openShifts: 0, schedule: 0, facilityPortal: 0, runningLate: 0 };
+    const adminCounts = (typeof adminPortalCounts !== 'undefined' && adminPortalCounts) ? adminPortalCounts : { homeVisits: 0, shiftRequests: 0, openShifts: 0, schedule: 0, facilityPortal: 0, liveTracking: 0 };
     const staffCounts = (typeof staffPortalCounts !== 'undefined' && staffPortalCounts) ? staffPortalCounts : { openShifts: 0, notifications: 0, messages: 0 };
     const activePage = typeof active !== 'undefined' ? active : '';
     const access = (typeof adminAccess !== 'undefined' && adminAccess) ? adminAccess : null;
@@ -125,7 +125,7 @@
             <% } %>
             <div class="sidebar-section-label">Operations</div>
             <% if (portalCan('live_tracking.view')) { %>
-                <%- navLink('/admin/live-tracking', 'Live Tracking', 'live', { active: 'live-tracking', count: adminLinkCount(adminCounts.runningLate) }) %>
+                <%- navLink('/admin/live-tracking', 'Live Tracking', 'live', { active: 'live-tracking', count: adminLinkCount(adminCounts.liveTracking) }) %>
             <% } %>
             <% if (portalCan('attendance.view')) { %>
                 <%- navLink('/admin/attendance', 'Attendance', 'attendance', { active: 'attendance' }) %>
