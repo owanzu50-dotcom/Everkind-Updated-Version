@@ -7508,15 +7508,25 @@ body.portal-drawer-lock {
         inset: 0 auto 0 0;
         width: min(88vw, 332px);
         max-width: 332px;
-        height: 100vh;
-        max-height: 100vh;
+        height: 100dvh;
+        max-height: 100dvh;
+        box-sizing: border-box;
         transform: translateX(-102%);
         transition: transform 0.24s ease;
         z-index: 65;
         border-right: 1px solid rgba(255, 255, 255, 0.08);
         box-shadow: 24px 0 48px rgba(15, 23, 42, 0.22);
         padding-top: 20px;
-        padding-bottom: 20px;
+        padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    }
+
+    .sidebar-admin-control {
+        position: relative;
+        z-index: 10060;
+        flex: 0 0 auto;
+        margin-top: auto;
+        padding: 10px 3px 0;
+        padding-bottom: max(0px, env(safe-area-inset-bottom));
     }
 
     .portal-shell-page.portal-drawer-open .sidebar {
@@ -8557,6 +8567,53 @@ body.portal-drawer-lock {
     .sidebar-admin-panel {
         right: 0;
         left: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .sidebar-admin-trigger {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 6px;
+        min-height: 44px;
+        padding: 5px 6px 5px 5px;
+    }
+
+    .sidebar-admin-trigger-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 9px;
+    }
+
+    .sidebar-admin-trigger-label {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        min-width: 0;
+        overflow: visible;
+    }
+
+    .sidebar-admin-trigger-label strong {
+        display: block;
+        width: 100%;
+        overflow: visible;
+        font-size: clamp(0.58rem, 2.6vw, 0.74rem);
+        line-height: 1.15;
+        letter-spacing: 0.01em;
+        white-space: normal;
+        text-overflow: clip;
+        text-align: left;
+        word-break: keep-all;
+    }
+
+    .sidebar-admin-trigger-label small {
+        display: none;
+    }
+
+    .sidebar-admin-trigger-chevron {
+        flex-shrink: 0;
+        font-size: 0.76rem;
     }
 }
 

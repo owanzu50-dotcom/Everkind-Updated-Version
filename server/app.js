@@ -4604,13 +4604,22 @@ const initializeDatabase = async () => {
         }
     }
 
-    const adminCount = await getDb("SELECT COUNT(*) AS count FROM admin_users WHERE username = ?", [adminEmail]);
-    if (!adminCount || Number(adminCount.count) === 0) {
+    const adminRecord = await getDb("SELECT * FROM admin_users WHERE lower(username) = ? ORDER BY id LIMIT 1", [String(adminEmail || "").trim().toLowerCase()]);
+    if (!adminRecord) {
         const adminHash = await bcrypt.hash(adminPassword, 10);
         await runDb(
             "INSERT INTO admin_users (username, password_hash, role, name, department, is_active) VALUES (?, ?, 'super_admin', 'Administrator', 'Administration', 1)",
             [adminEmail, adminHash]
         );
+    } else {
+        const passwordMatches = Boolean(adminRecord.password_hash) && (await bcrypt.compare(adminPassword, adminRecord.password_hash));
+        if (!adminRecord.password_hash || !passwordMatches) {
+            const adminHash = await bcrypt.hash(adminPassword, 10);
+            await runDb(
+               "UPDATE admin_users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+               [adminHash, adminRecord.id]
+            );
+        }
     }
     await runDb(
         `UPDATE admin_users
@@ -9634,6 +9643,8 @@ app.get("/admin/dashboard", requirePortal, requireAdmin, async (req, res) => {
         return res.status(500).render("error", {
             title: "Dashboard unavailable",
             message: "The dashboard module could not be loaded.",
+            isAdmin: true,
+            returnPath: "/admin/dashboard",
         });
     }
 });
@@ -9657,6 +9668,8 @@ app.get("/admin/hr-dashboard", requirePortal, requireAdmin, async (req, res) => 
         return res.status(500).render("error", {
             title: "HR dashboard unavailable",
             message: "The HR dashboard could not be loaded.",
+            isAdmin: true,
+            returnPath: "/admin/dashboard",
         });
     }
 });
@@ -10553,8 +10566,13 @@ app.get("/admin/settings", requirePortal, requireAdmin, async (req, res) => {
         });
     } catch (error) {
         console.error("Error loading settings module:", error.message);
-        return res.status(500).render("error", { title: "Settings unavailable", message: "The settings module could not be loaded." });
-    }
+    return res.status(500).render("error", {
+        title: "Settings unavailable",
+        message: "The settings module could not be loaded.",
+        isAdmin: true,
+        returnPath: "/admin/dashboard",
+    });
+}
 });
 
 app.post("/admin/settings/payroll", requirePortal, requireAdmin, async (req, res) => {
@@ -11103,7 +11121,7 @@ app.post("/admin/view-as/exit", requirePortal, requireAdmin, async (req, res) =>
         targetIdentifier: previousRole,
         outcome: "success",
     });
-    return res.redirect("/admin/settings?message=" + encodeURIComponent("Role preview ended."));
+    return res.redirect("/admin/dashboard?message=" + encodeURIComponent("Role preview ended."));
 });
 
 app.get("/admin/preview/staff", requirePortal, async (req, res) => {

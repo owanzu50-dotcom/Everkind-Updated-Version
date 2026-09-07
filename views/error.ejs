@@ -19,11 +19,12 @@
         </nav>
     </header>
 
+    <% const returnTarget = (typeof returnPath !== 'undefined' && returnPath) ? returnPath : ((typeof isAdmin !== 'undefined' && isAdmin) ? '/admin/dashboard' : '/'); %>
     <main class="page-shell">
         <section class="detail-card error-card">
             <h2><%= title %></h2>
             <p><%= message %></p>
-            <a href="/" class="secondary-link">Return home</a>
+            <a href="<%= returnTarget %>" class="secondary-link">Return home</a>
         </section>
     </main>
 
