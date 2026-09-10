@@ -24,11 +24,11 @@
     "otplib": "^13.4.1",
     "pdfkit": "^0.19.1",
     "pg": "^8.23.0",
-    "qrcode": "^1.5.4",
-    "sqlite3": "^5.1.7"
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "prettier": "^3.8.4",
+    "sqlite3": "^5.1.7",
     "typescript": "~5.9.3"
   }
 }

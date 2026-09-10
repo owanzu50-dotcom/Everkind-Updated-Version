@@ -13,9 +13,7 @@ const {
     allDb,
     backupDatabase,
     databaseLabel,
-    dbPath,
     getDb,
-    isPostgres,
     runDb,
     validateDatabase,
     withTransaction,
@@ -2517,8 +2515,8 @@ const staffMeetsRequestRequirements = async ({ staffMember, shift, request }) =>
         [
             Number(staffMember.id),
             Number(shift.id),
-            toSqliteTimestamp(shift.scheduled_end || shift.scheduledEnd || ""),
-            toSqliteTimestamp(shift.scheduled_start || shift.scheduledStart || ""),
+            toDatabaseTimestamp(shift.scheduled_end || shift.scheduledEnd || ""),
+            toDatabaseTimestamp(shift.scheduled_start || shift.scheduledStart || ""),
         ]
     );
     if (conflictingShift) {
@@ -2775,7 +2773,7 @@ const createTemporaryPassword = (length = 12) => {
     return result;
 };
 
-const toSqliteTimestamp = (value) => String(value || "").replace("T", " ").slice(0, 19);
+const toDatabaseTimestamp = (value) => String(value || "").replace("T", " ").slice(0, 19);
 
 const parseIntegerOrNull = (value) => {
     if (value === null || value === undefined || String(value).trim() === "") {
@@ -3648,11 +3646,12 @@ app.get("/portal/events", requirePortal, (req, res) => {
 });
 
 const initializeDatabase = async () => {
-    if (isPostgres) {
-        await validateDatabase();
-        await ensureAdminAndRbacData();
-        return;
-    }
+    await validateDatabase();
+    await ensureAdminAndRbacData();
+};
+
+const blockedLegacySqliteInitializer = async () => {
+    throw new Error("Legacy SQLite initialization is disabled. Everkind requires Supabase PostgreSQL.");
 
     await runDb(`
         CREATE TABLE IF NOT EXISTS app_status (
@@ -10992,22 +10991,20 @@ app.post("/admin/settings/general/:section", requirePortal, requireAdmin, async 
 });
 
 app.post("/admin/settings/system/backup", requirePortal, requireAdmin, async (req, res) => {
-    const backupsDirectory = path.join(path.dirname(dbPath), "backups");
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const backupPath = path.join(backupsDirectory, `everkind-${timestamp}.db`);
+    const backupName = `everkind-${timestamp}.db`;
 
     try {
-        await fs.promises.mkdir(backupsDirectory, { recursive: true });
-        await backupDatabase(backupPath);
+        await backupDatabase();
         await writeAuditEvent(req, {
             action: "database_backup_created",
             targetType: "database",
-            targetIdentifier: path.basename(backupPath),
+            targetIdentifier: backupName,
             outcome: "success",
         });
         return res.redirect(
             "/admin/settings?tab=system&message="
-            + encodeURIComponent(`Database backup created: ${path.basename(backupPath)}`)
+            + encodeURIComponent(`Database backup created: ${backupName}`)
         );
     } catch (error) {
         await writeAuditEvent(req, {
