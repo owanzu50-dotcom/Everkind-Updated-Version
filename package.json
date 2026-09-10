@@ -5,6 +5,9 @@
   "scripts": {
     "start": "node server/app.js",
     "dev": "node server/app.js",
+    "db:pg:generate": "node scripts/migrate-sqlite-to-postgres.cjs generate-schema",
+    "db:pg:migrate": "node scripts/migrate-sqlite-to-postgres.cjs migrate",
+    "db:pg:verify": "node scripts/migrate-sqlite-to-postgres.cjs verify",
     "build": "npm run typecheck:libs",
     "typecheck:libs": "tsc --build",
     "typecheck": "npm run typecheck:libs"
@@ -20,6 +23,7 @@
     "nodemailer": "^9.0.4",
     "otplib": "^13.4.1",
     "pdfkit": "^0.19.1",
+    "pg": "^8.23.0",
     "qrcode": "^1.5.4",
     "sqlite3": "^5.1.7"
   },

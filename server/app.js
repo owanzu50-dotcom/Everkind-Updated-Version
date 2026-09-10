@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const session = require("express-session");
 const crypto = require("crypto");
@@ -5,10 +6,20 @@ const path = require("path");
 const https = require("https");
 const fs = require("fs");
 const bcrypt = require("bcrypt");
-const sqlite3 = require("sqlite3").verbose();
 const PDFDocument = require("pdfkit");
 const nodemailer = require("nodemailer");
 const QRCode = require("qrcode");
+const {
+    allDb,
+    backupDatabase,
+    databaseLabel,
+    dbPath,
+    getDb,
+    isPostgres,
+    runDb,
+    validateDatabase,
+    withTransaction,
+} = require("./database");
 const { createMfaSecurity, maskEmail, maskPhone } = require("./mfa");
 const {
     ACTIONS: RBAC_ACTIONS,
@@ -19,15 +30,9 @@ const {
     getRequiredPermission,
     hasPermission,
 } = require("./rbac");
-require("dotenv").config();
 
 const app = express();
 const preferredPort = Number(process.env.PORT) || 3000;
-const dbPath = path.join(__dirname, "..", "database", "everkind.db");
-const dbDir = path.dirname(dbPath);
-if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
-}
 const sessionSecret = process.env.SESSION_SECRET || "everkind-care-system-secret";
 const adminEmail = process.env.ADMIN_EMAIL || "admin@everkind.com";
 const adminPassword = process.env.ADMIN_PASSWORD || "everkind2026";
@@ -67,15 +72,6 @@ const loginAttemptWindowMs = 15 * 60 * 1000;
 const maxLoginAttemptsPerWindow = 5;
 const loginAttempts = new Map();
 const defaultPatientRetentionDays = 2190;
-
-const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-        console.error("Database connection error:", err.message);
-        return;
-    }
-
-    console.log("Connected to SQLite database at", dbPath);
-});
 
 const parseRetentionDays = (rawValue) => {
     const parsed = Number(rawValue);
@@ -874,39 +870,6 @@ const buildPatientExportPackage = async (patientId) => {
     };
 };
 
-const runDb = (sql, params = []) => new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-        if (err) {
-            reject(err);
-            return;
-        }
-
-        resolve(this);
-    });
-});
-
-const getDb = (sql, params = []) => new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-        if (err) {
-            reject(err);
-            return;
-        }
-
-        resolve(row);
-    });
-});
-
-const allDb = (sql, params = []) => new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-        if (err) {
-            reject(err);
-            return;
-        }
-
-        resolve(rows);
-    });
-});
-
 const ensureColumn = async (tableName, columnName, columnDefinition) => {
     const columns = await allDb(`PRAGMA table_info(${tableName})`);
     const exists = columns.some((column) => column.name === columnName);
@@ -1183,6 +1146,42 @@ const seedRbacData = async () => {
             );
         }
     }
+};
+
+const ensureAdminAndRbacData = async () => {
+    const normalizedAdminEmail = String(adminEmail || "").trim().toLowerCase();
+    const adminRecord = await getDb(
+        "SELECT * FROM admin_users WHERE lower(username) = ? ORDER BY id LIMIT 1",
+        [normalizedAdminEmail]
+    );
+    if (!adminRecord) {
+        const adminHash = await bcrypt.hash(adminPassword, 10);
+        await runDb(
+            "INSERT INTO admin_users (username, password_hash, role, name, department, is_active) VALUES (?, ?, 'super_admin', 'Administrator', 'Administration', 1)",
+            [adminEmail, adminHash]
+        );
+    } else {
+        const passwordMatches = Boolean(adminRecord.password_hash)
+            && (await bcrypt.compare(adminPassword, adminRecord.password_hash));
+        if (!adminRecord.password_hash || !passwordMatches) {
+            const adminHash = await bcrypt.hash(adminPassword, 10);
+            await runDb(
+                "UPDATE admin_users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                [adminHash, adminRecord.id]
+            );
+        }
+    }
+
+    await runDb(
+        `UPDATE admin_users
+         SET role = CASE WHEN role IS NULL OR trim(role) = '' OR lower(role) = 'admin' THEN 'super_admin' ELSE lower(role) END,
+             name = COALESCE(NULLIF(name, ''), CASE WHEN lower(username) = lower(?) THEN 'Administrator' ELSE username END),
+             department = COALESCE(NULLIF(department, ''), 'Administration'),
+             is_active = COALESCE(is_active, 1),
+             auth_version = COALESCE(auth_version, 1)`,
+        [adminEmail]
+    );
+    await seedRbacData();
 };
 
 const loadAdminAccessContext = async (adminUser, previewRole = null) => {
@@ -3649,6 +3648,12 @@ app.get("/portal/events", requirePortal, (req, res) => {
 });
 
 const initializeDatabase = async () => {
+    if (isPostgres) {
+        await validateDatabase();
+        await ensureAdminAndRbacData();
+        return;
+    }
+
     await runDb(`
         CREATE TABLE IF NOT EXISTS app_status (
             id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -4887,33 +4892,7 @@ const initializeDatabase = async () => {
         }
     }
 
-    const adminRecord = await getDb("SELECT * FROM admin_users WHERE lower(username) = ? ORDER BY id LIMIT 1", [String(adminEmail || "").trim().toLowerCase()]);
-    if (!adminRecord) {
-        const adminHash = await bcrypt.hash(adminPassword, 10);
-        await runDb(
-            "INSERT INTO admin_users (username, password_hash, role, name, department, is_active) VALUES (?, ?, 'super_admin', 'Administrator', 'Administration', 1)",
-            [adminEmail, adminHash]
-        );
-    } else {
-        const passwordMatches = Boolean(adminRecord.password_hash) && (await bcrypt.compare(adminPassword, adminRecord.password_hash));
-        if (!adminRecord.password_hash || !passwordMatches) {
-            const adminHash = await bcrypt.hash(adminPassword, 10);
-            await runDb(
-               "UPDATE admin_users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-               [adminHash, adminRecord.id]
-            );
-        }
-    }
-    await runDb(
-        `UPDATE admin_users
-         SET role = CASE WHEN role IS NULL OR trim(role) = '' OR lower(role) = 'admin' THEN 'super_admin' ELSE lower(role) END,
-             name = COALESCE(NULLIF(name, ''), CASE WHEN lower(username) = lower(?) THEN 'Administrator' ELSE username END),
-             department = COALESCE(NULLIF(department, ''), 'Administration'),
-             is_active = COALESCE(is_active, 1),
-             auth_version = COALESCE(auth_version, 1)`,
-        [adminEmail]
-    );
-    await seedRbacData();
+    await ensureAdminAndRbacData();
 
     const shiftCount = await getDb("SELECT COUNT(*) AS count FROM staff_shifts");
     if (!shiftCount || Number(shiftCount.count) === 0) {
@@ -10270,9 +10249,8 @@ app.post("/api/admin/payroll/:staffId/approve", requirePortal, requireAdmin, asy
         const snapshot = buildPayrollSnapshotFromStaffRow(staffRow, payrollSettings, { paymentDate: pd });
         const shiftIds = snapshot.shiftItems.map((shift) => shift.shiftId).filter((shiftId) => Number.isInteger(shiftId) && shiftId > 0);
 
-        await runDb("BEGIN IMMEDIATE");
-        try {
-            await runDb(`
+        await withTransaction(async ({ runDb: runTransactionDb }) => {
+            await runTransactionDb(`
                 INSERT INTO payroll_records (staff_id, period_start, period_end, total_hours, gross_pay, net_pay, mileage_km, mileage_payment, status, approved_by, approved_at, payment_date, snapshot_json, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?, ?, ?)
                 ON CONFLICT(staff_id, period_start, period_end) DO UPDATE SET
@@ -10282,16 +10260,12 @@ app.post("/api/admin/payroll/:staffId/approve", requirePortal, requireAdmin, asy
                     payment_date = excluded.payment_date, snapshot_json = excluded.snapshot_json, updated_at = excluded.updated_at
             `, [staffId, periodStart, periodEnd, snapshot.totalHours, snapshot.grossPay, snapshot.netPay, snapshot.mileageKm, snapshot.mileagePayment, approvedBy, now, pd, JSON.stringify(snapshot), now]);
             if (shiftIds.length) {
-                await runDb(
+                await runTransactionDb(
                     `UPDATE staff_shifts SET payroll_status = 'approved' WHERE id IN (${shiftIds.map(() => "?").join(", ")})`,
                     shiftIds
                 );
             }
-            await runDb("COMMIT");
-        } catch (transactionError) {
-            await runDb("ROLLBACK");
-            throw transactionError;
-        }
+        });
         await writeAuditEvent(req, { ...getActorContext(req), action: "payroll_approved", targetType: "staff", targetIdentifier: String(staffId), outcome: "success" });
 
         // Auto-generate payslip PDF in background
@@ -10323,24 +10297,19 @@ app.post("/api/admin/payroll/:staffId/mark-paid", requirePortal, requireAdmin, a
         const snapshotShiftItems = parseJsonObjectField(payrollRecord.snapshot_json).shiftItems;
         const shiftIds = Array.isArray(snapshotShiftItems) ? snapshotShiftItems : [];
         const now = new Date().toISOString();
-        await runDb("BEGIN IMMEDIATE");
-        try {
-            await runDb(`
+        await withTransaction(async ({ runDb: runTransactionDb }) => {
+            await runTransactionDb(`
                 UPDATE payroll_records SET status = 'paid', paid_at = ?, updated_at = ?
                 WHERE id = ?
             `, [now, now, payrollRecord.id]);
             const payableShiftIds = shiftIds.map((shift) => Number(shift.shiftId)).filter((shiftId) => Number.isInteger(shiftId) && shiftId > 0);
             if (payableShiftIds.length) {
-                await runDb(
+                await runTransactionDb(
                     `UPDATE staff_shifts SET payroll_status = 'paid' WHERE id IN (${payableShiftIds.map(() => "?").join(", ")})`,
                     payableShiftIds
                 );
             }
-            await runDb("COMMIT");
-        } catch (transactionError) {
-            await runDb("ROLLBACK");
-            throw transactionError;
-        }
+        });
         await writeAuditEvent(req, { ...getActorContext(req), action: "payroll_paid", targetType: "staff", targetIdentifier: String(staffId), outcome: "success" });
         return res.json({ success: true });
     } catch (error) {
@@ -10367,26 +10336,21 @@ app.post("/api/admin/payroll/:staffId/revert", requirePortal, requireAdmin, asyn
         const snapshotShiftItems = parseJsonObjectField(payrollRecord.snapshot_json).shiftItems;
         const shiftItems = Array.isArray(snapshotShiftItems) ? snapshotShiftItems : [];
         const shiftIds = shiftItems.map((shift) => Number(shift.shiftId)).filter((shiftId) => Number.isInteger(shiftId) && shiftId > 0);
-        await runDb("BEGIN IMMEDIATE");
-        try {
-            await runDb(
+        await withTransaction(async ({ runDb: runTransactionDb }) => {
+            await runTransactionDb(
                 `UPDATE payroll_records
                  SET status = 'draft', approved_by = NULL, approved_at = NULL, updated_at = CURRENT_TIMESTAMP
                  WHERE id = ?`,
                 [payrollRecord.id]
             );
-            await runDb("UPDATE payslips SET email_status = 'voided' WHERE payroll_record_id = ?", [payrollRecord.id]);
+            await runTransactionDb("UPDATE payslips SET email_status = 'voided' WHERE payroll_record_id = ?", [payrollRecord.id]);
             if (shiftIds.length) {
-                await runDb(
+                await runTransactionDb(
                     `UPDATE staff_shifts SET payroll_status = 'draft' WHERE id IN (${shiftIds.map(() => "?").join(", ")})`,
                     shiftIds
                 );
             }
-            await runDb("COMMIT");
-        } catch (transactionError) {
-            await runDb("ROLLBACK");
-            throw transactionError;
-        }
+        });
         return res.json({ success: true });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
@@ -11034,16 +10998,7 @@ app.post("/admin/settings/system/backup", requirePortal, requireAdmin, async (re
 
     try {
         await fs.promises.mkdir(backupsDirectory, { recursive: true });
-        await new Promise((resolve, reject) => {
-            const backup = db.backup(backupPath);
-            backup.step(-1, (stepError) => {
-                backup.finish((finishError) => {
-                    const error = stepError || finishError;
-                    if (error) reject(error);
-                    else resolve();
-                });
-            });
-        });
+        await backupDatabase(backupPath);
         await writeAuditEvent(req, {
             action: "database_backup_created",
             targetType: "database",
@@ -11151,9 +11106,11 @@ const assignPrimaryAdminRole = async (adminUserId, roleKey) => {
     if (!role) throw new Error("Select a valid administrator role.");
     await runDb("DELETE FROM user_roles WHERE admin_user_id = ? AND is_primary = 1", [adminUserId]);
     await runDb(
-        `INSERT OR REPLACE INTO user_roles
+        `INSERT INTO user_roles
          (admin_user_id, role_id, scope_type, scope_value, is_primary)
-         VALUES (?, ?, 'global', '', 1)`,
+         VALUES (?, ?, 'global', '', 1)
+         ON CONFLICT(admin_user_id, role_id, scope_type, scope_value)
+         DO UPDATE SET is_primary = excluded.is_primary`,
         [adminUserId, role.id]
     );
     await runDb(
@@ -12889,22 +12846,21 @@ app.delete("/api/shifts/:id", requirePortal, requireAdmin, async (req, res) => {
     }
 });
 
-app.get("/api/health", (req, res) => {
-    db.get("SELECT status FROM app_status WHERE id = 1", (err, row) => {
-        if (err) {
-            return res.status(500).json({
-                status: "error",
-                database: "unavailable",
-                message: err.message,
-            });
-        }
-
+app.get("/api/health", async (req, res) => {
+    try {
+        const row = await getDb("SELECT status FROM app_status WHERE id = 1");
         return res.json({
             status: "ok",
             database: row ? row.status : "healthy",
             message: "JS is connected to the backend",
         });
-    });
+    } catch (error) {
+        return res.status(500).json({
+                status: "error",
+                database: "unavailable",
+                message: error.message,
+        });
+    }
 });
 
 app.get("/api/dashboard", requirePortal, requireAdmin, async (req, res) => {
@@ -15071,7 +15027,7 @@ const startServer = (port = preferredPort) => {
     const server = app.listen(port, "0.0.0.0", () => {
         const actualPort = server.address() ? server.address().port : port;
         console.log(`Everkind Care System ready on http://localhost:${actualPort}`);
-        console.log(`Database status: ${dbPath}`);
+        console.log(`Database status: ${databaseLabel}`);
     });
 
     server.on("error", (error) => {
