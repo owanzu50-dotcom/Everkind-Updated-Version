@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: everkind-care-system
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_PROVIDER
+        value: postgres
+      - key: DATABASE_MODE
+        value: postgres
+      - key: TRUST_PROXY
+        value: "1"
+      - key: PG_POOL_MAX
+        value: "5"
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: MFA_ENCRYPTION_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: STAFF_EMAIL
+        sync: false
+      - key: STAFF_PASSWORD
+        sync: false
