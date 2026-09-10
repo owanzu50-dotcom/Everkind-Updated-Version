@@ -1182,6 +1182,32 @@ const ensureAdminAndRbacData = async () => {
     await seedRbacData();
 };
 
+const ensureDefaultStaffAccess = async () => {
+    const normalizedStaffEmail = String(staffDefaultEmail || "").trim().toLowerCase();
+    const staffRecord = await getDb(
+        `SELECT id, email, password_hash
+         FROM staff
+         WHERE lower(email) = ?
+         ORDER BY id
+         LIMIT 1`,
+        [normalizedStaffEmail]
+    );
+    if (!staffRecord) {
+        console.warn(`Configured default staff account was not found: ${normalizedStaffEmail}`);
+        return;
+    }
+
+    const passwordMatches = Boolean(staffRecord.password_hash)
+        && (await bcrypt.compare(staffDefaultPassword, staffRecord.password_hash));
+    if (!passwordMatches) {
+        const staffHash = await bcrypt.hash(staffDefaultPassword, 10);
+        await runDb(
+            "UPDATE staff SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            [staffHash, staffRecord.id]
+        );
+    }
+};
+
 const loadAdminAccessContext = async (adminUser, previewRole = null) => {
     const roleRows = await allDb(
         `SELECT roles.id, roles.role_key, roles.label, user_roles.scope_type, user_roles.scope_value, user_roles.is_primary
@@ -3648,6 +3674,7 @@ app.get("/portal/events", requirePortal, (req, res) => {
 const initializeDatabase = async () => {
     await validateDatabase();
     await ensureAdminAndRbacData();
+    await ensureDefaultStaffAccess();
 };
 
 const blockedLegacySqliteInitializer = async () => {
